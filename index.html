@@ -1,18 +1,462 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>La cave à vins</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background:#f5f5f7; color:#1d1d1f; text-align:center; padding:60px 20px; }
-  h1 { color:#0071e3; }
-  p { color:#86868b; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion de Cave à Vin</title>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --primary: #722f37; /* Couleur lie-de-vin */
+      --primary-hover: #58232a;
+      --text: #333333;
+      --border: #e0e0e0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary);
+    }
+
+    h1 {
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+    }
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+
+    .btn-danger {
+      background-color: #dc3545;
+    }
+    .btn-danger:hover {
+      background-color: #bd2130;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    input, select, textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .search-bar {
+      flex-grow: 1;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-img {
+      height: 180px;
+      background-color: #eee;
+      object-fit: cover;
+      width: 100%;
+    }
+
+    .card-body {
+      padding: 15px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+      margin-bottom: 5px;
+    }
+
+    .badge-rouge { background-color: #8b0000; }
+    .badge-blanc { background-color: #f0e68c; color: #333; }
+    .badge-rose { background-color: #ffb6c1; color: #333; }
+    .badge-effervescent { background-color: #20b2aa; }
+
+    .card-title {
+      font-size: 18px;
+      margin: 5px 0;
+    }
+
+    .card-meta {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+  </style>
 </head>
 <body>
-<h1>La cave à vins</h1>
-<p>Nouvelle application créée avec Le Déployeur.</p>
-<p>Déploie ton code depuis l'étape 3 pour remplacer cette page.</p>
+
+  <div class="container">
+    <header>
+      <h1>🍷 Ma Cave à Vin</h1>
+      <div>
+        <button class="btn" onclick="openModal()">+ Ajouter une bouteille</button>
+        <button class="btn btn-secondary" onclick="exportData()">Exporter</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Importer</button>
+        <input type="file" id="importFile" style="display:none" onchange="importData(event)">
+      </div>
+    </header>
+
+    <div class="controls">
+      <input type="text" id="searchInput" class="search-bar" placeholder="Rechercher par nom, appellation, domaine..." oninput="render()">
+      <select id="filterColor" onchange="render()">
+        <option value="">Toutes les couleurs</option>
+        <option value="Rouge">Rouge</option>
+        <option value="Blanc">Blanc</option>
+        <option value="Rosé">Rosé</option>
+        <option value="Effervescent">Effervescent</option>
+      </select>
+      <select id="sortBy" onchange="render()">
+        <option value="nom">Trier par Nom</option>
+        <option value="millesime">Trier par Millésime</option>
+        <option value="quantite">Trier par Quantité</option>
+      </select>
+    </div>
+
+    <div class="grid" id="wineGrid"></div>
+  </div>
+
+  <!-- Modal Formulaire -->
+  <div class="modal" id="wineModal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Ajouter une bouteille</h2>
+      <form id="wineForm" onsubmit="saveWine(event)">
+        <input type="hidden" id="wineId">
+        
+        <div class="form-group">
+          <label>Nom du vin / Domaine *</label>
+          <input type="text" id="nom" required>
+        </div>
+
+        <div class="form-group">
+          <label>Appellation / Région</label>
+          <input type="text" id="appellation">
+        </div>
+
+        <div class="form-group">
+          <label>Couleur</label>
+          <select id="couleur">
+            <option value="Rouge">Rouge</option>
+            <option value="Blanc">Blanc</option>
+            <option value="Rosé">Rosé</option>
+            <option value="Effervescent">Effervescent</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Millésime</label>
+          <input type="number" id="millesime" placeholder="ex: 2018">
+        </div>
+
+        <div class="form-group">
+          <label>Quantité *</label>
+          <input type="number" id="quantite" value="1" min="0" required>
+        </div>
+
+        <div class="form-group">
+          <label>Emplacement dans la cave</label>
+          <input type="text" id="emplacement" placeholder="ex: Étagère B, Rang 2">
+        </div>
+
+        <div class="form-group">
+          <label>Apogée (Année idéale de dégustation)</label>
+          <input type="text" id="apogee" placeholder="ex: 2025 - 2030">
+        </div>
+
+        <div class="form-group">
+          <label>Note (0 à 5)</label>
+          <input type="number" id="note" min="0" max="5" step="0.5">
+        </div>
+
+        <div class="form-group">
+          <label>Commentaires / Notes de dégustation</label>
+          <textarea id="commentaires" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Photo de l'étiquette</label>
+          <input type="file" id="imageInput" accept="image/*">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+          <button type="submit" class="btn">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let wines = JSON.parse(localStorage.getItem('my_wine_cellar')) || [];
+
+    function saveToStorage() {
+      localStorage.setItem('my_wine_cellar', JSON.stringify(wines));
+    }
+
+    function render() {
+      const grid = document.getElementById('wineGrid');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const color = document.getElementById('filterColor').value;
+      const sortBy = document.getElementById('sortBy').value;
+
+      let filtered = wines.filter(w => {
+        const matchesSearch = w.nom.toLowerCase().includes(search) || 
+                              (w.appellation && w.appellation.toLowerCase().includes(search));
+        const matchesColor = !color || w.couleur === color;
+        return matchesSearch && matchesColor;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'millesime') return (b.millesime || 0) - (a.millesime || 0);
+        if (sortBy === 'quantite') return b.quantite - a.quantite;
+        return a.nom.localeCompare(b.nom);
+      });
+
+      grid.innerHTML = filtered.map(w => `
+        <div class="card">
+          <img src="${w.image || 'https://via.placeholder.com/300x180?text=Pas+d%27%C3%A9tiquette'}" class="card-img" alt="Étiquette">
+          <div class="card-body">
+            <div>
+              <span class="badge badge-${w.couleur.toLowerCase()}">${w.couleur}</span>
+              <h3 class="card-title">${w.nom}${w.millesime ? `(${w.millesime})` : ''}</h3>
+              <div class="card-meta">${w.appellation || 'Appellation non spécifiée'}</div>
+            </div>
+            
+            <p style="font-size: 13px; margin: 5px 0;">
+              📍 <b>Emplacement:</b> ${w.emplacement || 'Non défini'}<br>
+              ⏳ <b>Apogée:</b> ${w.apogee || 'Inconnue'}<br>
+              ⭐ <b>Note:</b> ${w.note ? w.note + '/5' : '-'}<br>
+              📝 <i>${w.commentaires || ''}</i>
+            </p>
+
+            <div class="quantity-control">
+              <button class="btn btn-secondary" onclick="updateQty('${w.id}', -1)">-</button>
+              <span><b>${w.quantite}</b> bout.</span>
+              <button class="btn btn-secondary" onclick="updateQty('${w.id}', 1)">+</button>
+              <button class="btn btn-secondary" style="margin-left:auto" onclick="editWine('${w.id}')">✏️</button>
+              <button class="btn btn-danger" onclick="deleteWine('${w.id}')">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openModal() {
+      document.getElementById('wineForm').reset();
+      document.getElementById('wineId').value = '';
+      document.getElementById('modalTitle').innerText = 'Ajouter une bouteille';
+      document.getElementById('wineModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('wineModal').style.display = 'none';
+    }
+
+    function saveWine(e) {
+      e.preventDefault();
+      const id = document.getElementById('wineId').value || Date.now().toString();
+      const fileInput = document.getElementById('imageInput');
+
+      const existingWine = wines.find(w => w.id === id);
+      
+      const wineData = {
+        id,
+        nom: document.getElementById('nom').value,
+        appellation: document.getElementById('appellation').value,
+        couleur: document.getElementById('couleur').value,
+        millesime: document.getElementById('millesime').value,
+        quantite: parseInt(document.getElementById('quantite').value),
+        emplacement: document.getElementById('emplacement').value,
+        apogee: document.getElementById('apogee').value,
+        note: document.getElementById('note').value,
+        commentaires: document.getElementById('commentaires').value,
+        image: existingWine ? existingWine.image : ''
+      };
+
+      const processAndSave = (imageData) => {
+        if (imageData) wineData.image = imageData;
+        const index = wines.findIndex(w => w.id === id);
+        if (index > -1) {
+          wines[index] = wineData;
+        } else {
+          wines.push(wineData);
+        }
+        saveToStorage();
+        render();
+        closeModal();
+      };
+
+      if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => processAndSave(e.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        processAndSave();
+      }
+    }
+
+    function updateQty(id, delta) {
+      const wine = wines.find(w => w.id === id);
+      if (wine) {
+        wine.quantite = Math.max(0, wine.quantite + delta);
+        saveToStorage();
+        render();
+      }
+    }
+
+    function editWine(id) {
+      const w = wines.find(w => w.id === id);
+      if (!w) return;
+
+      document.getElementById('wineId').value = w.id;
+      document.getElementById('nom').value = w.nom;
+      document.getElementById('appellation').value = w.appellation || '';
+      document.getElementById('couleur').value = w.couleur;
+      document.getElementById('millesime').value = w.millesime || '';
+      document.getElementById('quantite').value = w.quantite;
+      document.getElementById('emplacement').value = w.emplacement || '';
+      document.getElementById('apogee').value = w.apogee || '';
+      document.getElementById('note').value = w.note || '';
+      document.getElementById('commentaires').value = w.commentaires || '';
+
+      document.getElementById('modalTitle').innerText = 'Modifier la bouteille';
+      document.getElementById('wineModal').style.display = 'flex';
+    }
+
+    function deleteWine(id) {
+      if (confirm('Supprimer cette fiche ?')) {
+        wines = wines.filter(w => w.id !== id);
+        saveToStorage();
+        render();
+      }
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(wines, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `cave_a_vin_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          wines = JSON.parse(event.target.result);
+          saveToStorage();
+          render();
+          alert('Données importées avec succès !');
+        } catch (err) {
+          alert('Fichier invalide.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    render();
+  </script>
 </body>
 </html>

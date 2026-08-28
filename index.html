@@ -140,7 +140,7 @@
   }
   .btn:active{transform:scale(.97);}
   .btn-gold{background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#1c1710;border:none;font-weight:600;}
-  .btn-danger{background:transparent;border:1px solid var(--danger);color:#E28469;}
+  .btn-danger{background:rgba(180,71,47,.9);border:1px solid var(--danger);color:#fff;font-weight:600;}
   .btn-ghost{background:transparent;}
   .btn-sm{padding:5px 9px;font-size:12px;border-radius:6px;}
   .chip-toggle{
@@ -316,7 +316,7 @@
     display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
     padding-top:8px;border-top:1px solid var(--line-soft);
   }
-  .modal-actions .left-actions{margin-right:auto;display:flex;gap:8px;}
+  .modal-actions .left-actions{width:100%;display:flex;flex-wrap:wrap;gap:8px;margin-right:0;margin-bottom:2px;}
 
   /* history modal */
   .history-entry{padding:12px 0;border-bottom:1px solid var(--line-soft);}
@@ -543,8 +543,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 const HISTORY = [
+  { version:"1.4.1", date:"2026-08-28", notes:"Correction d'affichage dans la fiche détaillée : le bouton « Supprimer » était poussé hors de l'écran par les nouveaux boutons 🍷 / ↩, sur les petits écrans, faute de retour à la ligne. Les boutons de gauche (Supprimer, Marquer comme bue, Annuler la dernière bue) passent maintenant correctement à la ligne et restent tous visibles. Le bouton Supprimer est aussi rendu plus visiblement rouge." },
   { version:"1.4.0", date:"2026-08-28", notes:"Refonte du suivi « bue » : chaque fiche a maintenant un compteur de bouteilles en cave et un compteur de bouteilles bues, distincts. Le bouton 🍷 (liste et fiche) marque une bouteille comme bue — la quantité en cave diminue d'une unité et le compteur de bues augmente d'autant ; un bouton ↩ symétrique permet d'annuler une bue déclarée par erreur, sans perte d'information. Une même fiche peut donc apparaître à la fois dans « En cave » et dans « Historique (bues) » si elle est partiellement consommée." },
   { version:"1.3.1", date:"2026-08-28", notes:"L'icône de la liste principale représente désormais un appareil photo. Quand la photo d'une bouteille est affichée, l'icône devient un appareil photo barré (cercle rouge en diagonale, comme un pictogramme d'interdiction) et permet de la masquer à nouveau d'un tap." },
   { version:"1.3.0", date:"2026-08-28", notes:"Dans la liste principale, plus de grande zone vierge réservée quand la photo d'une bouteille n'est pas affichée : à la place, une petite icône 👁 apparaît à gauche du bouton « Détails » et fait apparaître la photo en grand au clic, exactement comme avant. Le statut d'apogée (à boire / à garder / apogée dépassée), auparavant affiché sur la photo, apparaît désormais comme une étiquette colorée à côté des autres informations de la bouteille." },

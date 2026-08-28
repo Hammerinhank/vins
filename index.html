@@ -28,6 +28,7 @@
     --autre:#8A8378;
     --danger:#B4472F;
     --ok:#6E8F5C;
+    --orange:#D9822B;
     --radius:10px;
     --radius-lg:16px;
     --shadow:0 10px 30px rgba(0,0,0,.5);
@@ -78,6 +79,19 @@
     white-space:nowrap;
   }
   .version-badge:active{transform:scale(.96);}
+  .version-badge.dirty{
+    background:rgba(217,130,43,.22);
+    border-color:var(--orange);
+    color:#F0C48A;
+    font-weight:600;
+  }
+  .version-badge.error{
+    background:rgba(180,71,47,.28);
+    border-color:var(--danger);
+    color:#F5B8A5;
+    font-weight:600;
+  }
+  .version-badge:disabled{opacity:.7;}
 
   /* ---------- Stats bar ---------- */
   .stats-bar{
@@ -543,8 +557,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.4.2";
+const VERSION = "1.5.0";
 const HISTORY = [
+  { version:"1.5.0", date:"2026-08-28", notes:"Le badge de version devient un indicateur de synchronisation : dès qu'une information n'a pas encore été envoyée sur GitHub (ajout, modification, bue, suppression…), il passe en orange et affiche « À sauvegarder » à la place du numéro de version. Un appui dessus lance directement l'envoi vers GitHub (identique au bouton « Envoyer vers GitHub » de la section Synchronisation, inchangée). En cas d'échec (pas de réseau, dépôt mal configuré…), le badge passe en rouge et invite à réessayer. Une fois l'envoi réussi, le badge réaffiche le numéro de version." },
   { version:"1.4.2", date:"2026-08-28", notes:"La suppression d'une bouteille retire maintenant aussi son fichier photo dans le dépôt GitHub (images/<id>.jpg), si une synchronisation est configurée — auparavant seule la fiche était supprimée localement et sur cave.json, la photo restait orpheline dans le dépôt." },
   { version:"1.4.1", date:"2026-08-28", notes:"Correction d'affichage dans la fiche détaillée : le bouton « Supprimer » était poussé hors de l'écran par les nouveaux boutons 🍷 / ↩, sur les petits écrans, faute de retour à la ligne. Les boutons de gauche (Supprimer, Marquer comme bue, Annuler la dernière bue) passent maintenant correctement à la ligne et restent tous visibles. Le bouton Supprimer est aussi rendu plus visiblement rouge." },
   { version:"1.4.0", date:"2026-08-28", notes:"Refonte du suivi « bue » : chaque fiche a maintenant un compteur de bouteilles en cave et un compteur de bouteilles bues, distincts. Le bouton 🍷 (liste et fiche) marque une bouteille comme bue — la quantité en cave diminue d'une unité et le compteur de bues augmente d'autant ; un bouton ↩ symétrique permet d'annuler une bue déclarée par erreur, sans perte d'information. Une même fiche peut donc apparaître à la fois dans « En cave » et dans « Historique (bues) » si elle est partiellement consommée." },
@@ -561,6 +576,7 @@ const LS_BOTTLES = "cave_bottles_v1";
 const LS_CONFIG = "cave_github_config_v1";
 const LS_REGLAGES = "cave_reglages_v1";
 const CHEMIN_REGLAGES = "cave-reglages.json";
+const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
 
 let bottles = [];
 let filtreStatut = "cave";
@@ -577,6 +593,47 @@ let photoSupprimee = false;
 let noteChoisie = 0;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
+
+/* ---- Badge de version / statut de synchronisation GitHub ---- */
+let syncDirty = (function(){ try{ return localStorage.getItem(LS_SYNC_DIRTY) === "1"; }catch(e){ return false; } })();
+let syncEnErreur = false;
+let syncEnCours = false;
+
+function majBadgeVersion(){
+  const btn = document.getElementById("versionBadge");
+  btn.classList.remove("dirty","error");
+  if(syncEnCours){
+    btn.textContent = "Sauvegarde…";
+    btn.disabled = true;
+  }else if(syncEnErreur){
+    btn.textContent = "⚠ Échec — appuyer pour réessayer";
+    btn.classList.add("error");
+    btn.disabled = false;
+  }else if(syncDirty){
+    btn.textContent = "● À sauvegarder";
+    btn.classList.add("dirty");
+    btn.disabled = false;
+  }else{
+    btn.textContent = "v" + VERSION;
+    btn.disabled = false;
+  }
+}
+function marquerNonSynchronise(){
+  syncDirty = true;
+  syncEnErreur = false;
+  try{ localStorage.setItem(LS_SYNC_DIRTY, "1"); }catch(e){}
+  majBadgeVersion();
+}
+function marquerSynchronise(){
+  syncDirty = false;
+  syncEnErreur = false;
+  try{ localStorage.removeItem(LS_SYNC_DIRTY); }catch(e){}
+  majBadgeVersion();
+}
+function marquerErreurSynchro(){
+  syncEnErreur = true;
+  majBadgeVersion();
+}
 
 const ICONE_CAMERA = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`;
 const ICONE_CAMERA_MASQUEE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle><circle cx="12" cy="12" r="10" stroke="#E0503A" stroke-width="2.2"></circle><line x1="5" y1="19" x2="19" y2="5" stroke="#E0503A" stroke-width="2.2"></line></svg>`;
@@ -672,6 +729,7 @@ function sauvegarderBouteilles(){
   }catch(e){
     toast("Stockage local plein — synchronise avec GitHub pour libérer de la place");
   }
+  marquerNonSynchronise();
 }
 /* Retire les champs volumineux (photo pleine résolution en attente, ancien champ) avant un envoi vers GitHub : le fichier de données reste petit quel que soit le nombre de photos. */
 function bouteillesPourExportGitHub(){
@@ -1313,8 +1371,12 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
 });
 
 /* ===================== VERSION / HISTORIQUE ===================== */
-document.getElementById("versionBadge").textContent = "v" + VERSION;
+majBadgeVersion();
 document.getElementById("versionBadge").addEventListener("click", ()=>{
+  if(syncDirty || syncEnErreur){
+    envoyerVersGitHub();
+    return;
+  }
   document.getElementById("historyBody").innerHTML = HISTORY.map(h=>`
     <div class="history-entry">
       <span class="hv">v${h.version}</span><span class="hd">${h.date}</span>
@@ -1395,12 +1457,18 @@ async function githubAPI(url, cfg, options){
   return res;
 }
 
-document.getElementById("btnPush").addEventListener("click", async function(){
+async function envoyerVersGitHub(){
   const cfg = lireChampsConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token){ toast("Renseigne utilisateur, dépôt et jeton"); return; }
-  const btn = this;
-  btn.disabled = true;
+  const btn = document.getElementById("btnPush");
   const statusEl = document.getElementById("syncStatus");
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    toast("Renseigne utilisateur, dépôt et jeton");
+    marquerErreurSynchro();
+    return;
+  }
+  btn.disabled = true;
+  syncEnCours = true;
+  majBadgeVersion();
   try{
     statusEl.textContent = "Envoi des photos en attente…";
     const resPhotos = await televerserPhotosEnAttente(cfg, (fait, total)=>{
@@ -1439,12 +1507,17 @@ document.getElementById("btnPush").addEventListener("click", async function(){
       + (resPhotos.total ? ` — photos : ${resPhotos.succes} envoyée(s)${resPhotos.echecs ? ", " + resPhotos.echecs + " échouée(s)" : ""}` : "");
     feedbackBouton(btn, "✓ Envoyé");
     toast(resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub");
+    marquerSynchronise();
   }catch(err){
     statusEl.textContent = "Échec de l'envoi : " + err.message;
     toast("Échec de l'envoi vers GitHub");
+    marquerErreurSynchro();
   }
+  syncEnCours = false;
   btn.disabled = false;
-});
+  majBadgeVersion();
+}
+document.getElementById("btnPush").addEventListener("click", envoyerVersGitHub);
 
 document.getElementById("btnPull").addEventListener("click", async function(){
   const cfg = lireChampsConfig();
@@ -1465,6 +1538,7 @@ document.getElementById("btnPull").addEventListener("click", async function(){
     demanderConfirmation("Récupérer depuis GitHub", `Remplacer la cave locale (${bottles.length} bouteille(s)) par la version GitHub (${distantes.length} bouteille(s)) ?`, ()=>{
       bottles = distantes;
       sauvegarderBouteilles();
+      marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub
       rafraichirTout();
       const cfgSauv = lireChampsConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");

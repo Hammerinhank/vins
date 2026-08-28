@@ -219,6 +219,7 @@
     display:flex;align-items:center;justify-content:center;
   }
   .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:14px;text-align:center;}
+  .qty-control button:disabled{opacity:.3;}
   .footer-actions{display:flex;align-items:center;gap:6px;}
   .icon-photo-btn{
     width:30px;height:30px;border-radius:50%;flex:none;
@@ -474,7 +475,7 @@
       </div>
 
       <div class="field-row">
-        <div class="field"><label>Quantité</label><input type="number" id="fQuantite" min="0" value="1"></div>
+        <div class="field"><label>Quantité en cave</label><input type="number" id="fQuantite" min="0" value="1"></div>
         <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01"></div>
       </div>
 
@@ -542,8 +543,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.3.1";
+const VERSION = "1.4.0";
 const HISTORY = [
+  { version:"1.4.0", date:"2026-08-28", notes:"Refonte du suivi « bue » : chaque fiche a maintenant un compteur de bouteilles en cave et un compteur de bouteilles bues, distincts. Le bouton 🍷 (liste et fiche) marque une bouteille comme bue — la quantité en cave diminue d'une unité et le compteur de bues augmente d'autant ; un bouton ↩ symétrique permet d'annuler une bue déclarée par erreur, sans perte d'information. Une même fiche peut donc apparaître à la fois dans « En cave » et dans « Historique (bues) » si elle est partiellement consommée." },
   { version:"1.3.1", date:"2026-08-28", notes:"L'icône de la liste principale représente désormais un appareil photo. Quand la photo d'une bouteille est affichée, l'icône devient un appareil photo barré (cercle rouge en diagonale, comme un pictogramme d'interdiction) et permet de la masquer à nouveau d'un tap." },
   { version:"1.3.0", date:"2026-08-28", notes:"Dans la liste principale, plus de grande zone vierge réservée quand la photo d'une bouteille n'est pas affichée : à la place, une petite icône 👁 apparaît à gauche du bouton « Détails » et fait apparaître la photo en grand au clic, exactement comme avant. Le statut d'apogée (à boire / à garder / apogée dépassée), auparavant affiché sur la photo, apparaît désormais comme une étiquette colorée à côté des autres informations de la bouteille." },
   { version:"1.2.1", date:"2026-08-28", notes:"Zone photo de la fiche revue : plus de grand encadré vide en pointillés quand il n'y a pas de photo, et l'ajout d'une photo se fait désormais via un bouton explicite (« 📷 Ajouter une photo », qui devient « 🔄 Changer la photo » une fois une photo présente) plutôt qu'en touchant une zone vierge." },
@@ -640,6 +642,27 @@ function chargerBouteilles(){
     const raw = localStorage.getItem(LS_BOTTLES);
     bottles = raw ? JSON.parse(raw) : [];
   }catch(e){ bottles = []; }
+  migrerBouteilles();
+}
+/* Migration depuis l'ancien schéma (statut « cave »/« bue » sur toute la fiche) vers un suivi par quantités : quantite (en cave) et quantiteBue (bues), qui peuvent cohabiter sur une même fiche. */
+function migrerBouteilles(){
+  let modifie = false;
+  bottles.forEach(b=>{
+    if(b.quantiteBue === undefined){
+      if(b.statut === "bue"){
+        b.quantiteBue = 1;
+        b.quantite = 0;
+      }else{
+        b.quantiteBue = 0;
+      }
+      modifie = true;
+    }
+    if(b.dateDerniereDegustation === undefined){
+      b.dateDerniereDegustation = b.dateBue || "";
+      modifie = true;
+    }
+  });
+  if(modifie) sauvegarderBouteilles();
 }
 function sauvegarderBouteilles(){
   try{
@@ -766,7 +789,7 @@ function libelleApogee(st){
 
 /* ===================== RENDU : STATS ===================== */
 function renderStats(){
-  const enCave = bottles.filter(b=>b.statut==="cave");
+  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
   const totalBouteilles = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const valeurTotale = enCave.reduce((s,b)=> s + ((Number(b.prixUnitaire)||0) * (Number(b.quantite)||0)), 0);
   const aBoire = enCave.filter(b=>statutApogee(b)==="now").reduce((s,b)=>s+(Number(b.quantite)||0),0);
@@ -799,7 +822,8 @@ function renderStats(){
 /* ===================== FILTRAGE / TRI / GROUPEMENT ===================== */
 function bouteillesFiltrees(){
   let list = bottles.slice();
-  if(filtreStatut !== "toutes") list = list.filter(b=>b.statut===filtreStatut);
+  if(filtreStatut === "cave") list = list.filter(b=>(Number(b.quantite)||0) > 0);
+  else if(filtreStatut === "bue") list = list.filter(b=>(Number(b.quantiteBue)||0) > 0);
   if(filtreCouleur !== "toutes") list = list.filter(b=>b.couleur===filtreCouleur);
   if(filtreApogeeOnly) list = list.filter(b=>statutApogee(b)==="now");
   if(recherche.trim()){
@@ -848,11 +872,17 @@ function carteBouteille(b){
     : "";
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
+  const quantite = Number(b.quantite)||0;
+  const quantiteBue = Number(b.quantiteBue)||0;
   const tags = [];
   if(ap) tags.push({ text: libelleApogee(ap), cls: "apogee-"+ap });
   if(b.region) tags.push({ text: b.region });
   if(b.emplacement) tags.push({ text: b.emplacement });
-  if(b.statut==="bue") tags.push({ text: "Bue le " + (b.dateBue||"?") });
+  if(quantiteBue > 0){
+    const suffixe = quantiteBue > 1 ? "bues" : "bue";
+    const date = b.dateDerniereDegustation ? " · dernière le " + b.dateDerniereDegustation : "";
+    tags.push({ text: quantiteBue + " " + suffixe + date });
+  }
 
   return `
   <div class="bottle-card" data-id="${b.id}">
@@ -870,9 +900,9 @@ function carteBouteille(b){
       </div>
       <div class="bottle-footer">
         <div class="qty-control">
-          <button type="button" data-action="moins" title="Retirer une bouteille">−</button>
-          <span class="qty-val">${b.quantite}</span>
-          <button type="button" data-action="plus" title="Ajouter une bouteille">+</button>
+          <button type="button" data-action="bue" title="Marquer une bouteille comme bue"${quantite<=0?" disabled":""}>🍷</button>
+          <span class="qty-val">${quantite}</span>
+          <button type="button" data-action="annulerBue" title="Annuler la dernière bue"${quantiteBue<=0?' style="display:none;"':""}>↩</button>
         </div>
         <div class="footer-actions">
           ${iconePhoto}
@@ -908,7 +938,8 @@ function renderGrille(){
     card.querySelectorAll('[data-action="ouvrir"]').forEach(el=>{
       el.addEventListener("click", ()=>ouvrirFiche(id));
     });
-    card.querySelector('[data-action="plus"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, 1); });
+    card.querySelector('[data-action="bue"]').addEventListener("click", e=>{ e.stopPropagation(); marquerBue(id); });
+    card.querySelector('[data-action="annulerBue"]').addEventListener("click", e=>{ e.stopPropagation(); annulerBue(id); });
     const btnPhoto = card.querySelector('[data-action="togglePhoto"]');
     if(btnPhoto){
       btnPhoto.addEventListener("click", e=>{
@@ -919,7 +950,6 @@ function renderGrille(){
         renderGrille();
       });
     }
-    card.querySelector('[data-action="moins"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, -1); });
   });
 }
 
@@ -928,26 +958,31 @@ function rafraichirTout(){
   renderGrille();
 }
 
-/* ===================== ACTIONS QUANTITÉ ===================== */
-function changerQuantite(id, delta){
+/* ===================== SUIVI DES BOUTEILLES BUES ===================== */
+/* Marque une bouteille comme bue : décrémente le stock en cave (quantite) et incrémente le compteur de bues (quantiteBue). */
+function marquerBue(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
-  const nouvelle = (Number(b.quantite)||0) + delta;
-  if(nouvelle < 0) return;
-  if(delta < 0 && nouvelle === 0 && b.statut==="cave"){
-    demanderConfirmation("Dernière bouteille", `Il ne restera plus de « ${b.nom||"cette bouteille"} » en cave. La marquer comme bue ?`, ()=>{
-      b.quantite = 0;
-      b.statut = "bue";
-      b.dateBue = todayISO();
-      sauvegarderBouteilles();
-      rafraichirTout();
-      toast("Bouteille marquée comme bue");
-    });
-    return;
-  }
-  b.quantite = nouvelle;
+  const dispo = Number(b.quantite)||0;
+  if(dispo <= 0) return;
+  b.quantite = dispo - 1;
+  b.quantiteBue = (Number(b.quantiteBue)||0) + 1;
+  b.dateDerniereDegustation = todayISO();
   sauvegarderBouteilles();
   rafraichirTout();
+  toast("Bouteille marquée comme bue");
+}
+/* Annule la dernière bue (erreur de manipulation) : remet une bouteille en cave et décrémente le compteur de bues. */
+function annulerBue(id){
+  const b = bottles.find(x=>x.id===id);
+  if(!b) return;
+  const bues = Number(b.quantiteBue)||0;
+  if(bues <= 0) return;
+  b.quantiteBue = bues - 1;
+  b.quantite = (Number(b.quantite)||0) + 1;
+  sauvegarderBouteilles();
+  rafraichirTout();
+  toast("Annulé — bouteille remise en cave");
 }
 
 /* ===================== FICHE (AJOUT / ÉDITION) ===================== */
@@ -1094,20 +1129,27 @@ function ouvrirFiche(id){
   });
   gauche.appendChild(btnSupprimer);
 
-  if(b.statut === "cave"){
+  if((Number(b.quantite)||0) > 0){
     const btnBue = document.createElement("button");
     btnBue.type = "button";
     btnBue.className = "btn btn-ghost btn-sm";
-    btnBue.textContent = "Marquer comme bue";
+    btnBue.textContent = "🍷 Marquer une bouteille comme bue";
     btnBue.addEventListener("click", ()=>{
-      b.statut = "bue";
-      b.dateBue = todayISO();
-      sauvegarderBouteilles();
+      marquerBue(id);
       document.getElementById("overlayFiche").classList.remove("show");
-      rafraichirTout();
-      toast("Marquée comme bue");
     });
     gauche.appendChild(btnBue);
+  }
+  if((Number(b.quantiteBue)||0) > 0){
+    const btnAnnulerBue = document.createElement("button");
+    btnAnnulerBue.type = "button";
+    btnAnnulerBue.className = "btn btn-ghost btn-sm";
+    btnAnnulerBue.textContent = "↩ Annuler la dernière bue";
+    btnAnnulerBue.addEventListener("click", ()=>{
+      annulerBue(id);
+      document.getElementById("overlayFiche").classList.remove("show");
+    });
+    gauche.appendChild(btnAnnulerBue);
   }
 
   document.getElementById("overlayFiche").classList.add("show");
@@ -1151,8 +1193,8 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
     bottles.push(Object.assign({
       id: uuid(),
       dateAjout: todayISO(),
-      statut: "cave",
-      dateBue: ""
+      quantiteBue: 0,
+      dateDerniereDegustation: ""
     }, data));
   }
   sauvegarderBouteilles();

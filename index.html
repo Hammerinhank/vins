@@ -352,6 +352,12 @@
   }
   .numero-fiche-valeur{
     font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--gold-soft);
+    cursor:pointer;border-bottom:1px dashed var(--gold);
+  }
+  .numero-fiche-input{
+    font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--gold-soft);
+    background:var(--bg-panel);border:1px solid var(--gold);border-radius:6px;
+    width:76px;padding:0 6px;
   }
   .numero-fiche-note{font-size:11px;color:var(--text-faint);}
   .fiche-section-basse{margin:0;}
@@ -510,8 +516,9 @@
     <div class="modal-body">
       <div class="fiche-section-haute">
         <div class="numero-fiche-badge" id="numeroFicheBadge">
-          <span class="numero-fiche-valeur" id="numeroFicheValeur"></span>
-          <span class="numero-fiche-note">à noter sur l'étiquette</span>
+          <span class="numero-fiche-valeur" id="numeroFicheValeur" title="Toucher pour modifier"></span>
+          <input type="number" id="numeroFicheInput" class="numero-fiche-input" min="1" style="display:none;">
+          <span class="numero-fiche-note">à noter sur l'étiquette · touche le numéro pour le modifier</span>
         </div>
 
         <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
@@ -639,8 +646,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.7.3";
+const VERSION = "1.7.5";
 const HISTORY = [
+  { version:"1.7.5", date:"2026-08-28", notes:"Correction probable du problème « la sauvegarde a l'air de réussir mais je ne retrouve rien en récupérant depuis GitHub » : les requêtes de lecture GitHub pouvaient être servies depuis le cache du navigateur au lieu d'aller vérifier la version réelle sur GitHub, donnant l'impression qu'un envoi récent n'avait pas été pris en compte alors qu'il l'avait été. Toutes les lectures GitHub (y compris « Récupérer depuis GitHub ») contournent maintenant explicitement ce cache." },
+  { version:"1.7.4", date:"2026-08-28", notes:"Le numéro (« à noter sur l'étiquette ») devient modifiable : toucher le N° dans la fiche ouvre un champ de saisie. Le nouveau numéro n'est refusé que s'il est déjà utilisé par un autre vin (ou invalide) — un message l'indique alors et l'ancien numéro est conservé. Le changement n'est définitif qu'après avoir touché Enregistrer, comme les autres champs." },
   { version:"1.7.3", date:"2026-08-28", notes:"Le bouton « 📷 Ajouter une photo » (ou « 🔄 Changer la photo ») rejoint la ligne des boutons Annuler/Enregistrer, cadré à gauche, pour rester accessible sans déplier « Détails complémentaires ». Quand une photo est choisie, cette section s'ouvre automatiquement pour en montrer l'aperçu." },
   { version:"1.7.2", date:"2026-08-28", notes:"Titres de section plus visibles quand la liste est regroupée (couleur, région, emplacement) : texte plus clair et en gras, barre verticale colorée à gauche (reprenant la couleur du vin quand le regroupement se fait par couleur), et davantage d'espace vertical au-dessus de chaque nouveau groupe pour bien le distinguer du précédent." },
   { version:"1.7.1", date:"2026-08-28", notes:"Photos plus lisibles : la miniature stockée localement passe de 220 à 480 px (elle était trop petite pour la taille à laquelle elle s'affiche sur un écran Retina, d'où le flou) et la photo pleine résolution de 900 à 1600 px, toutes deux avec une meilleure qualité JPEG. Seules les nouvelles photos ajoutées ou remplacées bénéficient de ce changement ; les photos déjà enregistrées restent à l'ancienne qualité tant qu'elles ne sont pas reprises via « 🔄 Changer la photo »." },
@@ -683,7 +692,8 @@ let photoEnCoursMiniature = "";  // base64 miniature, toujours conservée locale
 let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dépôt (ex. images/xxx.jpg)
 let photoSupprimee = false;
 let noteChoisie = 0;
-let numeroEnCoursAjout = null; // numéro réservé pour un nouveau vin, tant que la fiche d'ajout est ouverte
+let numeroFicheCourant = null;   // numéro proposé/en cours pour la fiche ouverte (ajout ou édition), appliqué seulement à l'enregistrement
+let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
@@ -809,6 +819,43 @@ function prochainNumero(){
   const n = lireCompteurNumero() + 1;
   ecrireCompteurNumero(n);
   return n;
+}
+
+/* Vérifie qu'un numéro saisi manuellement est valide et libre (hors la fiche en cours d'édition elle-même). */
+function validerNumero(n){
+  if(!Number.isInteger(n) || n < 1) return "Numéro invalide";
+  const conflit = bottles.some(b => b.numero === n && b.id !== ficheEnCours);
+  if(conflit) return "Ce numéro est déjà utilisé par un autre vin";
+  return null;
+}
+function afficherNumeroFiche(){
+  document.getElementById("numeroFicheValeur").textContent = "N° " + numeroFicheCourant;
+  document.getElementById("numeroFicheValeur").style.display = "";
+  document.getElementById("numeroFicheInput").style.display = "none";
+}
+function activerEditionNumero(){
+  const input = document.getElementById("numeroFicheInput");
+  input.value = numeroFicheCourant;
+  document.getElementById("numeroFicheValeur").style.display = "none";
+  input.style.display = "inline-block";
+  input.focus();
+  input.select();
+}
+function commitEditionNumero(){
+  if(annulerEditionNumeroEnCours){ annulerEditionNumeroEnCours = false; return; }
+  const input = document.getElementById("numeroFicheInput");
+  const n = parseInt(input.value, 10);
+  const erreur = validerNumero(n);
+  if(erreur){
+    toast(erreur);
+  }else{
+    numeroFicheCourant = n;
+  }
+  afficherNumeroFiche();
+}
+function annulerEditionNumero(){
+  annulerEditionNumeroEnCours = true;
+  afficherNumeroFiche();
 }
 
 function chargerBouteilles(){
@@ -1259,8 +1306,8 @@ function viderFormulaire(){
 function ouvrirAjout(){
   ficheEnCours = null;
   viderFormulaire();
-  numeroEnCoursAjout = prochainNumero();
-  document.getElementById("numeroFicheValeur").textContent = "N° " + numeroEnCoursAjout;
+  numeroFicheCourant = prochainNumero();
+  afficherNumeroFiche();
   document.getElementById("ficheTitre").textContent = "Ajouter un vin";
   document.getElementById("ficheActionsBue").innerHTML = "";
   document.getElementById("ficheActionSupprimer").innerHTML = "";
@@ -1289,8 +1336,8 @@ function ouvrirFiche(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
   ficheEnCours = id;
-  numeroEnCoursAjout = null;
-  document.getElementById("numeroFicheValeur").textContent = "N° " + (b.numero||"?");
+  numeroFicheCourant = b.numero || prochainNumero();
+  afficherNumeroFiche();
   document.getElementById("ficheSectionBasse").open = false;
   document.getElementById("ficheTitre").textContent = "Modifier ce vin";
   document.getElementById("fNom").value = b.nom||"";
@@ -1382,6 +1429,12 @@ function ouvrirFiche(id){
 }
 
 document.getElementById("btnAjouter").addEventListener("click", ouvrirAjout);
+document.getElementById("numeroFicheValeur").addEventListener("click", activerEditionNumero);
+document.getElementById("numeroFicheInput").addEventListener("blur", commitEditionNumero);
+document.getElementById("numeroFicheInput").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){ e.preventDefault(); document.getElementById("numeroFicheInput").blur(); }
+  else if(e.key === "Escape"){ e.preventDefault(); annulerEditionNumero(); }
+});
 document.getElementById("closeFiche").addEventListener("click", ()=>document.getElementById("overlayFiche").classList.remove("show"));
 document.getElementById("btnAnnulerFiche").addEventListener("click", ()=>document.getElementById("overlayFiche").classList.remove("show"));
 
@@ -1414,11 +1467,12 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   if(ficheEnCours){
     const b = bottles.find(x=>x.id===ficheEnCours);
     Object.assign(b, data);
+    b.numero = numeroFicheCourant;
     delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
   }else{
     bottles.push(Object.assign({
       id: uuid(),
-      numero: numeroEnCoursAjout || prochainNumero(),
+      numero: numeroFicheCourant || prochainNumero(),
       dateAjout: todayISO(),
       quantiteBue: 0,
       dateDerniereDegustation: ""
@@ -1599,6 +1653,7 @@ async function githubAPI(url, cfg, options){
     "Authorization": "Bearer " + cfg.token,
     "Accept": "application/vnd.github+json"
   }, options.headers||{});
+  if(!options.cache) options.cache = "no-store"; // évite qu'une lecture juste après une écriture renvoie une réponse mise en cache par le navigateur (fausse impression d'échec)
   const res = await fetch(url, options);
   return res;
 }
@@ -1674,7 +1729,7 @@ document.getElementById("btnPull").addEventListener("click", async function(){
   statusEl.textContent = "Récupération en cours…";
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
-    const res = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+    const res = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche) + "&_=" + Date.now(), cfg);
     if(res.status === 404){ throw new Error("Fichier introuvable sur GitHub"); }
     if(!res.ok){ throw new Error("Erreur " + res.status); }
     const info = await res.json();

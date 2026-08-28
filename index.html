@@ -395,7 +395,7 @@
   <details class="panel" id="panelSync">
     <summary>Synchronisation GitHub (optionnelle)</summary>
     <div class="panel-body">
-      <p class="panel-note">Ta cave est toujours enregistrée sur cet appareil (hors ligne). Cette section permet en plus de sauvegarder/récupérer la cave dans un dépôt GitHub, pour la retrouver sur un autre appareil. Le jeton n'est jamais synchronisé, seulement gardé sur cet appareil.</p>
+      <p class="panel-note">Ta cave est toujours enregistrée sur cet appareil (hors ligne) : les fiches, en version complète, et une petite miniature de chaque photo. Cette section permet en plus de sauvegarder/récupérer la cave dans un dépôt GitHub, pour la retrouver sur un autre appareil. Les photos en pleine résolution sont alors envoyées comme fichiers séparés dans le dépôt (dossier images/), ce qui libère de la place sur cet appareil et évite d'atteindre la limite de stockage du navigateur. Le jeton n'est jamais synchronisé, seulement gardé sur cet appareil.</p>
       <div class="field-row">
         <div class="field"><label>Utilisateur GitHub</label><input type="text" id="cfgUser" autocomplete="off"></div>
         <div class="field"><label>Dépôt</label><input type="text" id="cfgRepo" autocomplete="off"></div>
@@ -529,8 +529,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const HISTORY = [
+  { version:"1.1.0", date:"2026-08-28", notes:"Changement du stockage des photos : seule une petite miniature reste enregistrée sur l'appareil (pour un affichage rapide hors ligne) ; la photo en pleine résolution est envoyée comme fichier séparé dans le dépôt GitHub lors de la synchronisation, au lieu d'être intégrée dans le fichier de données. Cela évite d'atteindre la limite de stockage du navigateur même avec beaucoup de bouteilles photographiées. La fiche affiche automatiquement la photo en haute résolution depuis GitHub quand elle est disponible." },
   { version:"1.0.0", date:"2026-08-28", notes:"Version initiale : ajout et retrait de bouteilles, fiche détaillée avec photo d'étiquette, note et commentaire de dégustation, tri et regroupement (couleur / région / emplacement), filtre « à boire maintenant » selon la fenêtre d'apogée, statistiques de cave, sauvegarde locale automatique, synchronisation GitHub optionnelle, export/import JSON." }
 ];
 
@@ -546,7 +547,10 @@ let recherche = "";
 let groupBy = "aucun";
 let sortKey = "ajout_desc";
 let ficheEnCours = null; // id en édition, ou null = ajout
-let photoDataUrl = "";
+let photoEnCoursPendante = "";   // base64 pleine résolution, en attente d'envoi vers GitHub
+let photoEnCoursMiniature = "";  // base64 miniature, toujours conservée localement
+let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dépôt (ex. images/xxx.jpg)
+let photoSupprimee = false;
 let noteChoisie = 0;
 
 const COULEURS = [
@@ -610,7 +614,63 @@ function chargerBouteilles(){
   }catch(e){ bottles = []; }
 }
 function sauvegarderBouteilles(){
-  localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
+  try{
+    localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
+  }catch(e){
+    toast("Stockage local plein — synchronise avec GitHub pour libérer de la place");
+  }
+}
+/* Retire les champs volumineux (photo pleine résolution en attente, ancien champ) avant un envoi vers GitHub : le fichier de données reste petit quel que soit le nombre de photos. */
+function bouteillesPourExportGitHub(){
+  return bottles.map(b=>{
+    const copie = Object.assign({}, b);
+    delete copie.photoPendingBase64;
+    delete copie.photo;
+    return copie;
+  });
+}
+function meilleureMiniature(b){
+  return b.photoMiniature || b.photo || "";
+}
+function meilleureImageDisponible(b){
+  return b.photoPendingBase64 || b.photoMiniature || b.photo || "";
+}
+async function obtenirPhotoDepuisGitHub(cheminFichier){
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token || !cheminFichier) return null;
+  try{
+    const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cheminFichier)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
+    const res = await githubAPI(url, cfg);
+    if(!res.ok) return null;
+    const info = await res.json();
+    return "data:image/jpeg;base64," + info.content.replace(/\n/g,"");
+  }catch(e){ return null; }
+}
+/* Envoie vers GitHub, en fichiers séparés (images/<id>.jpg), toutes les photos pleine résolution encore en attente localement ; libère ensuite l'espace local correspondant. */
+async function televerserPhotosEnAttente(cfg, onProgress){
+  const aTraiter = bottles.filter(b=>b.photoPendingBase64);
+  let succes = 0, echecs = 0;
+  for(const b of aTraiter){
+    try{
+      const chemin = "images/" + b.id + ".jpg";
+      const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
+      let sha = null;
+      const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+      if(getRes.status === 200){ sha = (await getRes.json()).sha; }
+      else if(getRes.status !== 404){ throw new Error("lecture impossible"); }
+      const contenuBase64 = b.photoPendingBase64.split(",")[1];
+      const body = { message: "Photo étiquette — " + (b.nom || b.id), content: contenuBase64, branch: cfg.branche };
+      if(sha) body.sha = sha;
+      const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
+      if(!putRes.ok) throw new Error("envoi échoué");
+      b.photoFichier = chemin;
+      delete b.photoPendingBase64;
+      succes++;
+    }catch(e){ echecs++; }
+    if(onProgress) onProgress(succes+echecs, aTraiter.length);
+  }
+  if(aTraiter.length) sauvegarderBouteilles();
+  return { succes, echecs, total: aTraiter.length };
 }
 function chargerConfig(){
   try{
@@ -709,8 +769,9 @@ function carteBouteille(b){
   const coul = COULEURS.find(c=>c.key===b.couleur) || COULEURS[COULEURS.length-1];
   const ap = statutApogee(b);
   const apTag = ap ? `<span class="apogee-tag ${ap}">${libelleApogee(ap)}</span>` : "";
-  const photo = b.photo
-    ? `<img src="${b.photo}" alt="Étiquette">`
+  const miniature = meilleureMiniature(b);
+  const photo = miniature
+    ? `<img src="${miniature}" alt="Étiquette">`
     : `<div class="placeholder">🍾</div>`;
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
@@ -847,7 +908,10 @@ function viderFormulaire(){
   noteChoisie = 0;
   dessinerEtoiles();
   selectionnerCouleur("rouge");
-  photoDataUrl = "";
+  photoEnCoursPendante = "";
+  photoEnCoursMiniature = "";
+  photoEnCoursFichier = "";
+  photoSupprimee = false;
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoPlaceholder").style.display = "flex";
   document.getElementById("btnRetirerPhoto").style.display = "none";
@@ -884,12 +948,24 @@ function ouvrirFiche(id){
   selectionnerCouleur(b.couleur||"rouge");
   noteChoisie = b.note||0;
   dessinerEtoiles();
-  photoDataUrl = b.photo||"";
-  if(photoDataUrl){
-    document.getElementById("photoPreview").src = photoDataUrl;
+  photoSupprimee = false;
+  photoEnCoursPendante = b.photoPendingBase64 || "";
+  photoEnCoursMiniature = meilleureMiniature(b);
+  photoEnCoursFichier = b.photoFichier || "";
+  const imageImmediate = photoEnCoursPendante || photoEnCoursMiniature;
+  if(imageImmediate){
+    document.getElementById("photoPreview").src = imageImmediate;
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("photoPlaceholder").style.display = "none";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
+    // Si une version pleine résolution existe déjà sur GitHub, on l'affiche dès qu'elle arrive (l'aperçu miniature reste visible en attendant).
+    if(!photoEnCoursPendante && photoEnCoursFichier){
+      obtenirPhotoDepuisGitHub(photoEnCoursFichier).then(data=>{
+        if(data && ficheEnCours === id){
+          document.getElementById("photoPreview").src = data;
+        }
+      });
+    }
   }else{
     document.getElementById("photoPreview").style.display = "none";
     document.getElementById("photoPlaceholder").style.display = "flex";
@@ -957,12 +1033,15 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
     boireA: document.getElementById("fBoireA").value,
     note: noteChoisie,
     commentaire: document.getElementById("fCommentaire").value.trim(),
-    photo: photoDataUrl
+    photoMiniature: photoSupprimee ? "" : photoEnCoursMiniature,
+    photoFichier: photoSupprimee ? "" : photoEnCoursFichier,
+    photoPendingBase64: photoSupprimee ? "" : photoEnCoursPendante
   };
 
   if(ficheEnCours){
     const b = bottles.find(x=>x.id===ficheEnCours);
     Object.assign(b, data);
+    delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
   }else{
     bottles.push(Object.assign({
       id: uuid(),
@@ -977,20 +1056,28 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   toast("Bouteille enregistrée");
 });
 
-/* ---- Photo : sélection + compression ---- */
+/* ---- Photo : sélection + compression (pleine résolution pour GitHub + petite miniature pour le stockage local) ---- */
 document.getElementById("photoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
-  compresserImage(file, 900, 0.72).then(dataUrl=>{
-    photoDataUrl = dataUrl;
-    document.getElementById("photoPreview").src = dataUrl;
+  Promise.all([
+    compresserImage(file, 900, 0.72),
+    compresserImage(file, 220, 0.55)
+  ]).then(([pleine, miniature])=>{
+    photoEnCoursPendante = pleine;
+    photoEnCoursMiniature = miniature;
+    photoSupprimee = false;
+    document.getElementById("photoPreview").src = pleine;
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("photoPlaceholder").style.display = "none";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
   }).catch(()=>toast("Impossible de charger cette image"));
 });
 document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
-  photoDataUrl = "";
+  photoEnCoursPendante = "";
+  photoEnCoursMiniature = "";
+  photoEnCoursFichier = "";
+  photoSupprimee = true;
   document.getElementById("photoInput").value = "";
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoPlaceholder").style.display = "flex";
@@ -1126,8 +1213,14 @@ document.getElementById("btnPush").addEventListener("click", async function(){
   const btn = this;
   btn.disabled = true;
   const statusEl = document.getElementById("syncStatus");
-  statusEl.textContent = "Envoi en cours…";
   try{
+    statusEl.textContent = "Envoi des photos en attente…";
+    const resPhotos = await televerserPhotosEnAttente(cfg, (fait, total)=>{
+      statusEl.textContent = `Envoi des photos… (${fait}/${total})`;
+    });
+    rafraichirTout();
+
+    statusEl.textContent = "Envoi des données…";
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
     let sha = null;
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
@@ -1137,7 +1230,9 @@ document.getElementById("btnPush").addEventListener("click", async function(){
     }else if(getRes.status !== 404){
       throw new Error("Lecture impossible (" + getRes.status + ")");
     }
-    const contenu = JSON.stringify({ bottles, maj: new Date().toISOString() }, null, 2);
+    // Le fichier de données ne contient jamais de photo en pleine résolution : seulement les métadonnées,
+    // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
+    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: new Date().toISOString() }, null, 2);
     const body = {
       message: "Mise à jour de la cave à vin",
       content: btoa(unescape(encodeURIComponent(contenu))),
@@ -1152,9 +1247,10 @@ document.getElementById("btnPush").addEventListener("click", async function(){
     const cfgSauv = lireChampsConfig();
     cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
     sauvegarderConfig(cfgSauv);
-    statusEl.textContent = "Envoyé le " + cfgSauv.derniereSync;
+    statusEl.textContent = "Envoyé le " + cfgSauv.derniereSync
+      + (resPhotos.total ? ` — photos : ${resPhotos.succes} envoyée(s)${resPhotos.echecs ? ", " + resPhotos.echecs + " échouée(s)" : ""}` : "");
     feedbackBouton(btn, "✓ Envoyé");
-    toast("Cave envoyée sur GitHub");
+    toast(resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub");
   }catch(err){
     statusEl.textContent = "Échec de l'envoi : " + err.message;
     toast("Échec de l'envoi vers GitHub");

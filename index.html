@@ -399,6 +399,11 @@
   .confirm-box .modal-body{text-align:center;padding-top:22px;}
   .confirm-box p{font-size:14.5px;color:var(--text-muted);}
 
+  /* verification photo modal */
+  .verif-photo-box{max-width:440px;border-radius:16px;}
+  .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
+  .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
+
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
@@ -642,6 +647,24 @@
   </div>
 </div>
 
+<!-- Modal vérification photo avant ChatGPT -->
+<div class="overlay" id="overlayVerifPhoto">
+  <div class="modal verif-photo-box">
+    <div class="modal-header">
+      <h2>Photo copiée</h2>
+      <button class="modal-close" id="closeVerifPhoto" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="verif-photo-note">Voici la photo qui vient d'être copiée dans le presse-papier — vérifie qu'elle correspond bien avant d'ouvrir ChatGPT (colle-la avec Cmd+V une fois là-bas).</p>
+      <img id="verifPhotoImg" class="verif-photo-img" alt="Photo copiée dans le presse-papier">
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn btn-ghost" id="btnAnnulerVerifPhoto" type="button">Annuler</button>
+        <button class="btn btn-gold" id="btnOuvrirChatGPT" type="button">Ouvrir ChatGPT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -649,8 +672,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.4";
+const VERSION = "1.8.5";
 const HISTORY = [
+  { version:"1.8.5", date:"2026-08-28", notes:"Le bouton « 🤖 Identifier avec ChatGPT » passe désormais par une étape de vérification : après la copie dans le presse-papier, une fenêtre affiche la photo copiée pour confirmation, avec les boutons Annuler ou Ouvrir ChatGPT — ChatGPT ne s'ouvre que si on confirme." },
   { version:"1.8.4", date:"2026-08-28", notes:"Ajout d'un bouton « 🤖 Identifier avec ChatGPT » dans les Détails complémentaires (visible dès qu'une photo existe) : il copie la photo du vin (pleine résolution si disponible) au format PNG dans le presse-papier, et ouvre ChatGPT dans un nouvel onglet avec la question déjà rédigée. Il reste à coller la photo (Cmd+V) dans ChatGPT une fois la page ouverte, aucune méthode web ne permettant de le faire automatiquement." },
   { version:"1.8.3", date:"2026-08-28", notes:"Le fond des bandeaux de section utilise une teinte propre (mélange de doré, ou de la couleur du vin quand le regroupement se fait par couleur), différente de tous les autres fonds déjà utilisés dans l'app, pour bien se détacher visuellement au lieu de se fondre avec les cartes ou les boutons." },
   { version:"1.8.2", date:"2026-08-28", notes:"Les titres de section (liste regroupée) sont maintenant un bandeau plein sur toute la largeur, avec un fond légèrement plus clair que le reste de la page, pour bien trancher visuellement à chaque changement de groupe." },
@@ -1586,14 +1610,23 @@ document.getElementById("btnIdentifierChatGPT").addEventListener("click", functi
   }
   // navigator.clipboard.write() doit être appelé de façon synchrone dans le gestionnaire de clic pour rester
   // autorisé par Safari ; on lui passe donc directement la promesse de l'image plutôt que d'attendre son résultat avant.
-  const promesseImage = meilleureSourcePourChatGPT().then(source=>{
+  const promesseSource = meilleureSourcePourChatGPT();
+  const promesseImage = promesseSource.then(source=>{
     if(!source) throw new Error("Aucune image disponible");
     return dataUrlVersPng(source);
   });
   navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseImage }) ])
-    .then(()=> toast("Photo copiée — colle-la (Cmd+V) dans ChatGPT"))
+    .then(()=> promesseSource)
+    .then(source=>{
+      document.getElementById("verifPhotoImg").src = source;
+      document.getElementById("overlayVerifPhoto").classList.add("show");
+    })
     .catch(()=> toast("Impossible de copier la photo dans le presse-papier"));
-
+});
+document.getElementById("closeVerifPhoto").addEventListener("click", ()=>document.getElementById("overlayVerifPhoto").classList.remove("show"));
+document.getElementById("btnAnnulerVerifPhoto").addEventListener("click", ()=>document.getElementById("overlayVerifPhoto").classList.remove("show"));
+document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
+  document.getElementById("overlayVerifPhoto").classList.remove("show");
   const question = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
   window.open("https://chatgpt.com/?q=" + encodeURIComponent(question), "_blank");
 });

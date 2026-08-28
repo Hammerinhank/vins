@@ -330,7 +330,21 @@
     display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
     padding-top:8px;border-top:1px solid var(--line-soft);
   }
-  .modal-actions .left-actions{width:100%;display:flex;flex-wrap:wrap;gap:8px;margin-right:0;margin-bottom:2px;}
+  .modal-actions.fiche-separateur{padding-bottom:8px;border-bottom:1px solid var(--line-soft);}
+  .fiche-section-haute, .fiche-section-basse{display:flex;flex-direction:column;gap:14px;}
+  .fiche-section-label{
+    font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;
+    font-size:11px;color:var(--text-faint);margin:0;
+  }
+  .fiche-actions-bue{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
+  .btn-bue-principal{
+    flex:1;min-width:190px;
+    background:linear-gradient(180deg, rgba(122,35,49,.55), rgba(122,35,49,.35));
+    border:1px solid var(--rouge);color:#F3D4D8;font-weight:600;
+    padding:11px 14px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .fiche-action-supprimer{display:flex;}
 
   /* history modal */
   .history-entry{padding:12px 0;border-bottom:1px solid var(--line-soft);}
@@ -459,64 +473,73 @@
       <button class="modal-close" id="closeFiche" type="button">✕</button>
     </div>
     <div class="modal-body">
-      <div class="photo-section">
-        <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette de la bouteille">
-        <div class="photo-actions">
-          <button class="btn btn-sm" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
-          <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
-          <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+      <div class="fiche-section-haute">
+        <div class="photo-section">
+          <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette de la bouteille">
+          <div class="photo-actions">
+            <button class="btn btn-sm" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
+            <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
+            <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" style="display:none">
         </div>
-        <input type="file" id="photoInput" accept="image/*" style="display:none">
-      </div>
 
-      <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
-      <div class="field-row">
-        <div class="field"><label>Domaine / producteur</label><input type="text" id="fDomaine"></div>
-        <div class="field"><label>Appellation</label><input type="text" id="fAppellation"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Région</label><input type="text" id="fRegion"></div>
-        <div class="field"><label>Pays</label><input type="text" id="fPays" value="France"></div>
-      </div>
-
-      <div class="field"><label>Couleur</label>
-        <div class="couleur-choices" id="couleurChoices"></div>
-      </div>
-
-      <div class="field-row">
-        <div class="field"><label>Millésime</label><input type="text" id="fMillesime" placeholder="ex. 2018 ou NM"></div>
-        <div class="field"><label>Cépage(s)</label><input type="text" id="fCepages"></div>
-      </div>
-
-      <div class="field-row">
-        <div class="field"><label>Quantité en cave</label><input type="number" id="fQuantite" min="0" value="1"></div>
-        <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01"></div>
-      </div>
-
-      <div class="field-row">
-        <div class="field"><label>Date d'achat</label><input type="date" id="fDateAchat"></div>
-        <div class="field"><label>Lieu d'achat</label><input type="text" id="fLieuAchat"></div>
-      </div>
-
-      <div class="field"><label>Emplacement (casier / rangée)</label><input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3"></div>
-
-      <div class="field-row">
-        <div class="field"><label>Boire à partir de (année)</label><input type="number" id="fBoireDe" placeholder="ex. 2024"></div>
-        <div class="field"><label>Boire avant (année)</label><input type="number" id="fBoireA" placeholder="ex. 2030"></div>
-      </div>
-
-      <div class="field"><label>Note</label>
-        <div class="star-picker" id="starPicker">
-          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+        <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
+        <div class="field-row">
+          <div class="field"><label>Domaine / producteur</label><input type="text" id="fDomaine"></div>
+          <div class="field"><label>Appellation</label><input type="text" id="fAppellation"></div>
         </div>
+        <div class="field-row">
+          <div class="field"><label>Région</label><input type="text" id="fRegion"></div>
+          <div class="field"><label>Pays</label><input type="text" id="fPays" value="France"></div>
+        </div>
+
+        <div class="field"><label>Couleur</label>
+          <div class="couleur-choices" id="couleurChoices"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label>Millésime</label><input type="text" id="fMillesime" placeholder="ex. 2018 ou NM"></div>
+          <div class="field"><label>Cépage(s)</label><input type="text" id="fCepages"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label>Quantité en cave</label><input type="number" id="fQuantite" min="0" value="1"></div>
+          <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01"></div>
+        </div>
+
+        <div class="field"><label>Emplacement (casier / rangée)</label><input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3"></div>
+
+        <div class="fiche-actions-bue" id="ficheActionsBue"></div>
       </div>
 
-      <div class="field"><label>Commentaire / notes de dégustation</label><textarea id="fCommentaire" placeholder="Robe, nez, bouche, accords mets-vin…"></textarea></div>
-
-      <div class="modal-actions">
-        <div class="left-actions" id="ficheLeftActions"></div>
+      <div class="modal-actions fiche-separateur">
         <button class="btn btn-ghost" id="btnAnnulerFiche" type="button">Annuler</button>
         <button class="btn btn-gold" id="btnSauverFiche" type="button">Enregistrer</button>
+      </div>
+
+      <div class="fiche-section-basse">
+        <p class="fiche-section-label">Détails complémentaires</p>
+
+        <div class="field-row">
+          <div class="field"><label>Date d'achat</label><input type="date" id="fDateAchat"></div>
+          <div class="field"><label>Lieu d'achat</label><input type="text" id="fLieuAchat"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label>Boire à partir de (année)</label><input type="number" id="fBoireDe" placeholder="ex. 2024"></div>
+          <div class="field"><label>Boire avant (année)</label><input type="number" id="fBoireA" placeholder="ex. 2030"></div>
+        </div>
+
+        <div class="field"><label>Note</label>
+          <div class="star-picker" id="starPicker">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+        </div>
+
+        <div class="field"><label>Commentaire / notes de dégustation</label><textarea id="fCommentaire" placeholder="Robe, nez, bouche, accords mets-vin…"></textarea></div>
+
+        <div class="fiche-action-supprimer" id="ficheActionSupprimer"></div>
       </div>
     </div>
   </div>
@@ -557,8 +580,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const HISTORY = [
+  { version:"1.6.0", date:"2026-08-28", notes:"Fiche détaillée réorganisée en deux parties séparées par les boutons Annuler/Enregistrer, pour plus d'ergonomie. En haut : ce qui sert le plus souvent (photo, identité de la bouteille, couleur, millésime, cépages, quantité, prix, emplacement, et le bouton 🍷 Marquer une bouteille comme bue, rendu plus visible). En bas, sous « Détails complémentaires » : date et lieu d'achat, fenêtre d'apogée, note, commentaire de dégustation, et le bouton Supprimer." },
   { version:"1.5.0", date:"2026-08-28", notes:"Le badge de version devient un indicateur de synchronisation : dès qu'une information n'a pas encore été envoyée sur GitHub (ajout, modification, bue, suppression…), il passe en orange et affiche « À sauvegarder » à la place du numéro de version. Un appui dessus lance directement l'envoi vers GitHub (identique au bouton « Envoyer vers GitHub » de la section Synchronisation, inchangée). En cas d'échec (pas de réseau, dépôt mal configuré…), le badge passe en rouge et invite à réessayer. Une fois l'envoi réussi, le badge réaffiche le numéro de version." },
   { version:"1.4.2", date:"2026-08-28", notes:"La suppression d'une bouteille retire maintenant aussi son fichier photo dans le dépôt GitHub (images/<id>.jpg), si une synchronisation est configurée — auparavant seule la fiche était supprimée localement et sur cave.json, la photo restait orpheline dans le dépôt." },
   { version:"1.4.1", date:"2026-08-28", notes:"Correction d'affichage dans la fiche détaillée : le bouton « Supprimer » était poussé hors de l'écran par les nouveaux boutons 🍷 / ↩, sur les petits écrans, faute de retour à la ligne. Les boutons de gauche (Supprimer, Marquer comme bue, Annuler la dernière bue) passent maintenant correctement à la ligne et restent tous visibles. Le bouton Supprimer est aussi rendu plus visiblement rouge." },
@@ -1125,7 +1149,8 @@ function ouvrirAjout(){
   ficheEnCours = null;
   viderFormulaire();
   document.getElementById("ficheTitre").textContent = "Ajouter une bouteille";
-  document.getElementById("ficheLeftActions").innerHTML = "";
+  document.getElementById("ficheActionsBue").innerHTML = "";
+  document.getElementById("ficheActionSupprimer").innerHTML = "";
   document.getElementById("overlayFiche").classList.add("show");
 }
 
@@ -1188,8 +1213,8 @@ function ouvrirFiche(id){
   }
   majBoutonChoisirPhoto();
 
-  const gauche = document.getElementById("ficheLeftActions");
-  gauche.innerHTML = "";
+  const zoneSupprimer = document.getElementById("ficheActionSupprimer");
+  zoneSupprimer.innerHTML = "";
   const btnSupprimer = document.createElement("button");
   btnSupprimer.type = "button";
   btnSupprimer.className = "btn btn-danger btn-sm";
@@ -1209,18 +1234,20 @@ function ouvrirFiche(id){
       }
     });
   });
-  gauche.appendChild(btnSupprimer);
+  zoneSupprimer.appendChild(btnSupprimer);
 
+  const zoneBue = document.getElementById("ficheActionsBue");
+  zoneBue.innerHTML = "";
   if((Number(b.quantite)||0) > 0){
     const btnBue = document.createElement("button");
     btnBue.type = "button";
-    btnBue.className = "btn btn-ghost btn-sm";
+    btnBue.className = "btn-bue-principal";
     btnBue.textContent = "🍷 Marquer une bouteille comme bue";
     btnBue.addEventListener("click", ()=>{
       marquerBue(id);
       document.getElementById("overlayFiche").classList.remove("show");
     });
-    gauche.appendChild(btnBue);
+    zoneBue.appendChild(btnBue);
   }
   if((Number(b.quantiteBue)||0) > 0){
     const btnAnnulerBue = document.createElement("button");
@@ -1231,7 +1258,7 @@ function ouvrirFiche(id){
       annulerBue(id);
       document.getElementById("overlayFiche").classList.remove("show");
     });
-    gauche.appendChild(btnAnnulerBue);
+    zoneBue.appendChild(btnAnnulerBue);
   }
 
   document.getElementById("overlayFiche").classList.add("show");

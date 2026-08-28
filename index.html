@@ -220,13 +220,14 @@
   }
   .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:14px;text-align:center;}
   .footer-actions{display:flex;align-items:center;gap:6px;}
-  .icon-voir-photo{
+  .icon-photo-btn{
     width:30px;height:30px;border-radius:50%;flex:none;
     border:1px solid var(--line);background:var(--bg-panel-2);
-    color:var(--gold-soft);font-size:14px;
+    color:var(--gold-soft);
     display:flex;align-items:center;justify-content:center;
   }
-  .icon-voir-photo:active{transform:scale(.92);}
+  .icon-photo-btn:active{transform:scale(.92);}
+  .icon-photo-btn svg{display:block;}
 
   .empty-state{
     text-align:center;padding:60px 20px;color:var(--text-muted);
@@ -541,8 +542,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const HISTORY = [
+  { version:"1.3.1", date:"2026-08-28", notes:"L'icône de la liste principale représente désormais un appareil photo. Quand la photo d'une bouteille est affichée, l'icône devient un appareil photo barré (cercle rouge en diagonale, comme un pictogramme d'interdiction) et permet de la masquer à nouveau d'un tap." },
   { version:"1.3.0", date:"2026-08-28", notes:"Dans la liste principale, plus de grande zone vierge réservée quand la photo d'une bouteille n'est pas affichée : à la place, une petite icône 👁 apparaît à gauche du bouton « Détails » et fait apparaître la photo en grand au clic, exactement comme avant. Le statut d'apogée (à boire / à garder / apogée dépassée), auparavant affiché sur la photo, apparaît désormais comme une étiquette colorée à côté des autres informations de la bouteille." },
   { version:"1.2.1", date:"2026-08-28", notes:"Zone photo de la fiche revue : plus de grand encadré vide en pointillés quand il n'y a pas de photo, et l'ajout d'une photo se fait désormais via un bouton explicite (« 📷 Ajouter une photo », qui devient « 🔄 Changer la photo » une fois une photo présente) plutôt qu'en touchant une zone vierge." },
   { version:"1.2.0", date:"2026-08-28", notes:"Ajout d'une case « Avec photo » : quand elle est décochée, aucune photo n'est chargée ni affichée automatiquement (ni miniature dans la grille, ni pleine résolution dans une fiche) — un bouton dédié par bouteille permet de l'afficher à la demande. Cette préférence est enregistrée sur l'appareil et systématiquement synchronisée vers GitHub à chaque changement (fichier cave-reglages.json), pour rester la même d'un appareil à l'autre." },
@@ -570,7 +572,14 @@ let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dé
 let photoSupprimee = false;
 let noteChoisie = 0;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
-let photosRevelees = new Set();    // ids de bouteilles dont la photo a été affichée à la demande cette session
+let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
+
+const ICONE_CAMERA = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`;
+const ICONE_CAMERA_MASQUEE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle><circle cx="12" cy="12" r="10" stroke="#E0503A" stroke-width="2.2"></circle><line x1="5" y1="19" x2="19" y2="5" stroke="#E0503A" stroke-width="2.2"></line></svg>`;
+
+function photoEstVisible(b){
+  return photoOverrides.has(b.id) ? photoOverrides.get(b.id) : avecPhoto;
+}
 
 const COULEURS = [
   { key:"rouge", label:"Rouge" },
@@ -828,13 +837,14 @@ function carteBouteille(b){
   const coul = COULEURS.find(c=>c.key===b.couleur) || COULEURS[COULEURS.length-1];
   const ap = statutApogee(b);
   const miniature = meilleureMiniature(b);
-  const revele = avecPhoto || photosRevelees.has(b.id);
-  const photoVisible = revele && !!miniature;
+  const photoVisible = photoEstVisible(b) && !!miniature;
   const photoHtml = photoVisible
     ? `<div class="bottle-photo" data-action="ouvrir"><img src="${miniature}" alt="Étiquette"></div>`
     : "";
-  const iconeVoirPhoto = (!photoVisible && miniature)
-    ? `<button type="button" class="icon-voir-photo" data-action="voirPhoto" title="Voir la photo">👁</button>`
+  const iconePhoto = miniature
+    ? (photoVisible
+        ? `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Masquer la photo">${ICONE_CAMERA_MASQUEE}</button>`
+        : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Voir la photo">${ICONE_CAMERA}</button>`)
     : "";
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
@@ -865,7 +875,7 @@ function carteBouteille(b){
           <button type="button" data-action="plus" title="Ajouter une bouteille">+</button>
         </div>
         <div class="footer-actions">
-          ${iconeVoirPhoto}
+          ${iconePhoto}
           <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
         </div>
       </div>
@@ -899,9 +909,15 @@ function renderGrille(){
       el.addEventListener("click", ()=>ouvrirFiche(id));
     });
     card.querySelector('[data-action="plus"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, 1); });
-    const btnVoir = card.querySelector('[data-action="voirPhoto"]');
-    if(btnVoir){
-      btnVoir.addEventListener("click", e=>{ e.stopPropagation(); photosRevelees.add(id); renderGrille(); });
+    const btnPhoto = card.querySelector('[data-action="togglePhoto"]');
+    if(btnPhoto){
+      btnPhoto.addEventListener("click", e=>{
+        e.stopPropagation();
+        const bouteille = bottles.find(x=>x.id===id);
+        const actuel = photoEstVisible(bouteille);
+        photoOverrides.set(id, !actuel);
+        renderGrille();
+      });
     }
     card.querySelector('[data-action="moins"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, -1); });
   });

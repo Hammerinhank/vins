@@ -646,8 +646,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.7.5";
+const VERSION = "1.8.0";
 const HISTORY = [
+  { version:"1.8.0", date:"2026-08-28", notes:"Chaque local storage (chaque navigateur, sur chaque appareil) a maintenant un identifiant propre, inclus dans cave.json à chaque envoi (champ « origine »). Au lancement, l'app vérifie silencieusement GitHub : si la dernière sauvegarde provient de cet appareil/navigateur lui-même, rien ne se passe. Si elle provient d'ailleurs, elle est appliquée automatiquement quand rien n'est en attente localement ; sinon (changements locaux pas encore envoyés), une confirmation est demandée avant d'écraser quoi que ce soit." },
   { version:"1.7.5", date:"2026-08-28", notes:"Correction probable du problème « la sauvegarde a l'air de réussir mais je ne retrouve rien en récupérant depuis GitHub » : les requêtes de lecture GitHub pouvaient être servies depuis le cache du navigateur au lieu d'aller vérifier la version réelle sur GitHub, donnant l'impression qu'un envoi récent n'avait pas été pris en compte alors qu'il l'avait été. Toutes les lectures GitHub (y compris « Récupérer depuis GitHub ») contournent maintenant explicitement ce cache." },
   { version:"1.7.4", date:"2026-08-28", notes:"Le numéro (« à noter sur l'étiquette ») devient modifiable : toucher le N° dans la fiche ouvre un champ de saisie. Le nouveau numéro n'est refusé que s'il est déjà utilisé par un autre vin (ou invalide) — un message l'indique alors et l'ancien numéro est conservé. Le changement n'est définitif qu'après avoir touché Enregistrer, comme les autres champs." },
   { version:"1.7.3", date:"2026-08-28", notes:"Le bouton « 📷 Ajouter une photo » (ou « 🔄 Changer la photo ») rejoint la ligne des boutons Annuler/Enregistrer, cadré à gauche, pour rester accessible sans déplier « Détails complémentaires ». Quand une photo est choisie, cette section s'ouvre automatiquement pour en montrer l'aperçu." },
@@ -678,6 +679,7 @@ const LS_REGLAGES = "cave_reglages_v1";
 const CHEMIN_REGLAGES = "cave-reglages.json";
 const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
 const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
+const LS_INSTANCE_ID = "cave_instance_id_v1";
 
 let bottles = [];
 let filtreStatut = "cave";
@@ -761,6 +763,15 @@ function uuid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "id-"+Date.now()+"-"+Math.random().toString(16).slice(2);
 }
+/* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */
+function obtenirInstanceId(){
+  try{
+    let id = localStorage.getItem(LS_INSTANCE_ID);
+    if(!id){ id = uuid(); localStorage.setItem(LS_INSTANCE_ID, id); }
+    return id;
+  }catch(e){ return "instance-inconnue-" + Math.random().toString(16).slice(2); }
+}
+const INSTANCE_ID = obtenirInstanceId();
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function anneeCourante(){ return new Date().getFullYear(); }
 function euro(n){
@@ -1689,7 +1700,7 @@ async function envoyerVersGitHub(){
     }
     // Le fichier de données ne contient jamais de photo en pleine résolution : seulement les métadonnées,
     // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
-    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: new Date().toISOString(), origine: INSTANCE_ID }, null, 2);
     const body = {
       message: "Mise à jour de la cave à vin",
       content: btoa(unescape(encodeURIComponent(contenu))),
@@ -1719,6 +1730,50 @@ async function envoyerVersGitHub(){
   majBadgeVersion();
 }
 document.getElementById("btnPush").addEventListener("click", envoyerVersGitHub);
+
+/* Vérification silencieuse au lancement : si une sauvegarde GitHub existe et provient d'un autre local storage (autre appareil, ou autre navigateur sur le même appareil) que celui-ci, on l'applique automatiquement quand rien n'est en attente ici, ou on demande sinon (pour ne jamais écraser des changements locaux non envoyés sans le dire). Si la sauvegarde GitHub provient de ce local storage-ci (notre propre dernier envoi), on ne fait rien. */
+async function verifierGitHubAuLancement(){
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token) return;
+  try{
+    const chemin = cfg.chemin || "cave.json";
+    const branche = cfg.branche || "main";
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
+    const res = await githubAPI(base + "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now(), cfg);
+    if(!res.ok) return;
+    const info = await res.json();
+    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    const data = JSON.parse(texte);
+    const distantes = data.bottles || [];
+    const origineDistante = data.origine || null;
+    if(origineDistante === INSTANCE_ID) return; // c'est notre propre dernier envoi : rien à faire
+
+    function appliquerDistantes(msg){
+      bottles = distantes;
+      sauvegarderBouteilles();
+      marquerSynchronise();
+      rafraichirTout();
+      const cfgSauv = chargerConfig();
+      cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
+      sauvegarderConfig(cfgSauv);
+      const statusEl = document.getElementById("syncStatus");
+      if(statusEl) statusEl.textContent = "Récupéré automatiquement le " + cfgSauv.derniereSync;
+      toast(msg);
+    }
+
+    if(!syncDirty){
+      appliquerDistantes("Cave mise à jour depuis GitHub (modifiée ailleurs)");
+    }else{
+      demanderConfirmation(
+        "Version différente sur GitHub",
+        "Une sauvegarde plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et tu as ici des changements pas encore envoyés. Utiliser la version GitHub à la place (tes changements locaux non envoyés seront perdus) ?",
+        ()=>appliquerDistantes("Cave remplacée par la version GitHub")
+      );
+    }
+  }catch(e){
+    // Échec silencieux (hors ligne, dépôt pas encore créé, etc.) : la cave locale reste utilisable, synchro manuelle toujours possible.
+  }
+}
 
 document.getElementById("btnPull").addEventListener("click", async function(){
   const cfg = lireChampsConfig();
@@ -1776,6 +1831,8 @@ recupererReglagesDepuisGitHub().then(distant=>{
     renderGrille();
   }
 });
+
+verifierGitHubAuLancement();
 
 })();
 </script>

@@ -40,7 +40,7 @@
       "couleur": "blanc",
       "millesime": "",
       "cepages": "",
-      "quantite": 1,
+      "quantite": 0,
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
@@ -49,9 +49,9 @@
       "boireA": "",
       "note": 0,
       "commentaire": "",
-      "quantiteBue": 0,
-      "dateDerniereDegustation": ""
+      "quantiteBue": 1,
+      "dateDerniereDegustation": "2026-08-28"
     }
   ],
-  "maj": "2026-08-28T13:05:08.668Z"
+  "maj": "2026-08-28T13:27:04.758Z"
 }

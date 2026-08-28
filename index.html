@@ -23,7 +23,9 @@
     --rouge:#7A2331;
     --blanc:#DFCB86;
     --rose:#D98CA0;
-    --petillant:#93AE87;
+    --champagne:#E0C34A;
+    --cremant:#B7C2A8;
+    --cidre:#9DB33E;
     --liquoreux:#C68A3D;
     --autre:#8A8378;
     --danger:#B4472F;
@@ -122,7 +124,9 @@
   .capsule.rouge{background:var(--rouge);}
   .capsule.blanc{background:var(--blanc);}
   .capsule.rose{background:var(--rose);}
-  .capsule.petillant{background:var(--petillant);}
+  .capsule.champagne{background:var(--champagne);}
+  .capsule.cremant{background:var(--cremant);}
+  .capsule.cidre{background:var(--cidre);}
   .capsule.liquoreux{background:var(--liquoreux);}
   .capsule.autre{background:var(--autre);}
 
@@ -206,7 +210,13 @@
   }
   .bottle-photo img{width:100%;height:100%;object-fit:cover;}
   .bottle-body{padding:12px 14px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1;}
+  .bottle-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
   .bottle-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;}
+  .numero-badge{
+    flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    background:var(--bg-panel-2);border:1px solid var(--line);
+    color:var(--gold-soft);padding:2px 7px;border-radius:6px;margin-top:2px;
+  }
   .bottle-sub{font-size:12px;color:var(--text-muted);}
   .bottle-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;}
   .bottle-meta-row .millesime{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--gold-soft);}
@@ -332,6 +342,16 @@
   }
   .modal-actions.fiche-separateur{padding-bottom:8px;border-bottom:1px solid var(--line-soft);}
   .fiche-section-haute{display:flex;flex-direction:column;gap:14px;}
+  .numero-fiche-badge{
+    display:inline-flex;align-items:baseline;gap:10px;
+    align-self:flex-start;
+    background:var(--bg-panel-2);border:1px solid var(--gold);
+    border-radius:10px;padding:8px 14px;
+  }
+  .numero-fiche-valeur{
+    font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--gold-soft);
+  }
+  .numero-fiche-note{font-size:11px;color:var(--text-faint);}
   .fiche-section-basse{margin:0;}
   .fiche-section-basse summary{
     cursor:pointer;list-style:none;
@@ -399,13 +419,15 @@
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="toolbar">
-  <input type="text" id="rechercheInput" placeholder="Rechercher (nom, domaine, appellation, cépage…)">
+  <input type="text" id="rechercheInput" placeholder="Rechercher (nom, domaine, N°…)">
   <select id="filtreCouleurSel">
     <option value="toutes">Toutes couleurs</option>
     <option value="rouge">Rouge</option>
     <option value="blanc">Blanc</option>
     <option value="rose">Rosé</option>
-    <option value="petillant">Pétillant</option>
+    <option value="champagne">Champagne</option>
+    <option value="cremant">Crémant</option>
+    <option value="cidre">Cidre</option>
     <option value="liquoreux">Liquoreux</option>
     <option value="autre">Autre</option>
   </select>
@@ -485,6 +507,11 @@
     </div>
     <div class="modal-body">
       <div class="fiche-section-haute">
+        <div class="numero-fiche-badge" id="numeroFicheBadge">
+          <span class="numero-fiche-valeur" id="numeroFicheValeur"></span>
+          <span class="numero-fiche-note">à noter sur l'étiquette</span>
+        </div>
+
         <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
         <div class="field-row">
           <div class="field"><label>Domaine / producteur</label><input type="text" id="fDomaine"></div>
@@ -497,7 +524,24 @@
 
         <div class="field-row">
           <div class="field"><label>Millésime</label><input type="text" id="fMillesime" placeholder="ex. 2018 ou NM"></div>
-          <div class="field"><label>Quantité en cave</label><input type="number" id="fQuantite" min="0" value="1"></div>
+          <div class="field"><label>Quantité en cave</label>
+            <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off">
+            <datalist id="fQuantiteListe">
+              <option value="0"></option>
+              <option value="1"></option>
+              <option value="2"></option>
+              <option value="3"></option>
+              <option value="4"></option>
+              <option value="5"></option>
+              <option value="6"></option>
+              <option value="8"></option>
+              <option value="10"></option>
+              <option value="12"></option>
+              <option value="18"></option>
+              <option value="24"></option>
+              <option value="36"></option>
+            </datalist>
+          </div>
         </div>
 
         <div class="field"><label>Emplacement (casier / rangée)</label><input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3"></div>
@@ -593,8 +637,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.6.2";
+const VERSION = "1.7.0";
 const HISTORY = [
+  { version:"1.7.0", date:"2026-08-28", notes:"Chaque vin reçoit désormais un numéro court et unique (N° 1, 2, 3…), affiché en évidence en haut de sa fiche pour être recopié sur l'étiquette physique, et sur sa carte dans la liste. Ce numéro est cherchable directement dans la barre de recherche pour retrouver un vin en un instant. Il n'est jamais réutilisé, même après suppression d'une fiche. Les vins déjà enregistrés reçoivent automatiquement un numéro au premier chargement, dans l'ordre de leur date d'ajout." },
+  { version:"1.6.4", date:"2026-08-28", notes:"Le type « Pétillant » est remplacé par trois types distincts : Champagne, Crémant et Cidre, chacun avec sa propre couleur de capsule, disponibles partout où la couleur intervient (fiche, filtre, regroupement, statistiques). Les bouteilles déjà enregistrées en « Pétillant » gardent leurs données mais s'affichent en « Autre » jusqu'à être réassignées manuellement à l'un des trois nouveaux types." },
+  { version:"1.6.3", date:"2026-08-28", notes:"Le champ « Quantité en cave » propose maintenant une liste déroulante de valeurs courantes (0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36) tout en restant librement modifiable au clavier pour n'importe quel autre nombre." },
   { version:"1.6.2", date:"2026-08-28", notes:"Clarification du vocabulaire dans toute l'interface : « vin » désigne désormais une fiche de la cave (ex. « Ajouter un vin », « Modifier ce vin », « Aucun vin ici »), tandis que « bouteille(s) » reste réservé au comptage physique (quantité en cave, bues, etc.). Corrige au passage un message d'import/récupération GitHub qui affichait un nombre de « bouteille(s) » correspondant en réalité au nombre de fiches, pas au nombre réel de bouteilles." },
   { version:"1.6.1", date:"2026-08-28", notes:"Partie haute de la fiche encore allégée : la photo, la région, l'appellation, le cépage et le prix unitaire rejoignent la partie basse. Celle-ci porte maintenant un titre cliquable « Détails complémentaires » (repliée par défaut à l'ouverture) qui déplie ou replie tout le contenu du bas, y compris le bouton Supprimer." },
   { version:"1.6.0", date:"2026-08-28", notes:"Fiche détaillée réorganisée en deux parties séparées par les boutons Annuler/Enregistrer, pour plus d'ergonomie. En haut : ce qui sert le plus souvent (photo, identité de la bouteille, couleur, millésime, cépages, quantité, prix, emplacement, et le bouton 🍷 Marquer une bouteille comme bue, rendu plus visible). En bas, sous « Détails complémentaires » : date et lieu d'achat, fenêtre d'apogée, note, commentaire de dégustation, et le bouton Supprimer." },
@@ -616,6 +663,7 @@ const LS_CONFIG = "cave_github_config_v1";
 const LS_REGLAGES = "cave_reglages_v1";
 const CHEMIN_REGLAGES = "cave-reglages.json";
 const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
+const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
 
 let bottles = [];
 let filtreStatut = "cave";
@@ -630,6 +678,7 @@ let photoEnCoursMiniature = "";  // base64 miniature, toujours conservée locale
 let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dépôt (ex. images/xxx.jpg)
 let photoSupprimee = false;
 let noteChoisie = 0;
+let numeroEnCoursAjout = null; // numéro réservé pour un nouveau vin, tant que la fiche d'ajout est ouverte
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
@@ -685,7 +734,9 @@ const COULEURS = [
   { key:"rouge", label:"Rouge" },
   { key:"blanc", label:"Blanc" },
   { key:"rose", label:"Rosé" },
-  { key:"petillant", label:"Pétillant" },
+  { key:"champagne", label:"Champagne" },
+  { key:"cremant", label:"Crémant" },
+  { key:"cidre", label:"Cidre" },
   { key:"liquoreux", label:"Liquoreux" },
   { key:"autre", label:"Autre" }
 ];
@@ -735,6 +786,26 @@ document.getElementById("btnConfirmOui").addEventListener("click", ()=>{
 });
 
 /* ===================== PERSISTANCE LOCALE ===================== */
+/* ---- Numéro court unique par vin (à recopier sur l'étiquette physique) ---- */
+function lireCompteurNumero(){
+  try{ return parseInt(localStorage.getItem(LS_COMPTEUR_NUMERO),10) || 0; }catch(e){ return 0; }
+}
+function ecrireCompteurNumero(n){
+  try{ localStorage.setItem(LS_COMPTEUR_NUMERO, String(n)); }catch(e){}
+}
+/* Le compteur ne redescend jamais : il est recalé au moins au-dessus du plus grand numéro déjà vu localement, pour qu'un numéro ne soit jamais réattribué même après suppression d'une fiche ou récupération depuis GitHub. */
+function recalerCompteurNumero(){
+  let max = lireCompteurNumero();
+  bottles.forEach(b=>{ const n = Number(b.numero)||0; if(n > max) max = n; });
+  ecrireCompteurNumero(max);
+}
+function prochainNumero(){
+  recalerCompteurNumero();
+  const n = lireCompteurNumero() + 1;
+  ecrireCompteurNumero(n);
+  return n;
+}
+
 function chargerBouteilles(){
   try{
     const raw = localStorage.getItem(LS_BOTTLES);
@@ -760,6 +831,14 @@ function migrerBouteilles(){
       modifie = true;
     }
   });
+  const sansNumero = bottles.filter(b => !b.numero);
+  if(sansNumero.length){
+    sansNumero
+      .slice()
+      .sort((a,b)=> (a.dateAjout||"").localeCompare(b.dateAjout||""))
+      .forEach(b=>{ b.numero = prochainNumero(); });
+    modifie = true;
+  }
   if(modifie) sauvegarderBouteilles();
 }
 function sauvegarderBouteilles(){
@@ -943,8 +1022,8 @@ function bouteillesFiltrees(){
   if(filtreApogeeOnly) list = list.filter(b=>statutApogee(b)==="now");
   if(recherche.trim()){
     const q = recherche.trim().toLowerCase();
-    list = list.filter(b => [b.nom,b.domaine,b.appellation,b.region,b.cepages,b.commentaire]
-      .some(v => v && String(v).toLowerCase().includes(q)));
+    list = list.filter(b => [b.nom,b.domaine,b.appellation,b.region,b.cepages,b.commentaire,b.numero]
+      .some(v => v!=null && String(v).toLowerCase().includes(q)));
   }
   list.sort((a,b)=>{
     switch(sortKey){
@@ -1004,7 +1083,10 @@ function carteBouteille(b){
     ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">
-        <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
+        <div class="bottle-title-row">
+          <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
+          ${b.numero ? `<span class="numero-badge">N°${b.numero}</span>` : ""}
+        </div>
         ${sousTitre ? `<div class="bottle-sub">${escapeHtml(sousTitre)}</div>` : ""}
         <div class="bottle-meta-row">
           <span class="capsule ${coul.key}"></span>
@@ -1163,6 +1245,8 @@ function viderFormulaire(){
 function ouvrirAjout(){
   ficheEnCours = null;
   viderFormulaire();
+  numeroEnCoursAjout = prochainNumero();
+  document.getElementById("numeroFicheValeur").textContent = "N° " + numeroEnCoursAjout;
   document.getElementById("ficheTitre").textContent = "Ajouter un vin";
   document.getElementById("ficheActionsBue").innerHTML = "";
   document.getElementById("ficheActionSupprimer").innerHTML = "";
@@ -1191,6 +1275,8 @@ function ouvrirFiche(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
   ficheEnCours = id;
+  numeroEnCoursAjout = null;
+  document.getElementById("numeroFicheValeur").textContent = "N° " + (b.numero||"?");
   document.getElementById("ficheSectionBasse").open = false;
   document.getElementById("ficheTitre").textContent = "Modifier ce vin";
   document.getElementById("fNom").value = b.nom||"";
@@ -1318,6 +1404,7 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   }else{
     bottles.push(Object.assign({
       id: uuid(),
+      numero: numeroEnCoursAjout || prochainNumero(),
       dateAjout: todayISO(),
       quantiteBue: 0,
       dateDerniereDegustation: ""

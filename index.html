@@ -308,16 +308,13 @@
   .couleur-choice.active{border-color:var(--gold);color:var(--text);background:var(--bg-card);}
   .star-picker{display:flex;gap:4px;font-size:24px;color:var(--line);}
   .star-picker span.on{color:var(--gold);}
-  .photo-drop{
-    border:1.5px dashed var(--line);border-radius:var(--radius);
-    padding:14px;text-align:center;color:var(--text-muted);font-size:12.5px;
-    position:relative;overflow:hidden;min-height:120px;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;
+  .photo-section{display:flex;flex-direction:column;gap:9px;}
+  .photo-img{
+    width:100%;max-height:240px;object-fit:cover;
+    border-radius:var(--radius);border:1px solid var(--line);
+    display:block;
   }
-  .photo-drop img{max-width:100%;max-height:220px;border-radius:8px;}
-  .photo-drop input[type=file]{
-    position:absolute;inset:0;opacity:0;cursor:pointer;
-  }
+  .photo-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .modal-actions{
     display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
     padding-top:8px;border-top:1px solid var(--line-soft);
@@ -451,13 +448,15 @@
       <button class="modal-close" id="closeFiche" type="button">✕</button>
     </div>
     <div class="modal-body">
-      <div class="photo-drop" id="photoDrop">
-        <img id="photoPreview" style="display:none">
-        <div id="photoPlaceholder">📷 Photo de l'étiquette<br><span style="opacity:.7">Toucher pour choisir une image</span></div>
-        <input type="file" id="photoInput" accept="image/*">
+      <div class="photo-section">
+        <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette de la bouteille">
+        <div class="photo-actions">
+          <button class="btn btn-sm" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
+          <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
+          <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" style="display:none">
       </div>
-      <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;align-self:flex-start;">👁 Charger la photo existante</button>
-      <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;align-self:flex-start;">Retirer la photo</button>
 
       <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
       <div class="field-row">
@@ -547,8 +546,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 const HISTORY = [
+  { version:"1.2.1", date:"2026-08-28", notes:"Zone photo de la fiche revue : plus de grand encadré vide en pointillés quand il n'y a pas de photo, et l'ajout d'une photo se fait désormais via un bouton explicite (« 📷 Ajouter une photo », qui devient « 🔄 Changer la photo » une fois une photo présente) plutôt qu'en touchant une zone vierge." },
   { version:"1.2.0", date:"2026-08-28", notes:"Ajout d'une case « Avec photo » : quand elle est décochée, aucune photo n'est chargée ni affichée automatiquement (ni miniature dans la grille, ni pleine résolution dans une fiche) — un bouton dédié par bouteille permet de l'afficher à la demande. Cette préférence est enregistrée sur l'appareil et systématiquement synchronisée vers GitHub à chaque changement (fichier cave-reglages.json), pour rester la même d'un appareil à l'autre." },
   { version:"1.1.0", date:"2026-08-28", notes:"Changement du stockage des photos : seule une petite miniature reste enregistrée sur l'appareil (pour un affichage rapide hors ligne) ; la photo en pleine résolution est envoyée comme fichier séparé dans le dépôt GitHub lors de la synchronisation, au lieu d'être intégrée dans le fichier de données. Cela évite d'atteindre la limite de stockage du navigateur même avec beaucoup de bouteilles photographiées. La fiche affiche automatiquement la photo en haute résolution depuis GitHub quand elle est disponible." },
   { version:"1.0.0", date:"2026-08-28", notes:"Version initiale : ajout et retrait de bouteilles, fiche détaillée avec photo d'étiquette, note et commentaire de dégustation, tri et regroupement (couleur / région / emplacement), filtre « à boire maintenant » selon la fenêtre d'apogée, statistiques de cave, sauvegarde locale automatique, synchronisation GitHub optionnelle, export/import JSON." }
@@ -972,6 +972,11 @@ function dessinerEtoiles(){
   });
 }
 
+function majBoutonChoisirPhoto(){
+  const existe = !!(photoEnCoursPendante || photoEnCoursMiniature || photoEnCoursFichier);
+  document.getElementById("btnChoisirPhoto").textContent = existe ? "🔄 Changer la photo" : "📷 Ajouter une photo";
+}
+
 function viderFormulaire(){
   ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fCommentaire"]
     .forEach(id=>document.getElementById(id).value="");
@@ -986,9 +991,9 @@ function viderFormulaire(){
   photoEnCoursFichier = "";
   photoSupprimee = false;
   document.getElementById("photoPreview").style.display = "none";
-  document.getElementById("photoPlaceholder").style.display = "flex";
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
+  majBoutonChoisirPhoto();
 }
 
 function ouvrirAjout(){
@@ -1005,7 +1010,6 @@ function afficherPhotoFiche(){
   if(immediate){
     document.getElementById("photoPreview").src = immediate;
     document.getElementById("photoPreview").style.display = "block";
-    document.getElementById("photoPlaceholder").style.display = "none";
   }
   // Si une version pleine résolution existe déjà sur GitHub, on l'affiche dès qu'elle arrive (l'aperçu miniature reste visible en attendant).
   if(!photoEnCoursPendante && photoEnCoursFichier){
@@ -1046,20 +1050,18 @@ function ouvrirFiche(id){
   photoEnCoursFichier = b.photoFichier || "";
   const uneImageExiste = !!(photoEnCoursPendante || photoEnCoursMiniature || photoEnCoursFichier);
   document.getElementById("btnChargerPhoto").style.display = "none";
+  document.getElementById("photoPreview").style.display = "none";
   if(uneImageExiste && avecPhoto){
     afficherPhotoFiche();
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
   }else if(uneImageExiste){
     // « Avec photo » est décoché : on ne charge/affiche rien tant que l'utilisateur ne le demande pas.
-    document.getElementById("photoPreview").style.display = "none";
-    document.getElementById("photoPlaceholder").style.display = "flex";
     document.getElementById("btnChargerPhoto").style.display = "inline-flex";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
   }else{
-    document.getElementById("photoPreview").style.display = "none";
-    document.getElementById("photoPlaceholder").style.display = "flex";
     document.getElementById("btnRetirerPhoto").style.display = "none";
   }
+  majBoutonChoisirPhoto();
 
   const gauche = document.getElementById("ficheLeftActions");
   gauche.innerHTML = "";
@@ -1146,6 +1148,7 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
 });
 
 /* ---- Photo : sélection + compression (pleine résolution pour GitHub + petite miniature pour le stockage local) ---- */
+document.getElementById("btnChoisirPhoto").addEventListener("click", ()=>document.getElementById("photoInput").click());
 document.getElementById("photoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -1158,9 +1161,9 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     photoSupprimee = false;
     document.getElementById("photoPreview").src = pleine;
     document.getElementById("photoPreview").style.display = "block";
-    document.getElementById("photoPlaceholder").style.display = "none";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
     document.getElementById("btnChargerPhoto").style.display = "none";
+    majBoutonChoisirPhoto();
   }).catch(()=>toast("Impossible de charger cette image"));
 });
 document.getElementById("btnChargerPhoto").addEventListener("click", function(){
@@ -1174,9 +1177,9 @@ document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   photoSupprimee = true;
   document.getElementById("photoInput").value = "";
   document.getElementById("photoPreview").style.display = "none";
-  document.getElementById("photoPlaceholder").style.display = "flex";
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
+  majBoutonChoisirPhoto();
 });
 function compresserImage(file, maxDim, qualite){
   return new Promise((resolve,reject)=>{

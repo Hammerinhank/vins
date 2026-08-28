@@ -543,8 +543,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.4.1";
+const VERSION = "1.4.2";
 const HISTORY = [
+  { version:"1.4.2", date:"2026-08-28", notes:"La suppression d'une bouteille retire maintenant aussi son fichier photo dans le dépôt GitHub (images/<id>.jpg), si une synchronisation est configurée — auparavant seule la fiche était supprimée localement et sur cave.json, la photo restait orpheline dans le dépôt." },
   { version:"1.4.1", date:"2026-08-28", notes:"Correction d'affichage dans la fiche détaillée : le bouton « Supprimer » était poussé hors de l'écran par les nouveaux boutons 🍷 / ↩, sur les petits écrans, faute de retour à la ligne. Les boutons de gauche (Supprimer, Marquer comme bue, Annuler la dernière bue) passent maintenant correctement à la ligne et restent tous visibles. Le bouton Supprimer est aussi rendu plus visiblement rouge." },
   { version:"1.4.0", date:"2026-08-28", notes:"Refonte du suivi « bue » : chaque fiche a maintenant un compteur de bouteilles en cave et un compteur de bouteilles bues, distincts. Le bouton 🍷 (liste et fiche) marque une bouteille comme bue — la quantité en cave diminue d'une unité et le compteur de bues augmente d'autant ; un bouton ↩ symétrique permet d'annuler une bue déclarée par erreur, sans perte d'information. Une même fiche peut donc apparaître à la fois dans « En cave » et dans « Historique (bues) » si elle est partiellement consommée." },
   { version:"1.3.1", date:"2026-08-28", notes:"L'icône de la liste principale représente désormais un appareil photo. Quand la photo d'une bouteille est affichée, l'icône devient un appareil photo barré (cercle rouge en diagonale, comme un pictogramme d'interdiction) et permet de la masquer à nouveau d'un tap." },
@@ -723,6 +724,22 @@ async function televerserPhotosEnAttente(cfg, onProgress){
   }
   if(aTraiter.length) sauvegarderBouteilles();
   return { succes, echecs, total: aTraiter.length };
+}
+/* Supprime le fichier photo d'une bouteille dans le dépôt GitHub (best-effort : échec silencieux si pas de synchro configurée ou fichier déjà absent). */
+async function supprimerPhotoDistante(chemin){
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token || !chemin) return false;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
+    if(getRes.status !== 200) return false; // déjà absent ou inaccessible
+    const sha = (await getRes.json()).sha;
+    const delRes = await githubAPI(base, cfg, {
+      method: "DELETE",
+      body: JSON.stringify({ message: "Suppression de la photo (bouteille supprimée)", sha, branch: cfg.branche||"main" })
+    });
+    return delRes.ok;
+  }catch(e){ return false; }
 }
 function chargerConfig(){
   try{
@@ -1121,11 +1138,17 @@ function ouvrirFiche(id){
   btnSupprimer.textContent = "Supprimer";
   btnSupprimer.addEventListener("click", ()=>{
     demanderConfirmation("Supprimer la bouteille", `Supprimer définitivement « ${b.nom||"cette bouteille"} » de la cave ?`, ()=>{
+      const cheminPhoto = b.photoFichier;
       bottles = bottles.filter(x=>x.id!==id);
       sauvegarderBouteilles();
       document.getElementById("overlayFiche").classList.remove("show");
       rafraichirTout();
       toast("Bouteille supprimée");
+      if(cheminPhoto){
+        supprimerPhotoDistante(cheminPhoto).then(ok=>{
+          if(!ok && chargerConfig().token) toast("Bouteille supprimée — la photo sur GitHub n'a pas pu être retirée");
+        });
+      }
     });
   });
   gauche.appendChild(btnSupprimer);

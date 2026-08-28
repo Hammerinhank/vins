@@ -359,6 +359,7 @@
     background:var(--bg-panel);border:1px solid var(--gold);border-radius:6px;
     width:76px;padding:0 6px;
   }
+  .numero-fiche-input.conflit{color:var(--danger);border-color:var(--danger);}
   .numero-fiche-note{font-size:11px;color:var(--text-faint);}
   .fiche-section-basse{margin:0;}
   .fiche-section-basse summary{
@@ -518,7 +519,7 @@
         <div class="numero-fiche-badge" id="numeroFicheBadge">
           <span class="numero-fiche-valeur" id="numeroFicheValeur" title="Toucher pour modifier"></span>
           <input type="number" id="numeroFicheInput" class="numero-fiche-input" min="1" style="display:none;">
-          <span class="numero-fiche-note">à noter sur l'étiquette · touche le numéro pour le modifier</span>
+          <span class="numero-fiche-note">à noter sur l'étiquette</span>
         </div>
 
         <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
@@ -646,8 +647,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.0";
+const VERSION = "1.8.1";
 const HISTORY = [
+  { version:"1.8.1", date:"2026-08-28", notes:"Retrait du texte « touche le numéro pour le modifier » sous le N°. En modifiant le numéro, les caractères passent en rouge immédiatement s'il correspond déjà à un autre vin, et reviennent à la normale dès que la valeur saisie est libre." },
   { version:"1.8.0", date:"2026-08-28", notes:"Chaque local storage (chaque navigateur, sur chaque appareil) a maintenant un identifiant propre, inclus dans cave.json à chaque envoi (champ « origine »). Au lancement, l'app vérifie silencieusement GitHub : si la dernière sauvegarde provient de cet appareil/navigateur lui-même, rien ne se passe. Si elle provient d'ailleurs, elle est appliquée automatiquement quand rien n'est en attente localement ; sinon (changements locaux pas encore envoyés), une confirmation est demandée avant d'écraser quoi que ce soit." },
   { version:"1.7.5", date:"2026-08-28", notes:"Correction probable du problème « la sauvegarde a l'air de réussir mais je ne retrouve rien en récupérant depuis GitHub » : les requêtes de lecture GitHub pouvaient être servies depuis le cache du navigateur au lieu d'aller vérifier la version réelle sur GitHub, donnant l'impression qu'un envoi récent n'avait pas été pris en compte alors qu'il l'avait été. Toutes les lectures GitHub (y compris « Récupérer depuis GitHub ») contournent maintenant explicitement ce cache." },
   { version:"1.7.4", date:"2026-08-28", notes:"Le numéro (« à noter sur l'étiquette ») devient modifiable : toucher le N° dans la fiche ouvre un champ de saisie. Le nouveau numéro n'est refusé que s'il est déjà utilisé par un autre vin (ou invalide) — un message l'indique alors et l'ancien numéro est conservé. Le changement n'est définitif qu'après avoir touché Enregistrer, comme les autres champs." },
@@ -842,11 +844,14 @@ function validerNumero(n){
 function afficherNumeroFiche(){
   document.getElementById("numeroFicheValeur").textContent = "N° " + numeroFicheCourant;
   document.getElementById("numeroFicheValeur").style.display = "";
-  document.getElementById("numeroFicheInput").style.display = "none";
+  const input = document.getElementById("numeroFicheInput");
+  input.style.display = "none";
+  input.classList.remove("conflit");
 }
 function activerEditionNumero(){
   const input = document.getElementById("numeroFicheInput");
   input.value = numeroFicheCourant;
+  input.classList.remove("conflit");
   document.getElementById("numeroFicheValeur").style.display = "none";
   input.style.display = "inline-block";
   input.focus();
@@ -1442,6 +1447,11 @@ function ouvrirFiche(id){
 document.getElementById("btnAjouter").addEventListener("click", ouvrirAjout);
 document.getElementById("numeroFicheValeur").addEventListener("click", activerEditionNumero);
 document.getElementById("numeroFicheInput").addEventListener("blur", commitEditionNumero);
+document.getElementById("numeroFicheInput").addEventListener("input", function(){
+  const n = parseInt(this.value, 10);
+  const dejaUtilise = !!n && bottles.some(b => b.numero === n && b.id !== ficheEnCours);
+  this.classList.toggle("conflit", dejaUtilise);
+});
 document.getElementById("numeroFicheInput").addEventListener("keydown", e=>{
   if(e.key === "Enter"){ e.preventDefault(); document.getElementById("numeroFicheInput").blur(); }
   else if(e.key === "Escape"){ e.preventDefault(); annulerEditionNumero(); }

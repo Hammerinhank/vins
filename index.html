@@ -574,6 +574,7 @@
             <div class="photo-actions">
               <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
               <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+              <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;">🤖 Identifier avec ChatGPT</button>
             </div>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
           </div>
@@ -648,8 +649,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.3";
+const VERSION = "1.8.4";
 const HISTORY = [
+  { version:"1.8.4", date:"2026-08-28", notes:"Ajout d'un bouton « 🤖 Identifier avec ChatGPT » dans les Détails complémentaires (visible dès qu'une photo existe) : il copie la photo du vin (pleine résolution si disponible) au format PNG dans le presse-papier, et ouvre ChatGPT dans un nouvel onglet avec la question déjà rédigée. Il reste à coller la photo (Cmd+V) dans ChatGPT une fois la page ouverte, aucune méthode web ne permettant de le faire automatiquement." },
   { version:"1.8.3", date:"2026-08-28", notes:"Le fond des bandeaux de section utilise une teinte propre (mélange de doré, ou de la couleur du vin quand le regroupement se fait par couleur), différente de tous les autres fonds déjà utilisés dans l'app, pour bien se détacher visuellement au lieu de se fondre avec les cartes ou les boutons." },
   { version:"1.8.2", date:"2026-08-28", notes:"Les titres de section (liste regroupée) sont maintenant un bandeau plein sur toute la largeur, avec un fond légèrement plus clair que le reste de la page, pour bien trancher visuellement à chaque changement de groupe." },
   { version:"1.8.1", date:"2026-08-28", notes:"Retrait du texte « touche le numéro pour le modifier » sous le N°. En modifiant le numéro, les caractères passent en rouge immédiatement s'il correspond déjà à un autre vin, et reviennent à la normale dès que la valeur saisie est libre." },
@@ -1321,6 +1323,7 @@ function viderFormulaire(){
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
+  document.getElementById("btnIdentifierChatGPT").style.display = "none";
   majBoutonChoisirPhoto();
 }
 
@@ -1384,6 +1387,7 @@ function ouvrirFiche(id){
   photoEnCoursMiniature = meilleureMiniature(b);
   photoEnCoursFichier = b.photoFichier || "";
   const uneImageExiste = !!(photoEnCoursPendante || photoEnCoursMiniature || photoEnCoursFichier);
+  document.getElementById("btnIdentifierChatGPT").style.display = uneImageExiste ? "inline-flex" : "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
   document.getElementById("photoPreview").style.display = "none";
   if(uneImageExiste && avecPhoto){
@@ -1526,6 +1530,7 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
     document.getElementById("btnChargerPhoto").style.display = "none";
+    document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
     document.getElementById("ficheSectionBasse").open = true;
     majBoutonChoisirPhoto();
   }).catch(()=>toast("Impossible de charger cette image"));
@@ -1543,8 +1548,56 @@ document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
+  document.getElementById("btnIdentifierChatGPT").style.display = "none";
   majBoutonChoisirPhoto();
 });
+
+/* ---- Identifier le vin via ChatGPT : copie la photo (pleine résolution si possible) dans le presse-papier au format PNG, et ouvre ChatGPT avec la question pré-remplie. La photo doit ensuite être collée manuellement dans ChatGPT (aucune API ne permet de l'y déposer directement depuis une simple page web). ---- */
+async function meilleureSourcePourChatGPT(){
+  if(photoEnCoursPendante) return photoEnCoursPendante;
+  if(photoEnCoursFichier){
+    const distante = await obtenirPhotoDepuisGitHub(photoEnCoursFichier);
+    if(distante) return distante;
+  }
+  return photoEnCoursMiniature || "";
+}
+function dataUrlVersPng(dataUrl){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Conversion impossible")), "image/png");
+    };
+    img.onerror = () => reject(new Error("Image illisible"));
+    img.src = dataUrl;
+  });
+}
+document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
+  if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
+    toast("Aucune photo à envoyer pour ce vin");
+    return;
+  }
+  if(!navigator.clipboard || typeof ClipboardItem === "undefined"){
+    toast("Ce navigateur ne permet pas de copier une image dans le presse-papier");
+    return;
+  }
+  // navigator.clipboard.write() doit être appelé de façon synchrone dans le gestionnaire de clic pour rester
+  // autorisé par Safari ; on lui passe donc directement la promesse de l'image plutôt que d'attendre son résultat avant.
+  const promesseImage = meilleureSourcePourChatGPT().then(source=>{
+    if(!source) throw new Error("Aucune image disponible");
+    return dataUrlVersPng(source);
+  });
+  navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseImage }) ])
+    .then(()=> toast("Photo copiée — colle-la (Cmd+V) dans ChatGPT"))
+    .catch(()=> toast("Impossible de copier la photo dans le presse-papier"));
+
+  const question = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
+  window.open("https://chatgpt.com/?q=" + encodeURIComponent(question), "_blank");
+});
+
 function compresserImage(file, maxDim, qualite){
   return new Promise((resolve,reject)=>{
     const reader = new FileReader();

@@ -150,6 +150,19 @@
     padding:7px 12px;border-radius:999px;font-size:12.5px;
   }
   .chip-toggle.active{background:var(--gold);border-color:var(--gold);color:#1c1710;font-weight:600;}
+  .checkbox-chip{
+    display:inline-flex;align-items:center;gap:7px;
+    border:1px solid var(--line);background:var(--bg-panel);
+    color:var(--text-muted);padding:7px 12px;border-radius:999px;font-size:12.5px;
+    cursor:pointer;user-select:none;
+  }
+  .checkbox-chip input{accent-color:var(--gold);width:14px;height:14px;margin:0;}
+  .photo-hidden{display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.92;}
+  .btn-voir-photo{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--gold-soft);
+    padding:5px 10px;border-radius:999px;
+  }
 
   /* ---------- Grid / cards ---------- */
   .grid-wrap{max-width:960px;margin:0 auto;padding:6px 16px 30px 16px;}
@@ -387,6 +400,10 @@
   <button class="chip-toggle" data-statut="bue" type="button">Historique (bues)</button>
   <button class="chip-toggle" data-statut="toutes" type="button">Toutes</button>
   <button class="chip-toggle" id="chipApogee" type="button">🍷 À boire maintenant</button>
+  <label class="checkbox-chip" for="avecPhotoCheckbox">
+    <input type="checkbox" id="avecPhotoCheckbox" checked>
+    Avec photo
+  </label>
 </div>
 
 <div class="grid-wrap" id="gridWrap"></div>
@@ -439,6 +456,7 @@
         <div id="photoPlaceholder">📷 Photo de l'étiquette<br><span style="opacity:.7">Toucher pour choisir une image</span></div>
         <input type="file" id="photoInput" accept="image/*">
       </div>
+      <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;align-self:flex-start;">👁 Charger la photo existante</button>
       <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;align-self:flex-start;">Retirer la photo</button>
 
       <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
@@ -529,8 +547,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const HISTORY = [
+  { version:"1.2.0", date:"2026-08-28", notes:"Ajout d'une case « Avec photo » : quand elle est décochée, aucune photo n'est chargée ni affichée automatiquement (ni miniature dans la grille, ni pleine résolution dans une fiche) — un bouton dédié par bouteille permet de l'afficher à la demande. Cette préférence est enregistrée sur l'appareil et systématiquement synchronisée vers GitHub à chaque changement (fichier cave-reglages.json), pour rester la même d'un appareil à l'autre." },
   { version:"1.1.0", date:"2026-08-28", notes:"Changement du stockage des photos : seule une petite miniature reste enregistrée sur l'appareil (pour un affichage rapide hors ligne) ; la photo en pleine résolution est envoyée comme fichier séparé dans le dépôt GitHub lors de la synchronisation, au lieu d'être intégrée dans le fichier de données. Cela évite d'atteindre la limite de stockage du navigateur même avec beaucoup de bouteilles photographiées. La fiche affiche automatiquement la photo en haute résolution depuis GitHub quand elle est disponible." },
   { version:"1.0.0", date:"2026-08-28", notes:"Version initiale : ajout et retrait de bouteilles, fiche détaillée avec photo d'étiquette, note et commentaire de dégustation, tri et regroupement (couleur / région / emplacement), filtre « à boire maintenant » selon la fenêtre d'apogée, statistiques de cave, sauvegarde locale automatique, synchronisation GitHub optionnelle, export/import JSON." }
 ];
@@ -538,6 +557,8 @@ const HISTORY = [
 /* ===================== ÉTAT ===================== */
 const LS_BOTTLES = "cave_bottles_v1";
 const LS_CONFIG = "cave_github_config_v1";
+const LS_REGLAGES = "cave_reglages_v1";
+const CHEMIN_REGLAGES = "cave-reglages.json";
 
 let bottles = [];
 let filtreStatut = "cave";
@@ -552,6 +573,8 @@ let photoEnCoursMiniature = "";  // base64 miniature, toujours conservée locale
 let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dépôt (ex. images/xxx.jpg)
 let photoSupprimee = false;
 let noteChoisie = 0;
+let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
+let photosRevelees = new Set();    // ids de bouteilles dont la photo a été affichée à la demande cette session
 
 const COULEURS = [
   { key:"rouge", label:"Rouge" },
@@ -682,6 +705,46 @@ function sauvegarderConfig(cfg){
   localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
 }
 
+/* ---- Réglages (ex. « Avec photo »), persistants localement ET sur GitHub ---- */
+function chargerReglagesLocal(){
+  try{
+    const raw = localStorage.getItem(LS_REGLAGES);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function sauvegarderReglagesLocal(){
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto }));
+}
+async function pousserReglagesVersGitHub(){
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token) return false;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_REGLAGES)}`;
+    let sha = null;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
+    if(getRes.status === 200){ sha = (await getRes.json()).sha; }
+    else if(getRes.status !== 404){ throw new Error("lecture"); }
+    const contenu = JSON.stringify({ avecPhoto, maj: new Date().toISOString() }, null, 2);
+    const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
+    if(sha) body.sha = sha;
+    const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
+    if(!putRes.ok) throw new Error("envoi");
+    return true;
+  }catch(e){ return false; }
+}
+async function recupererReglagesDepuisGitHub(){
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token) return null;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_REGLAGES)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
+    const res = await githubAPI(base, cfg);
+    if(!res.ok) return null;
+    const info = await res.json();
+    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    return JSON.parse(texte);
+  }catch(e){ return null; }
+}
+
 /* ===================== APOGÉE ===================== */
 function statutApogee(b){
   if(!b.boireDe && !b.boireA) return null;
@@ -770,9 +833,15 @@ function carteBouteille(b){
   const ap = statutApogee(b);
   const apTag = ap ? `<span class="apogee-tag ${ap}">${libelleApogee(ap)}</span>` : "";
   const miniature = meilleureMiniature(b);
-  const photo = miniature
-    ? `<img src="${miniature}" alt="Étiquette">`
-    : `<div class="placeholder">🍾</div>`;
+  const revele = avecPhoto || photosRevelees.has(b.id);
+  let photo;
+  if(revele && miniature){
+    photo = `<img src="${miniature}" alt="Étiquette">`;
+  }else if(miniature){
+    photo = `<div class="photo-hidden"><div class="placeholder">🍾</div><button class="btn-voir-photo" type="button" data-action="voirPhoto">👁 Voir la photo</button></div>`;
+  }else{
+    photo = `<div class="placeholder">🍾</div>`;
+  }
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
   const tags = [];
@@ -832,6 +901,10 @@ function renderGrille(){
       el.addEventListener("click", ()=>ouvrirFiche(id));
     });
     card.querySelector('[data-action="plus"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, 1); });
+    const btnVoir = card.querySelector('[data-action="voirPhoto"]');
+    if(btnVoir){
+      btnVoir.addEventListener("click", e=>{ e.stopPropagation(); photosRevelees.add(id); renderGrille(); });
+    }
     card.querySelector('[data-action="moins"]').addEventListener("click", e=>{ e.stopPropagation(); changerQuantite(id, -1); });
   });
 }
@@ -915,6 +988,7 @@ function viderFormulaire(){
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoPlaceholder").style.display = "flex";
   document.getElementById("btnRetirerPhoto").style.display = "none";
+  document.getElementById("btnChargerPhoto").style.display = "none";
 }
 
 function ouvrirAjout(){
@@ -923,6 +997,24 @@ function ouvrirAjout(){
   document.getElementById("ficheTitre").textContent = "Ajouter une bouteille";
   document.getElementById("ficheLeftActions").innerHTML = "";
   document.getElementById("overlayFiche").classList.add("show");
+}
+
+function afficherPhotoFiche(){
+  const idAuMoment = ficheEnCours;
+  const immediate = photoEnCoursPendante || photoEnCoursMiniature;
+  if(immediate){
+    document.getElementById("photoPreview").src = immediate;
+    document.getElementById("photoPreview").style.display = "block";
+    document.getElementById("photoPlaceholder").style.display = "none";
+  }
+  // Si une version pleine résolution existe déjà sur GitHub, on l'affiche dès qu'elle arrive (l'aperçu miniature reste visible en attendant).
+  if(!photoEnCoursPendante && photoEnCoursFichier){
+    obtenirPhotoDepuisGitHub(photoEnCoursFichier).then(data=>{
+      if(data && ficheEnCours === idAuMoment){
+        document.getElementById("photoPreview").src = data;
+      }
+    });
+  }
 }
 
 function ouvrirFiche(id){
@@ -952,20 +1044,17 @@ function ouvrirFiche(id){
   photoEnCoursPendante = b.photoPendingBase64 || "";
   photoEnCoursMiniature = meilleureMiniature(b);
   photoEnCoursFichier = b.photoFichier || "";
-  const imageImmediate = photoEnCoursPendante || photoEnCoursMiniature;
-  if(imageImmediate){
-    document.getElementById("photoPreview").src = imageImmediate;
-    document.getElementById("photoPreview").style.display = "block";
-    document.getElementById("photoPlaceholder").style.display = "none";
+  const uneImageExiste = !!(photoEnCoursPendante || photoEnCoursMiniature || photoEnCoursFichier);
+  document.getElementById("btnChargerPhoto").style.display = "none";
+  if(uneImageExiste && avecPhoto){
+    afficherPhotoFiche();
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
-    // Si une version pleine résolution existe déjà sur GitHub, on l'affiche dès qu'elle arrive (l'aperçu miniature reste visible en attendant).
-    if(!photoEnCoursPendante && photoEnCoursFichier){
-      obtenirPhotoDepuisGitHub(photoEnCoursFichier).then(data=>{
-        if(data && ficheEnCours === id){
-          document.getElementById("photoPreview").src = data;
-        }
-      });
-    }
+  }else if(uneImageExiste){
+    // « Avec photo » est décoché : on ne charge/affiche rien tant que l'utilisateur ne le demande pas.
+    document.getElementById("photoPreview").style.display = "none";
+    document.getElementById("photoPlaceholder").style.display = "flex";
+    document.getElementById("btnChargerPhoto").style.display = "inline-flex";
+    document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
   }else{
     document.getElementById("photoPreview").style.display = "none";
     document.getElementById("photoPlaceholder").style.display = "flex";
@@ -1071,7 +1160,12 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("photoPlaceholder").style.display = "none";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
+    document.getElementById("btnChargerPhoto").style.display = "none";
   }).catch(()=>toast("Impossible de charger cette image"));
+});
+document.getElementById("btnChargerPhoto").addEventListener("click", function(){
+  afficherPhotoFiche();
+  this.style.display = "none";
 });
 document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   photoEnCoursPendante = "";
@@ -1082,6 +1176,7 @@ document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoPlaceholder").style.display = "flex";
   document.getElementById("btnRetirerPhoto").style.display = "none";
+  document.getElementById("btnChargerPhoto").style.display = "none";
 });
 function compresserImage(file, maxDim, qualite){
   return new Promise((resolve,reject)=>{
@@ -1122,6 +1217,16 @@ document.getElementById("chipApogee").addEventListener("click", function(){
   filtreApogeeOnly = !filtreApogeeOnly;
   this.classList.toggle("active", filtreApogeeOnly);
   renderGrille();
+});
+document.getElementById("avecPhotoCheckbox").addEventListener("change", function(){
+  avecPhoto = this.checked;
+  sauvegarderReglagesLocal();
+  renderGrille();
+  pousserReglagesVersGitHub().then(ok=>{
+    if(!ok && chargerConfig().token){
+      toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
+    }
+  });
 });
 
 /* ===================== VERSION / HISTORIQUE ===================== */
@@ -1299,7 +1404,20 @@ document.querySelectorAll(".overlay").forEach(ov=>{
 
 chargerBouteilles();
 remplirChampsConfig();
+const reglagesLocaux = chargerReglagesLocal();
+avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
+document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 rafraichirTout();
+
+// Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
+recupererReglagesDepuisGitHub().then(distant=>{
+  if(distant && typeof distant.avecPhoto === "boolean" && distant.avecPhoto !== avecPhoto){
+    avecPhoto = distant.avecPhoto;
+    document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+    sauvegarderReglagesLocal();
+    renderGrille();
+  }
+});
 
 })();
 </script>

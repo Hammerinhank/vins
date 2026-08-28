@@ -1,0 +1,53 @@
+{
+  "bottles": [
+    {
+      "id": "9c191956-8c75-41cd-a242-e29578a0383f",
+      "dateAjout": "2026-08-28",
+      "statut": "cave",
+      "dateBue": "",
+      "nom": "Crémant de bourgogne",
+      "domaine": "Fichet",
+      "appellation": "",
+      "region": "",
+      "pays": "France",
+      "couleur": "petillant",
+      "millesime": "",
+      "cepages": "",
+      "quantite": 8,
+      "prixUnitaire": "",
+      "dateAchat": "",
+      "lieuAchat": "",
+      "emplacement": "",
+      "boireDe": "",
+      "boireA": "",
+      "note": 0,
+      "commentaire": "",
+      "photo": ""
+    },
+    {
+      "id": "ac5a78cf-544a-4a74-bfdc-f877eb385a10",
+      "dateAjout": "2026-08-28",
+      "statut": "cave",
+      "dateBue": "",
+      "nom": "Crépillone",
+      "domaine": "Fichet",
+      "appellation": "",
+      "region": "",
+      "pays": "France",
+      "couleur": "blanc",
+      "millesime": "",
+      "cepages": "",
+      "quantite": 1,
+      "prixUnitaire": "",
+      "dateAchat": "",
+      "lieuAchat": "",
+      "emplacement": "",
+      "boireDe": "",
+      "boireA": "",
+      "note": 0,
+      "commentaire": "",
+      "photo": ""
+    }
+  ],
+  "maj": "2026-08-28T06:58:21.632Z"
+}

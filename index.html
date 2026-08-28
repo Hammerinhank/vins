@@ -637,8 +637,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.7.0";
+const VERSION = "1.7.1";
 const HISTORY = [
+  { version:"1.7.1", date:"2026-08-28", notes:"Photos plus lisibles : la miniature stockée localement passe de 220 à 480 px (elle était trop petite pour la taille à laquelle elle s'affiche sur un écran Retina, d'où le flou) et la photo pleine résolution de 900 à 1600 px, toutes deux avec une meilleure qualité JPEG. Seules les nouvelles photos ajoutées ou remplacées bénéficient de ce changement ; les photos déjà enregistrées restent à l'ancienne qualité tant qu'elles ne sont pas reprises via « 🔄 Changer la photo »." },
   { version:"1.7.0", date:"2026-08-28", notes:"Chaque vin reçoit désormais un numéro court et unique (N° 1, 2, 3…), affiché en évidence en haut de sa fiche pour être recopié sur l'étiquette physique, et sur sa carte dans la liste. Ce numéro est cherchable directement dans la barre de recherche pour retrouver un vin en un instant. Il n'est jamais réutilisé, même après suppression d'une fiche. Les vins déjà enregistrés reçoivent automatiquement un numéro au premier chargement, dans l'ordre de leur date d'ajout." },
   { version:"1.6.4", date:"2026-08-28", notes:"Le type « Pétillant » est remplacé par trois types distincts : Champagne, Crémant et Cidre, chacun avec sa propre couleur de capsule, disponibles partout où la couleur intervient (fiche, filtre, regroupement, statistiques). Les bouteilles déjà enregistrées en « Pétillant » gardent leurs données mais s'affichent en « Autre » jusqu'à être réassignées manuellement à l'un des trois nouveaux types." },
   { version:"1.6.3", date:"2026-08-28", notes:"Le champ « Quantité en cave » propose maintenant une liste déroulante de valeurs courantes (0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36) tout en restant librement modifiable au clavier pour n'importe quel autre nombre." },
@@ -1422,8 +1423,8 @@ document.getElementById("photoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
   Promise.all([
-    compresserImage(file, 900, 0.72),
-    compresserImage(file, 220, 0.55)
+    compresserImage(file, 1600, 0.82),
+    compresserImage(file, 480, 0.65)
   ]).then(([pleine, miniature])=>{
     photoEnCoursPendante = pleine;
     photoEnCoursMiniature = miniature;

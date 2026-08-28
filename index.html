@@ -182,12 +182,13 @@
     font-family:'IBM Plex Mono',monospace;
     text-transform:uppercase;letter-spacing:.12em;
     font-size:12.5px;color:var(--text);font-weight:600;
-    margin:32px 0 14px 0;
-    padding:6px 0 6px 12px;
+    margin:28px -16px 14px -16px;
+    padding:11px 16px 11px 20px;
+    background:var(--bg-panel-2);
     border-left:4px solid var(--gold);
   }
   .group-heading .count{color:var(--text-muted);font-weight:400;margin-left:2px;}
-  .group-heading:first-child{margin-top:6px;}
+  .group-heading:first-child{margin-top:0;}
   .bottle-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
@@ -647,8 +648,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.1";
+const VERSION = "1.8.2";
 const HISTORY = [
+  { version:"1.8.2", date:"2026-08-28", notes:"Les titres de section (liste regroupée) sont maintenant un bandeau plein sur toute la largeur, avec un fond légèrement plus clair que le reste de la page, pour bien trancher visuellement à chaque changement de groupe." },
   { version:"1.8.1", date:"2026-08-28", notes:"Retrait du texte « touche le numéro pour le modifier » sous le N°. En modifiant le numéro, les caractères passent en rouge immédiatement s'il correspond déjà à un autre vin, et reviennent à la normale dès que la valeur saisie est libre." },
   { version:"1.8.0", date:"2026-08-28", notes:"Chaque local storage (chaque navigateur, sur chaque appareil) a maintenant un identifiant propre, inclus dans cave.json à chaque envoi (champ « origine »). Au lancement, l'app vérifie silencieusement GitHub : si la dernière sauvegarde provient de cet appareil/navigateur lui-même, rien ne se passe. Si elle provient d'ailleurs, elle est appliquée automatiquement quand rien n'est en attente localement ; sinon (changements locaux pas encore envoyés), une confirmation est demandée avant d'écraser quoi que ce soit." },
   { version:"1.7.5", date:"2026-08-28", notes:"Correction probable du problème « la sauvegarde a l'air de réussir mais je ne retrouve rien en récupérant depuis GitHub » : les requêtes de lecture GitHub pouvaient être servies depuis le cache du navigateur au lieu d'aller vérifier la version réelle sur GitHub, donnant l'impression qu'un envoi récent n'avait pas été pris en compte alors qu'il l'avait été. Toutes les lectures GitHub (y compris « Récupérer depuis GitHub ») contournent maintenant explicitement ce cache." },

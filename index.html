@@ -157,12 +157,6 @@
     cursor:pointer;user-select:none;
   }
   .checkbox-chip input{accent-color:var(--gold);width:14px;height:14px;margin:0;}
-  .photo-hidden{display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.92;}
-  .btn-voir-photo{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;
-    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--gold-soft);
-    padding:5px 10px;border-radius:999px;
-  }
 
   /* ---------- Grid / cards ---------- */
   .grid-wrap{max-width:960px;margin:0 auto;padding:6px 16px 30px 16px;}
@@ -197,16 +191,6 @@
     overflow:hidden;position:relative;
   }
   .bottle-photo img{width:100%;height:100%;object-fit:cover;}
-  .bottle-photo .placeholder{opacity:.35;}
-  .apogee-tag{
-    position:absolute;top:8px;left:8px;
-    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.04em;
-    padding:3px 8px;border-radius:999px;
-    background:rgba(20,16,12,.78);backdrop-filter:blur(2px);
-  }
-  .apogee-tag.now{color:#BFE0A8;border:1px solid #6E8F5C;}
-  .apogee-tag.wait{color:#B9C7DA;border:1px solid #52657E;}
-  .apogee-tag.late{color:#F0B79A;border:1px solid var(--danger);}
   .bottle-body{padding:12px 14px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1;}
   .bottle-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;}
   .bottle-sub{font-size:12px;color:var(--text-muted);}
@@ -220,6 +204,9 @@
     background:var(--bg-panel-2);border:1px solid var(--line);
     color:var(--text-muted);padding:2px 7px;border-radius:6px;
   }
+  .tag.apogee-now{color:#BFE0A8;border-color:#6E8F5C;}
+  .tag.apogee-wait{color:#B9C7DA;border-color:#52657E;}
+  .tag.apogee-late{color:#F0B79A;border-color:var(--danger);}
   .bottle-footer{
     margin-top:auto;padding-top:10px;
     display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -232,6 +219,14 @@
     display:flex;align-items:center;justify-content:center;
   }
   .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:14px;text-align:center;}
+  .footer-actions{display:flex;align-items:center;gap:6px;}
+  .icon-voir-photo{
+    width:30px;height:30px;border-radius:50%;flex:none;
+    border:1px solid var(--line);background:var(--bg-panel-2);
+    color:var(--gold-soft);font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon-voir-photo:active{transform:scale(.92);}
 
   .empty-state{
     text-align:center;padding:60px 20px;color:var(--text-muted);
@@ -546,8 +541,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.2.1";
+const VERSION = "1.3.0";
 const HISTORY = [
+  { version:"1.3.0", date:"2026-08-28", notes:"Dans la liste principale, plus de grande zone vierge réservée quand la photo d'une bouteille n'est pas affichée : à la place, une petite icône 👁 apparaît à gauche du bouton « Détails » et fait apparaître la photo en grand au clic, exactement comme avant. Le statut d'apogée (à boire / à garder / apogée dépassée), auparavant affiché sur la photo, apparaît désormais comme une étiquette colorée à côté des autres informations de la bouteille." },
   { version:"1.2.1", date:"2026-08-28", notes:"Zone photo de la fiche revue : plus de grand encadré vide en pointillés quand il n'y a pas de photo, et l'ajout d'une photo se fait désormais via un bouton explicite (« 📷 Ajouter une photo », qui devient « 🔄 Changer la photo » une fois une photo présente) plutôt qu'en touchant une zone vierge." },
   { version:"1.2.0", date:"2026-08-28", notes:"Ajout d'une case « Avec photo » : quand elle est décochée, aucune photo n'est chargée ni affichée automatiquement (ni miniature dans la grille, ni pleine résolution dans une fiche) — un bouton dédié par bouteille permet de l'afficher à la demande. Cette préférence est enregistrée sur l'appareil et systématiquement synchronisée vers GitHub à chaque changement (fichier cave-reglages.json), pour rester la même d'un appareil à l'autre." },
   { version:"1.1.0", date:"2026-08-28", notes:"Changement du stockage des photos : seule une petite miniature reste enregistrée sur l'appareil (pour un affichage rapide hors ligne) ; la photo en pleine résolution est envoyée comme fichier séparé dans le dépôt GitHub lors de la synchronisation, au lieu d'être intégrée dans le fichier de données. Cela évite d'atteindre la limite de stockage du navigateur même avec beaucoup de bouteilles photographiées. La fiche affiche automatiquement la photo en haute résolution depuis GitHub quand elle est disponible." },
@@ -831,27 +827,26 @@ function groupeDe(b){
 function carteBouteille(b){
   const coul = COULEURS.find(c=>c.key===b.couleur) || COULEURS[COULEURS.length-1];
   const ap = statutApogee(b);
-  const apTag = ap ? `<span class="apogee-tag ${ap}">${libelleApogee(ap)}</span>` : "";
   const miniature = meilleureMiniature(b);
   const revele = avecPhoto || photosRevelees.has(b.id);
-  let photo;
-  if(revele && miniature){
-    photo = `<img src="${miniature}" alt="Étiquette">`;
-  }else if(miniature){
-    photo = `<div class="photo-hidden"><div class="placeholder">🍾</div><button class="btn-voir-photo" type="button" data-action="voirPhoto">👁 Voir la photo</button></div>`;
-  }else{
-    photo = `<div class="placeholder">🍾</div>`;
-  }
+  const photoVisible = revele && !!miniature;
+  const photoHtml = photoVisible
+    ? `<div class="bottle-photo" data-action="ouvrir"><img src="${miniature}" alt="Étiquette"></div>`
+    : "";
+  const iconeVoirPhoto = (!photoVisible && miniature)
+    ? `<button type="button" class="icon-voir-photo" data-action="voirPhoto" title="Voir la photo">👁</button>`
+    : "";
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
   const tags = [];
-  if(b.region) tags.push(b.region);
-  if(b.emplacement) tags.push(b.emplacement);
-  if(b.statut==="bue") tags.push("Bue le " + (b.dateBue||"?"));
+  if(ap) tags.push({ text: libelleApogee(ap), cls: "apogee-"+ap });
+  if(b.region) tags.push({ text: b.region });
+  if(b.emplacement) tags.push({ text: b.emplacement });
+  if(b.statut==="bue") tags.push({ text: "Bue le " + (b.dateBue||"?") });
 
   return `
   <div class="bottle-card" data-id="${b.id}">
-    <div class="bottle-photo" data-action="ouvrir">${photo}${apTag}</div>
+    ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">
         <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
@@ -861,7 +856,7 @@ function carteBouteille(b){
           <span class="millesime">${escapeHtml(b.millesime || "NM")}</span>
           <span class="stars">${stars}</span>
         </div>
-        ${tags.length ? `<div class="bottle-tags">${tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+        ${tags.length ? `<div class="bottle-tags">${tags.map(t=>`<span class="tag${t.cls?" "+t.cls:""}">${escapeHtml(t.text)}</span>`).join("")}</div>` : ""}
       </div>
       <div class="bottle-footer">
         <div class="qty-control">
@@ -869,7 +864,10 @@ function carteBouteille(b){
           <span class="qty-val">${b.quantite}</span>
           <button type="button" data-action="plus" title="Ajouter une bouteille">+</button>
         </div>
-        <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
+        <div class="footer-actions">
+          ${iconeVoirPhoto}
+          <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
+        </div>
       </div>
     </div>
   </div>`;

@@ -136,7 +136,7 @@
     },
     {
       "id": "b965c01c-36cb-4782-8a29-f4b78b211b4d",
-      "numero": 9,
+      "numero": 10,
       "dateAjout": "2026-08-28",
       "quantiteBue": 0,
       "dateDerniereDegustation": "",
@@ -162,7 +162,7 @@
     },
     {
       "id": "ac1a0f2b-83a7-4532-bbd1-15100df3dcc5",
-      "numero": 10,
+      "numero": 14,
       "dateAjout": "2026-08-28",
       "quantiteBue": 0,
       "dateDerniereDegustation": "",
@@ -214,7 +214,7 @@
     },
     {
       "id": "648a9e92-d90d-470a-96af-8bc0835753e4",
-      "numero": 13,
+      "numero": 9,
       "dateAjout": "2026-08-28",
       "quantiteBue": 0,
       "dateDerniereDegustation": "",
@@ -239,6 +239,6 @@
       "photoFichier": ""
     }
   ],
-  "maj": "2026-08-28T21:49:52.254Z",
+  "maj": "2026-08-28T21:51:26.056Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

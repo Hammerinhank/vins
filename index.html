@@ -425,7 +425,7 @@
     <option value="prix_asc">Prix croissant</option>
     <option value="apogee_asc">Apogée : à boire en premier</option>
   </select>
-  <button class="btn btn-gold" id="btnAjouter" type="button">+ Ajouter une bouteille</button>
+  <button class="btn btn-gold" id="btnAjouter" type="button">+ Ajouter un vin</button>
 </div>
 
 <div class="toolbar" id="chipsToolbar">
@@ -480,7 +480,7 @@
 <div class="overlay" id="overlayFiche">
   <div class="modal">
     <div class="modal-header">
-      <h2 id="ficheTitre">Ajouter une bouteille</h2>
+      <h2 id="ficheTitre">Ajouter un vin</h2>
       <button class="modal-close" id="closeFiche" type="button">✕</button>
     </div>
     <div class="modal-body">
@@ -514,7 +514,7 @@
         <summary class="fiche-section-label">Détails complémentaires</summary>
         <div class="fiche-section-basse-corps">
           <div class="photo-section">
-            <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette de la bouteille">
+            <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette du vin">
             <div class="photo-actions">
               <button class="btn btn-sm" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
               <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
@@ -593,8 +593,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.6.1";
+const VERSION = "1.6.2";
 const HISTORY = [
+  { version:"1.6.2", date:"2026-08-28", notes:"Clarification du vocabulaire dans toute l'interface : « vin » désigne désormais une fiche de la cave (ex. « Ajouter un vin », « Modifier ce vin », « Aucun vin ici »), tandis que « bouteille(s) » reste réservé au comptage physique (quantité en cave, bues, etc.). Corrige au passage un message d'import/récupération GitHub qui affichait un nombre de « bouteille(s) » correspondant en réalité au nombre de fiches, pas au nombre réel de bouteilles." },
   { version:"1.6.1", date:"2026-08-28", notes:"Partie haute de la fiche encore allégée : la photo, la région, l'appellation, le cépage et le prix unitaire rejoignent la partie basse. Celle-ci porte maintenant un titre cliquable « Détails complémentaires » (repliée par défaut à l'ouverture) qui déplie ou replie tout le contenu du bas, y compris le bouton Supprimer." },
   { version:"1.6.0", date:"2026-08-28", notes:"Fiche détaillée réorganisée en deux parties séparées par les boutons Annuler/Enregistrer, pour plus d'ergonomie. En haut : ce qui sert le plus souvent (photo, identité de la bouteille, couleur, millésime, cépages, quantité, prix, emplacement, et le bouton 🍷 Marquer une bouteille comme bue, rendu plus visible). En bas, sous « Détails complémentaires » : date et lieu d'achat, fenêtre d'apogée, note, commentaire de dégustation, et le bouton Supprimer." },
   { version:"1.5.0", date:"2026-08-28", notes:"Le badge de version devient un indicateur de synchronisation : dès qu'une information n'a pas encore été envoyée sur GitHub (ajout, modification, bue, suppression…), il passe en orange et affiche « À sauvegarder » à la place du numéro de version. Un appui dessus lance directement l'envoi vers GitHub (identique au bouton « Envoyer vers GitHub » de la section Synchronisation, inchangée). En cas d'échec (pas de réseau, dépôt mal configuré…), le badge passe en rouge et invite à réessayer. Une fois l'envoi réussi, le badge réaffiche le numéro de version." },
@@ -832,7 +833,7 @@ async function supprimerPhotoDistante(chemin){
     const sha = (await getRes.json()).sha;
     const delRes = await githubAPI(base, cfg, {
       method: "DELETE",
-      body: JSON.stringify({ message: "Suppression de la photo (bouteille supprimée)", sha, branch: cfg.branche||"main" })
+      body: JSON.stringify({ message: "Suppression de la photo (vin supprimé)", sha, branch: cfg.branche||"main" })
     });
     return delRes.ok;
   }catch(e){ return false; }
@@ -1031,7 +1032,7 @@ function renderGrille(){
   const list = bouteillesFiltrees();
   const wrap = document.getElementById("gridWrap");
   if(!list.length){
-    wrap.innerHTML = `<div class="empty-state"><h3>Aucune bouteille ici</h3><p>Ajuste les filtres, ou ajoute une bouteille à ta cave.</p></div>`;
+    wrap.innerHTML = `<div class="empty-state"><h3>Aucun vin ici</h3><p>Ajuste les filtres, ou ajoute un vin à ta cave.</p></div>`;
     return;
   }
   if(groupBy === "aucun"){
@@ -1162,7 +1163,7 @@ function viderFormulaire(){
 function ouvrirAjout(){
   ficheEnCours = null;
   viderFormulaire();
-  document.getElementById("ficheTitre").textContent = "Ajouter une bouteille";
+  document.getElementById("ficheTitre").textContent = "Ajouter un vin";
   document.getElementById("ficheActionsBue").innerHTML = "";
   document.getElementById("ficheActionSupprimer").innerHTML = "";
   document.getElementById("ficheSectionBasse").open = false;
@@ -1191,7 +1192,7 @@ function ouvrirFiche(id){
   if(!b) return;
   ficheEnCours = id;
   document.getElementById("ficheSectionBasse").open = false;
-  document.getElementById("ficheTitre").textContent = "Modifier la bouteille";
+  document.getElementById("ficheTitre").textContent = "Modifier ce vin";
   document.getElementById("fNom").value = b.nom||"";
   document.getElementById("fDomaine").value = b.domaine||"";
   document.getElementById("fAppellation").value = b.appellation||"";
@@ -1236,16 +1237,16 @@ function ouvrirFiche(id){
   btnSupprimer.className = "btn btn-danger btn-sm";
   btnSupprimer.textContent = "Supprimer";
   btnSupprimer.addEventListener("click", ()=>{
-    demanderConfirmation("Supprimer la bouteille", `Supprimer définitivement « ${b.nom||"cette bouteille"} » de la cave ?`, ()=>{
+    demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?`, ()=>{
       const cheminPhoto = b.photoFichier;
       bottles = bottles.filter(x=>x.id!==id);
       sauvegarderBouteilles();
       document.getElementById("overlayFiche").classList.remove("show");
       rafraichirTout();
-      toast("Bouteille supprimée");
+      toast("Vin supprimé");
       if(cheminPhoto){
         supprimerPhotoDistante(cheminPhoto).then(ok=>{
-          if(!ok && chargerConfig().token) toast("Bouteille supprimée — la photo sur GitHub n'a pas pu être retirée");
+          if(!ok && chargerConfig().token) toast("Vin supprimé — la photo sur GitHub n'a pas pu être retirée");
         });
       }
     });
@@ -1286,7 +1287,7 @@ document.getElementById("btnAnnulerFiche").addEventListener("click", ()=>documen
 
 document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   const nom = document.getElementById("fNom").value.trim();
-  if(!nom){ toast("Le nom de la bouteille est requis"); return; }
+  if(!nom){ toast("Le nom du vin est requis"); return; }
   const data = {
     nom,
     domaine: document.getElementById("fDomaine").value.trim(),
@@ -1325,7 +1326,7 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   sauvegarderBouteilles();
   document.getElementById("overlayFiche").classList.remove("show");
   rafraichirTout();
-  toast("Bouteille enregistrée");
+  toast("Vin enregistré");
 });
 
 /* ---- Photo : sélection + compression (pleine résolution pour GitHub + petite miniature pour le stockage local) ---- */
@@ -1451,7 +1452,7 @@ document.getElementById("importFile").addEventListener("change", function(e){
     try{
       const data = JSON.parse(ev.target.result);
       const liste = Array.isArray(data) ? data : (data.bottles || []);
-      demanderConfirmation("Importer la sauvegarde", `Remplacer la cave actuelle (${bottles.length} bouteille(s)) par ${liste.length} bouteille(s) importée(s) ?`, ()=>{
+      demanderConfirmation("Importer la sauvegarde", `Remplacer la cave actuelle (${bottles.length} vin(s)) par ${liste.length} vin(s) importé(s) ?`, ()=>{
         bottles = liste;
         sauvegarderBouteilles();
         rafraichirTout();
@@ -1578,7 +1579,7 @@ document.getElementById("btnPull").addEventListener("click", async function(){
     const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
-    demanderConfirmation("Récupérer depuis GitHub", `Remplacer la cave locale (${bottles.length} bouteille(s)) par la version GitHub (${distantes.length} bouteille(s)) ?`, ()=>{
+    demanderConfirmation("Récupérer depuis GitHub", `Remplacer la cave locale (${bottles.length} vin(s)) par la version GitHub (${distantes.length} vin(s)) ?`, ()=>{
       bottles = distantes;
       sauvegarderBouteilles();
       marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub

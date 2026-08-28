@@ -184,7 +184,7 @@
     font-size:12.5px;color:var(--text);font-weight:600;
     margin:28px -16px 14px -16px;
     padding:11px 16px 11px 20px;
-    background:var(--bg-panel-2);
+    background:color-mix(in srgb, var(--gold) 22%, var(--bg-panel));
     border-left:4px solid var(--gold);
   }
   .group-heading .count{color:var(--text-muted);font-weight:400;margin-left:2px;}
@@ -648,8 +648,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.2";
+const VERSION = "1.8.3";
 const HISTORY = [
+  { version:"1.8.3", date:"2026-08-28", notes:"Le fond des bandeaux de section utilise une teinte propre (mélange de doré, ou de la couleur du vin quand le regroupement se fait par couleur), différente de tous les autres fonds déjà utilisés dans l'app, pour bien se détacher visuellement au lieu de se fondre avec les cartes ou les boutons." },
   { version:"1.8.2", date:"2026-08-28", notes:"Les titres de section (liste regroupée) sont maintenant un bandeau plein sur toute la largeur, avec un fond légèrement plus clair que le reste de la page, pour bien trancher visuellement à chaque changement de groupe." },
   { version:"1.8.1", date:"2026-08-28", notes:"Retrait du texte « touche le numéro pour le modifier » sous le N°. En modifiant le numéro, les caractères passent en rouge immédiatement s'il correspond déjà à un autre vin, et reviennent à la normale dès que la valeur saisie est libre." },
   { version:"1.8.0", date:"2026-08-28", notes:"Chaque local storage (chaque navigateur, sur chaque appareil) a maintenant un identifiant propre, inclus dans cave.json à chaque envoi (champ « origine »). Au lancement, l'app vérifie silencieusement GitHub : si la dernière sauvegarde provient de cet appareil/navigateur lui-même, rien ne se passe. Si elle provient d'ailleurs, elle est appliquée automatiquement quand rien n'est en attente localement ; sinon (changements locaux pas encore envoyés), une confirmation est demandée avant d'écraser quoi que ce soit." },
@@ -1202,7 +1203,9 @@ function renderGrille(){
     });
     wrap.innerHTML = Object.keys(groupes).sort((a,b)=>a.localeCompare(b,"fr")).map(g => {
       const couleurKey = couleurParGroupe[g];
-      const styleBarre = couleurKey ? ` style="border-left-color:var(--${couleurKey})"` : "";
+      const styleBarre = couleurKey
+        ? ` style="border-left-color:var(--${couleurKey});background:color-mix(in srgb, var(--${couleurKey}) 30%, var(--bg-panel))"`
+        : "";
       return `
       <div class="group-heading"${styleBarre}>${escapeHtml(g)} <span class="count">· ${groupes[g].length}</span></div>
       <div class="bottle-grid">${groupes[g].map(carteBouteille).join("")}</div>

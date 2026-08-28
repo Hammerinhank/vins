@@ -180,12 +180,13 @@
   .grid-wrap{max-width:960px;margin:0 auto;padding:6px 16px 30px 16px;}
   .group-heading{
     font-family:'IBM Plex Mono',monospace;
-    text-transform:uppercase;letter-spacing:.1em;
-    font-size:12px;color:var(--text-faint);
-    margin:22px 0 10px 0;
-    padding-bottom:6px;
-    border-bottom:1px solid var(--line-soft);
+    text-transform:uppercase;letter-spacing:.12em;
+    font-size:12.5px;color:var(--text);font-weight:600;
+    margin:32px 0 14px 0;
+    padding:6px 0 6px 12px;
+    border-left:4px solid var(--gold);
   }
+  .group-heading .count{color:var(--text-muted);font-weight:400;margin-left:2px;}
   .group-heading:first-child{margin-top:6px;}
   .bottle-grid{
     display:grid;
@@ -341,6 +342,7 @@
     padding-top:8px;border-top:1px solid var(--line-soft);
   }
   .modal-actions.fiche-separateur{padding-bottom:8px;border-bottom:1px solid var(--line-soft);}
+  .action-gauche{margin-right:auto;}
   .fiche-section-haute{display:flex;flex-direction:column;gap:14px;}
   .numero-fiche-badge{
     display:inline-flex;align-items:baseline;gap:10px;
@@ -550,6 +552,7 @@
       </div>
 
       <div class="modal-actions fiche-separateur">
+        <button class="btn btn-sm action-gauche" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
         <button class="btn btn-ghost" id="btnAnnulerFiche" type="button">Annuler</button>
         <button class="btn btn-gold" id="btnSauverFiche" type="button">Enregistrer</button>
       </div>
@@ -560,7 +563,6 @@
           <div class="photo-section">
             <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette du vin">
             <div class="photo-actions">
-              <button class="btn btn-sm" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
               <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
               <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
             </div>
@@ -637,8 +639,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.7.1";
+const VERSION = "1.7.3";
 const HISTORY = [
+  { version:"1.7.3", date:"2026-08-28", notes:"Le bouton « 📷 Ajouter une photo » (ou « 🔄 Changer la photo ») rejoint la ligne des boutons Annuler/Enregistrer, cadré à gauche, pour rester accessible sans déplier « Détails complémentaires ». Quand une photo est choisie, cette section s'ouvre automatiquement pour en montrer l'aperçu." },
+  { version:"1.7.2", date:"2026-08-28", notes:"Titres de section plus visibles quand la liste est regroupée (couleur, région, emplacement) : texte plus clair et en gras, barre verticale colorée à gauche (reprenant la couleur du vin quand le regroupement se fait par couleur), et davantage d'espace vertical au-dessus de chaque nouveau groupe pour bien le distinguer du précédent." },
   { version:"1.7.1", date:"2026-08-28", notes:"Photos plus lisibles : la miniature stockée localement passe de 220 à 480 px (elle était trop petite pour la taille à laquelle elle s'affiche sur un écran Retina, d'où le flou) et la photo pleine résolution de 900 à 1600 px, toutes deux avec une meilleure qualité JPEG. Seules les nouvelles photos ajoutées ou remplacées bénéficient de ce changement ; les photos déjà enregistrées restent à l'ancienne qualité tant qu'elles ne sont pas reprises via « 🔄 Changer la photo »." },
   { version:"1.7.0", date:"2026-08-28", notes:"Chaque vin reçoit désormais un numéro court et unique (N° 1, 2, 3…), affiché en évidence en haut de sa fiche pour être recopié sur l'étiquette physique, et sur sa carte dans la liste. Ce numéro est cherchable directement dans la barre de recherche pour retrouver un vin en un instant. Il n'est jamais réutilisé, même après suppression d'une fiche. Les vins déjà enregistrés reçoivent automatiquement un numéro au premier chargement, dans l'ordre de leur date d'ajout." },
   { version:"1.6.4", date:"2026-08-28", notes:"Le type « Pétillant » est remplacé par trois types distincts : Champagne, Crémant et Cidre, chacun avec sa propre couleur de capsule, disponibles partout où la couleur intervient (fiche, filtre, regroupement, statistiques). Les bouteilles déjà enregistrées en « Pétillant » gardent leurs données mais s'affichent en « Autre » jusqu'à être réassignées manuellement à l'un des trois nouveaux types." },
@@ -1045,9 +1049,12 @@ function bouteillesFiltrees(){
   return list;
 }
 function groupeDe(b){
-  if(groupBy==="couleur") return COULEURS.find(c=>c.key===b.couleur)?.label || "Autre";
-  if(groupBy==="region") return b.region || "Région non renseignée";
-  if(groupBy==="emplacement") return b.emplacement || "Emplacement non renseigné";
+  if(groupBy==="couleur"){
+    const c = COULEURS.find(c=>c.key===b.couleur);
+    return { label: c?.label || "Autre", couleurKey: c?.key || "autre" };
+  }
+  if(groupBy==="region") return { label: b.region || "Région non renseignée", couleurKey: null };
+  if(groupBy==="emplacement") return { label: b.emplacement || "Emplacement non renseigné", couleurKey: null };
   return null;
 }
 
@@ -1122,14 +1129,20 @@ function renderGrille(){
     wrap.innerHTML = `<div class="bottle-grid">${list.map(carteBouteille).join("")}</div>`;
   }else{
     const groupes = {};
+    const couleurParGroupe = {};
     list.forEach(b=>{
       const g = groupeDe(b);
-      (groupes[g] = groupes[g] || []).push(b);
+      (groupes[g.label] = groupes[g.label] || []).push(b);
+      if(g.couleurKey) couleurParGroupe[g.label] = g.couleurKey;
     });
-    wrap.innerHTML = Object.keys(groupes).sort((a,b)=>a.localeCompare(b,"fr")).map(g => `
-      <div class="group-heading">${escapeHtml(g)} · ${groupes[g].length}</div>
+    wrap.innerHTML = Object.keys(groupes).sort((a,b)=>a.localeCompare(b,"fr")).map(g => {
+      const couleurKey = couleurParGroupe[g];
+      const styleBarre = couleurKey ? ` style="border-left-color:var(--${couleurKey})"` : "";
+      return `
+      <div class="group-heading"${styleBarre}>${escapeHtml(g)} <span class="count">· ${groupes[g].length}</span></div>
       <div class="bottle-grid">${groupes[g].map(carteBouteille).join("")}</div>
-    `).join("");
+    `;
+    }).join("");
   }
   wrap.querySelectorAll(".bottle-card").forEach(card=>{
     const id = card.dataset.id;
@@ -1433,6 +1446,7 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
     document.getElementById("btnChargerPhoto").style.display = "none";
+    document.getElementById("ficheSectionBasse").open = true;
     majBoutonChoisirPhoto();
   }).catch(()=>toast("Impossible de charger cette image"));
 });

@@ -827,6 +827,7 @@
     <div class="page-tabs" id="pageTabs">
       <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
       <button class="page-tab-btn" data-page="avis" type="button" title="Avis">📝</button>
+      <button class="page-tab-btn" data-page="liste" type="button" title="Liste">📋</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
       <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🩺</button>
     </div>
@@ -873,6 +874,27 @@
       <button class="btn" id="btnAvisAppliquer" type="button">📥 Appliquer la réponse au vin</button>
     </div>
     <p class="panel-note">Lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise pour compléter la fiche du vin ci-dessus : commentaire intégral, note et prix unitaire si détectés — après vérification, il ne reste qu'à Enregistrer.</p>
+  </div>
+
+  <div class="page-body" id="pageCorpsListe" style="display:none;">
+    <p class="panel-note">Génère la liste des noms de tous les vins de la cave (triés par ordre alphabétique) dans la zone de texte ci-dessous, librement modifiable et copiable.</p>
+    <div class="panel-row">
+      <label class="checkbox-chip" for="listeAvecDomaine">
+        <input type="checkbox" id="listeAvecDomaine">
+        Domaine
+      </label>
+      <label class="checkbox-chip" for="listeAvecMillesime">
+        <input type="checkbox" id="listeAvecMillesime">
+        Millésime
+      </label>
+    </div>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnGenererListe" type="button">📋 Générer la liste</button>
+    </div>
+    <div class="field">
+      <label>Liste des vins</label>
+      <textarea id="listeTexte" rows="16" placeholder="Touche « Générer la liste » pour remplir cette zone…"></textarea>
+    </div>
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
@@ -941,8 +963,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.22";
+const VERSION = "1.10.23";
 const HISTORY = [
+  { version:"1.10.23", date:"2026-08-29", notes:"Nouvel onglet « 📋 Liste », à côté de Saisie rapide et Avis, dans la page ouverte par l'icône bouteille : une zone de texte modifiable, remplie par le bouton « Générer la liste » avec le nom de chaque vin de la cave (triés par ordre alphabétique) — deux cases à cocher, Domaine et Millésime, permettent d'ajouter ces informations à la suite de chaque nom." },
   { version:"1.10.22", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse à ce vin », juste à côté de « Identifier avec ChatGPT/Claude » dans les Détails complémentaires. Contrairement au bouton équivalent de Saisie rapide, il ne crée pas un nouveau vin : il passe par la même fenêtre de vérification (Nom, Domaine, Millésime, Étiquette, modifiables), puis applique ces valeurs à la fiche déjà ouverte — sans la fermer ni en créer une autre. Rien n'est enregistré tant qu'on ne clique pas sur Enregistrer." },
   { version:"1.10.21", date:"2026-08-28", notes:"La page Avis affiche maintenant aussi le Millésime (entre Domaine et Étiquette), copié depuis le vin comme les autres champs, et inclus dans la question envoyée à l'assistant. Son cadre passe en rouge quand il est vide, en temps réel." },
   { version:"1.10.20", date:"2026-08-28", notes:"Le prix unitaire s'affiche maintenant à droite des étoiles sur chaque carte de la liste, quand il est renseigné." },
@@ -2215,6 +2238,26 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
   });
 });
 
+/* ===================== PAGE LISTE ===================== */
+/* Écrit dans la zone de texte la liste des noms de tous les vins de la cave (triés A→Z), avec en option
+   le domaine et/ou le millésime ajoutés à la suite de chaque nom. */
+function genererListeTexte(){
+  const avecDomaine = document.getElementById("listeAvecDomaine").checked;
+  const avecMillesime = document.getElementById("listeAvecMillesime").checked;
+  const lignes = bottles
+    .slice()
+    .sort((a,b)=> (a.nom||"").localeCompare(b.nom||"", "fr"))
+    .map(b=>{
+      let ligne = b.nom || "Sans nom";
+      if(avecDomaine && b.domaine) ligne += " — " + b.domaine;
+      if(avecMillesime && b.millesime) ligne += " (" + b.millesime + ")";
+      return ligne;
+    });
+  document.getElementById("listeTexte").value = lignes.join("\n");
+  toast(lignes.length ? "Liste générée (" + lignes.length + " vin(s))" : "Aucun vin dans la cave");
+}
+document.getElementById("btnGenererListe").addEventListener("click", genererListeTexte);
+
 /* ===================== PAGE PARAMÈTRES ===================== */
 function majLibelleAssistant(){
   const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
@@ -2307,10 +2350,11 @@ function afficherPageOnglet(cle){
   });
   document.getElementById("pageCorpsSaisie").style.display = cle === "saisie" ? "flex" : "none";
   document.getElementById("pageCorpsAvis").style.display = cle === "avis" ? "flex" : "none";
+  document.getElementById("pageCorpsListe").style.display = cle === "liste" ? "flex" : "none";
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
   document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
   document.getElementById("pageTitre").textContent =
-    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
+    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
 }
 document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{

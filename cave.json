@@ -29,34 +29,6 @@
       "numero": 1
     },
     {
-      "id": "ac5a78cf-544a-4a74-bfdc-f877eb385a10",
-      "dateAjout": "2026-08-28",
-      "statut": "cave",
-      "dateBue": "",
-      "nom": "Paul Leredde",
-      "domaine": "",
-      "appellation": "",
-      "region": "",
-      "pays": "France",
-      "couleur": "champagne",
-      "millesime": "",
-      "cepages": "",
-      "quantite": 1,
-      "prixUnitaire": "",
-      "dateAchat": "",
-      "lieuAchat": "",
-      "emplacement": "",
-      "boireDe": "",
-      "boireA": "",
-      "note": 0,
-      "commentaire": "",
-      "quantiteBue": 0,
-      "dateDerniereDegustation": "2026-08-28",
-      "numero": 2,
-      "photoMiniature": "",
-      "photoFichier": ""
-    },
-    {
       "id": "85d9eac7-55af-44c7-836a-73b83adaeb9c",
       "dateAjout": "2026-08-28",
       "quantiteBue": 0,
@@ -266,6 +238,6 @@
       "photoFichier": "images/9fc81684-79fc-45b5-a746-d3d4157dc3ec.jpg"
     }
   ],
-  "maj": "2026-08-29T08:46:00.984Z",
-  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
+  "maj": "2026-08-29T08:57:59.408Z",
+  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

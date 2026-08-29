@@ -719,6 +719,7 @@
       <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
       <div class="field"><label>Nom / cuvée</label><input type="text" id="verifTexteNom"></div>
       <div class="field"><label>Domaine / producteur</label><input type="text" id="verifTexteDomaine"></div>
+      <div class="field"><label>Millésime</label><input type="text" id="verifTexteMillesime"></div>
       <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5"></textarea></div>
       <div class="modal-actions" style="justify-content:center;">
         <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button">Annuler</button>
@@ -733,15 +734,15 @@
   <div class="page-top-sticky">
     <div class="page-header">
       <button class="page-back" id="btnFermerParametres" type="button">← Retour</button>
-      <h1 id="pageTitre">Paramètres</h1>
+      <h1 id="pageTitre">Saisie rapide</h1>
     </div>
     <div class="page-tabs" id="pageTabs">
-      <button class="page-tab-btn" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
-      <button class="page-tab-btn active" data-page="parametres" type="button" title="Paramètres">⚙️</button>
+      <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
+      <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
     </div>
   </div>
 
-  <div class="page-body" id="pageCorpsSaisie" style="display:none;">
+  <div class="page-body" id="pageCorpsSaisie">
     <p class="panel-note">Prends ou choisis la photo d'une étiquette, identifie le vin avec l'IA, colle sa réponse dans ChatGPT/Claude puis reviens ici pour créer la fiche à partir du texte copié.</p>
     <div class="panel-row">
       <button class="btn" id="btnSaisiePhoto" type="button">📷 Prendre / choisir une photo</button>
@@ -757,7 +758,7 @@
     <p class="panel-note">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
   </div>
 
-  <div class="page-body" id="pageCorpsParametres">
+  <div class="page-body" id="pageCorpsParametres" style="display:none;">
     <div class="field">
       <label>Assistant IA pour l'identification par photo</label>
       <div class="assistant-choices" id="assistantChoices">
@@ -783,8 +784,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.7";
+const VERSION = "1.9.8";
 const HISTORY = [
+  { version:"1.9.8", date:"2026-08-28", notes:"« Saisie rapide » est maintenant l'onglet ouvert par défaut en touchant l'icône bouteille (au lieu de « Paramètres »). Le 3ᵉ bouton reconnaît en plus une section « Millésime : » dans la réponse copiée et remplit ce champ si elle est présente ; la fenêtre de vérification affiche aussi ce millésime extrait, modifiable comme les autres champs, avant la création du vin." },
   { version:"1.9.7", date:"2026-08-28", notes:"Recherche par N° vraiment exclusive cette fois : une saisie purement numérique (ex. « 4 ») ne cherche plus que sur le champ N° (égalité stricte) et ne consulte plus du tout les autres champs (nom, domaine…) — corrige le cas où un nom de vin contenant accidentellement ce chiffre (ex. « … 14 ») remontait encore par la recherche texte." },
   { version:"1.9.6", date:"2026-08-28", notes:"La recherche par N° est désormais exacte : taper « 4 » ne remonte que le vin N°4, plus les N°14, 24, 45, etc. Les autres champs (nom, domaine, appellation…) continuent d'être cherchés en sous-chaîne comme avant." },
   { version:"1.9.5", date:"2026-08-28", notes:"Corrigé : l'extraction Nom/Domaine/Étiquette échouait quand la réponse copiée utilisait le gras Markdown (« **nom :** »), ce qui est le cas par défaut avec ChatGPT/Claude — les astérisques sont maintenant ignorées. Ajout d'une fenêtre de vérification avant la création du vin : les trois champs extraits s'affichent, modifiables, avec le choix de confirmer (« Créer le vin ») ou d'annuler, pour ne jamais créer une fiche avec un contenu incorrect." },
@@ -1819,21 +1821,23 @@ document.getElementById("btnSaisieIdentifier").addEventListener("click", functio
 /* La réponse de l'IA, copiée manuellement depuis ChatGPT/Claude, est attendue sous la forme de trois sections
    introduites par « Nom : », « Domaine : » et « Étiquette : » (accents/casse variables tolérés). */
 function extraireSectionsReponseIA(texteBrut){
-  const resultat = { nom:"", domaine:"", etiquette:"" };
+  const resultat = { nom:"", domaine:"", etiquette:"", millesime:"" };
   if(!texteBrut) return resultat;
   // Retire le gras Markdown (**texte** / __texte__) qui empêcherait sinon de repérer « Nom : » etc. en début de ligne.
   const texte = texteBrut.replace(/\*\*/g, "").replace(/__/g, "");
-  const regex = /^\s*(nom|domaine|[ée]tiquette)\s*:\s*/gim;
+  const regex = /^\s*(nom|domaine|[ée]tiquette|mill[ée]sime)\s*:\s*/gim;
   const correspondances = [...texte.matchAll(regex)];
   for(let i=0; i<correspondances.length; i++){
     let cle = correspondances[i][1].toLowerCase();
     if(cle === "étiquette") cle = "etiquette";
+    if(cle === "millésime") cle = "millesime";
     const debut = correspondances[i].index + correspondances[i][0].length;
     const fin = (i+1 < correspondances.length) ? correspondances[i+1].index : texte.length;
     const contenu = texte.slice(debut, fin).trim();
     if(cle === "nom") resultat.nom = contenu;
     else if(cle === "domaine") resultat.domaine = contenu;
     else if(cle === "etiquette") resultat.etiquette = contenu;
+    else if(cle === "millesime") resultat.millesime = contenu;
   }
   return resultat;
 }
@@ -1855,6 +1859,7 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   }
   document.getElementById("verifTexteNom").value = sections.nom;
   document.getElementById("verifTexteDomaine").value = sections.domaine;
+  document.getElementById("verifTexteMillesime").value = sections.millesime;
   document.getElementById("verifTexteEtiquette").value = sections.etiquette;
   document.getElementById("overlayVerifTexte").classList.add("show");
 });
@@ -1863,6 +1868,7 @@ document.getElementById("btnAnnulerVerifTexte").addEventListener("click", ()=>do
 document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>{
   const nom = document.getElementById("verifTexteNom").value.trim();
   const domaine = document.getElementById("verifTexteDomaine").value.trim();
+  const millesime = document.getElementById("verifTexteMillesime").value.trim();
   const etiquette = document.getElementById("verifTexteEtiquette").value.trim();
   document.getElementById("overlayVerifTexte").classList.remove("show");
 
@@ -1871,6 +1877,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
 
   document.getElementById("fNom").value = nom;
   document.getElementById("fDomaine").value = domaine;
+  if(millesime) document.getElementById("fMillesime").value = millesime;
   document.getElementById("fEtiquette").value = etiquette;
 
   if(saisiePhotoDataUrl){
@@ -1976,7 +1983,7 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
   selectionnerAssistant(assistantIA);
   document.getElementById("paramSyncStatus").textContent = "";
-  afficherPageOnglet("parametres");
+  afficherPageOnglet("saisie");
   document.getElementById("pageParametres").style.display = "block";
 });
 document.getElementById("btnFermerParametres").addEventListener("click", ()=>{

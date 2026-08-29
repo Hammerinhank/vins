@@ -479,28 +479,16 @@
   }
   .toast.show{opacity:1;}
 
-  /* ---------- Agrandissement au double-tap/double-clic (tous champs texte) ---------- */
-  .overlay-champ-agrandi{
-    position:fixed;inset:0;background:rgba(0,0,0,.55);
-    z-index:399;display:none;
-  }
-  .overlay-champ-agrandi.show{display:block;}
+  /* ---------- Agrandissement à l'appui long (tous champs texte) : grandit sur place, même élément,
+     sans changer de position ni recouvrir le reste de la page. ---------- */
   .champ-agrandi{
-    position:fixed !important;
-    left:16px !important; right:16px !important;
-    top:16% !important;
-    width:auto !important;
-    z-index:400 !important;
     font-size:19px !important;
-    padding:14px !important;
-    border:2px solid var(--gold) !important;
-    border-radius:10px !important;
-    background:var(--bg-panel) !important;
-    color:var(--text) !important;
-    box-shadow:0 12px 48px rgba(0,0,0,.65) !important;
+    border-color:var(--gold) !important;
+    position:relative !important;
+    z-index:1;
   }
-  input.champ-agrandi{ height:56px !important; }
-  textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 220px) !important; resize:none !important; }
+  input.champ-agrandi{ height:52px !important; }
+  textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 220px) !important; }
 </style>
 </head>
 <body>
@@ -871,8 +859,6 @@
   </div>
 </div>
 
-<div class="overlay-champ-agrandi" id="overlayChampAgrandi"></div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -880,8 +866,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.8";
+const VERSION = "1.10.9";
 const HISTORY = [
+  { version:"1.10.9", date:"2026-08-28", notes:"Suppression de l'effet « pop-up » (position fixe + fond assombri) pour l'agrandissement à l'appui long : le champ grandit maintenant sur place, à sa position normale dans la page, en gardant le même élément HTML — juste plus grand (police et hauteur). Corrige aussi le souci de sélection de texte devenue impossible dans la zone agrandie." },
   { version:"1.10.8", date:"2026-08-28", notes:"Corrigé : l'appui long déclenchait aussi la sélection de texte native d'iOS sur toute la page (surlignage bleu généralisé). La sélection/le menu contextuel natifs sont désormais désactivés partout sauf à l'intérieur des champs texte eux-mêmes, où le copier-coller reste pleinement disponible." },
   { version:"1.10.7", date:"2026-08-28", notes:"Remplacement du double-tap (peu fiable) par un appui long (~500 ms sans bouger le doigt) pour agrandir/réduire un champ texte, aussi bien au toucher qu'à la souris. Le retour à la taille normale en changeant de champ ou en touchant le fond assombri reste inchangé." },
   { version:"1.10.6", date:"2026-08-28", notes:"Nouvel onglet « 🩺 Journal / Diagnostic » à côté de Saisie rapide et Paramètres : le bouton « Lancer le diagnostic » relance une récupération GitHub en détaillant chaque étape (config utilisée, URL, statut HTTP, décodage, contenu) dans une zone de texte copiable, sans jamais modifier la cave locale ; le contenu JSON brut récupéré s'affiche aussi intégralement dans une seconde zone, pour transmission facile en cas de problème." },
@@ -2520,12 +2507,11 @@ function agrandirChamp(el){
     el.style.setProperty("--champ-agrandi-hauteur", hauteur + "px");
   }
   el.classList.add("champ-agrandi");
-  document.getElementById("overlayChampAgrandi").classList.add("show");
+  el.scrollIntoView({ behavior:"smooth", block:"center" });
 }
 function reduireChamp(el){
   el.classList.remove("champ-agrandi");
   el.style.removeProperty("--champ-agrandi-hauteur");
-  document.getElementById("overlayChampAgrandi").classList.remove("show");
 }
 function reduireTousLesChampsAgrandis(){
   document.querySelectorAll(".champ-agrandi").forEach(reduireChamp);
@@ -2597,7 +2583,6 @@ document.addEventListener("mouseup", annulerAppuiLongSouris);
 document.addEventListener("blur", function(e){
   if(e.target && e.target.classList && e.target.classList.contains("champ-agrandi")) reduireChamp(e.target);
 }, true);
-document.getElementById("overlayChampAgrandi").addEventListener("click", reduireTousLesChampsAgrandis);
 
 /* ===================== INITIALISATION ===================== */
 document.querySelectorAll(".overlay").forEach(ov=>{

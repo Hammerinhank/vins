@@ -414,7 +414,7 @@
 
   /* page paramètres / saisie rapide (page entière) */
   .page-parametres{
-    position:fixed;inset:0;background:var(--bg);z-index:150;overflow-y:auto;
+    position:fixed;inset:0;background:var(--bg);z-index:90;overflow-y:auto;
     -webkit-overflow-scrolling:touch;
   }
   .page-top-sticky{
@@ -759,8 +759,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.2";
+const VERSION = "1.9.3";
 const HISTORY = [
+  { version:"1.9.3", date:"2026-08-28", notes:"Corrigé : depuis la page Saisie rapide, le bouton « Identifier avec... » semblait ne rien faire. En réalité la fenêtre de vérification s'ouvrait bien, mais restait cachée derrière la page (ordre d'empilement incorrect) — corrigé. Par sécurité, cette fenêtre s'affiche désormais dans tous les cas dès que la photo est prête, même si la copie dans le presse-papier échoue de son côté (un message signale alors cet échec séparément, sans plus bloquer l'affichage)." },
   { version:"1.9.2", date:"2026-08-28", notes:"La page ouverte par l'icône bouteille porte maintenant une rangée d'onglets (⚡ Saisie rapide / ⚙️ Paramètres). Nouvelle page « Saisie rapide » : un bouton prend/choisit une photo et la copie dans le presse-papier, un second lance l'identification IA (identique au bouton de la fiche), un troisième lit le texte du presse-papier (la réponse copiée depuis ChatGPT/Claude) et ouvre la création d'un nouveau vin avec ce texte placé dans le commentaire de dégustation — le découpage en champs (nom, domaine…) viendra affiner cela plus tard." },
   { version:"1.9.1", date:"2026-08-28", notes:"Ajout dans la page Paramètres d'un choix d'assistant IA (ChatGPT ou Claude) pour l'identification d'un vin par photo, persistant sur GitHub comme les autres réglages. Le bouton « Identifier avec... » et la fenêtre de vérification s'adaptent au choix ; Claude s'ouvre via claude.ai/new avec la question pré-remplie (mécanisme non officiellement documenté par Anthropic, à surveiller s'il cesse de fonctionner un jour)." },
   { version:"1.9.0", date:"2026-08-28", notes:"L'icône bouteille en haut à gauche (inchangée visuellement) ouvre désormais une page Paramètres à part entière, occupant tout l'écran, dans ce même fichier (bouton « ← Retour » pour revenir). Premier réglage disponible : le texte de la question envoyée à ChatGPT pour identifier un vin à partir de sa photo, modifiable et initialisé avec le texte utilisé jusqu'ici. Comme la case « Avec photo », ce réglage est synchronisé sur GitHub (cave-reglages.json) au clic sur Enregistrer." },
@@ -1693,24 +1694,33 @@ function dataUrlVersPng(dataUrl){
   });
 }
 function lancerIdentificationIA(promesseSource){
-  if(!navigator.clipboard || typeof ClipboardItem === "undefined"){
-    toast("Ce navigateur ne permet pas de copier une image dans le presse-papier");
-    return;
-  }
-  // navigator.clipboard.write() doit être appelé de façon synchrone dans le gestionnaire de clic pour rester
-  // autorisé par Safari ; on lui passe donc directement la promesse de l'image plutôt que d'attendre son résultat avant.
   const promesseImage = promesseSource.then(source=>{
     if(!source) throw new Error("Aucune image disponible");
     return dataUrlVersPng(source);
   });
-  navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseImage }) ])
-    .then(()=> promesseSource)
-    .then(source=>{
-      document.getElementById("verifPhotoImg").src = source;
-      document.getElementById("btnOuvrirChatGPT").textContent = assistantIA === "claude" ? "Ouvrir Claude" : "Ouvrir ChatGPT";
-      document.getElementById("overlayVerifPhoto").classList.add("show");
-    })
-    .catch(()=> toast("Impossible de copier la photo dans le presse-papier"));
+
+  // La fenêtre de vérification s'affiche dès que la photo est prête, quel que soit le sort de la copie
+  // dans le presse-papier (une copie en échec ne doit jamais faire disparaître complètement l'action).
+  promesseSource.then(source=>{
+    if(!source){ toast("Aucune photo disponible"); return; }
+    document.getElementById("verifPhotoImg").src = source;
+    document.getElementById("btnOuvrirChatGPT").textContent = assistantIA === "claude" ? "Ouvrir Claude" : "Ouvrir ChatGPT";
+    document.getElementById("overlayVerifPhoto").classList.add("show");
+  }).catch(()=> toast("Impossible de préparer la photo"));
+
+  if(!navigator.clipboard || typeof ClipboardItem === "undefined"){
+    toast("Ce navigateur ne permet pas de copier une image dans le presse-papier — copie-la manuellement");
+    return;
+  }
+  // navigator.clipboard.write() doit être appelé de façon synchrone dans le gestionnaire de clic pour rester
+  // autorisé par Safari ; on lui passe donc directement la promesse de l'image plutôt que d'attendre son résultat avant.
+  // Un échec (rejet ASYNCHRONE ou exception SYNCHRONE) est signalé par un message, mais ne bloque plus la fenêtre ci-dessus.
+  try{
+    navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseImage }) ])
+      .catch(()=> toast("Échec de la copie dans le presse-papier — recopie la photo manuellement si besoin"));
+  }catch(e){
+    toast("Échec de la copie dans le presse-papier — recopie la photo manuellement si besoin");
+  }
 }
 document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
   if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
@@ -1744,9 +1754,13 @@ document.getElementById("saisiePhotoInput").addEventListener("change", function(
   if(!file) return;
   const promesseDataUrl = compresserImage(file, 1600, 0.82);
   if(navigator.clipboard && typeof ClipboardItem !== "undefined"){
-    navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseDataUrl.then(dataUrlVersPng) }) ])
-      .then(()=> toast("Photo copiée dans le presse-papier"))
-      .catch(()=> toast("Photo prête, mais échec de la copie dans le presse-papier"));
+    try{
+      navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseDataUrl.then(dataUrlVersPng) }) ])
+        .then(()=> toast("Photo copiée dans le presse-papier"))
+        .catch(()=> toast("Photo prête, mais échec de la copie dans le presse-papier"));
+    }catch(e){
+      toast("Photo prête, mais échec de la copie dans le presse-papier");
+    }
   }
   promesseDataUrl.then(pleine=>{
     saisiePhotoDataUrl = pleine;

@@ -840,6 +840,10 @@
     <div class="panel-row">
       <button class="btn btn-gold" id="btnAvisEnvoyer" type="button">💬 Demander un avis à ChatGPT</button>
     </div>
+    <div class="panel-row">
+      <button class="btn" id="btnAvisAppliquer" type="button">📥 Appliquer la réponse au vin</button>
+    </div>
+    <p class="panel-note">Lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise pour compléter la fiche du vin ci-dessus : commentaire intégral, note et prix unitaire si détectés — après vérification, il ne reste qu'à Enregistrer.</p>
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
@@ -908,8 +912,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.17";
+const VERSION = "1.10.18";
 const HISTORY = [
+  { version:"1.10.18", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse au vin » sur la page Avis : lit le presse-papier (la réponse de ChatGPT/Claude), l'utilise intégralement comme commentaire, et en extrait « Note : » et « Prix : » (robuste au gras Markdown comme pour Nom/Domaine/Étiquette) pour ajuster les étoiles et le prix unitaire — le tout appliqué à la fiche du vin ouverte pour vérification, à valider par Enregistrer. La question par défaut demande maintenant explicitement une note et un prix en fin de réponse pour que l'extraction ait quelque chose à trouver." },
   { version:"1.10.17", date:"2026-08-28", notes:"Ajout du bouton « 💬 Demander un avis à ChatGPT/Claude » sur la page Avis : il compose la deuxième question (définie dans Paramètres) enrichie du nom, du domaine et de l'étiquette actuellement affichés sur cette page (« Le vin dont il est question s'appelle « … » et le domaine est « … » et sur l'étiquette on peut lire les informations suivantes « … ». »), puis ouvre directement l'assistant choisi avec cette question pré-remplie." },
   { version:"1.10.16", date:"2026-08-28", notes:"Ajout dans Paramètres d'une deuxième question pour l'assistant IA (avis sur un vin), initialisée à « Que penses-tu de ce vin ? », modifiable et persistante sur GitHub comme la première. La page Avis affiche maintenant aussi Nom et Domaine, placés avant Étiquette : l'icône 📝 sur chaque carte copie désormais ces trois champs du vin concerné." },
   { version:"1.10.15", date:"2026-08-28", notes:"Nouvel onglet « 📝 Avis » à côté de Saisie rapide, avec un champ Étiquette. Chaque carte de la liste porte désormais une icône 📝, à gauche de l'icône photo, sans avoir besoin d'ouvrir la fiche du vin : au toucher, elle copie le contenu du champ Étiquette de ce vin dans la page Avis et l'affiche directement." },
@@ -1000,7 +1005,7 @@ let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
-const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ?";
+const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par deux lignes séparées, au format exact : « Note : X/5 » (ta note sur 5) et « Prix : Y € » (un prix indicatif au détail).";
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
@@ -2229,9 +2234,11 @@ function afficherPageOnglet(cle){
 document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>afficherPageOnglet(btn.dataset.page));
 });
+let avisVinCourantId = null;
 function ouvrirAvisPourVin(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
+  avisVinCourantId = id;
   document.getElementById("avisContexte").textContent = (b.numero ? "N°" + b.numero + " — " : "") + (b.nom || "Sans nom");
   document.getElementById("avisNom").value = b.nom || "";
   document.getElementById("avisDomaine").value = b.domaine || "";
@@ -2249,6 +2256,58 @@ document.getElementById("btnAvisEnvoyer").addEventListener("click", ()=>{
     ? "https://claude.ai/new?q=" + encodeURIComponent(question)
     : "https://chatgpt.com/?q=" + encodeURIComponent(question);
   window.open(url, "_blank");
+});
+
+/* Extrait les sections « Note : » et « Prix : » d'une réponse d'IA (même robustesse au gras Markdown
+   que extraireSectionsReponseIA). Note ramenée à un entier 0-5, prix ramené à un nombre (virgule ou point). */
+function extraireNoteEtPrix(texteBrut){
+  const resultat = { note: null, prix: null };
+  if(!texteBrut) return resultat;
+  const texte = texteBrut.replace(/\*\*/g, "").replace(/__/g, "");
+  const regex = /^\s*(note|prix)\s*:\s*/gim;
+  const correspondances = [...texte.matchAll(regex)];
+  for(let i=0; i<correspondances.length; i++){
+    const cle = correspondances[i][1].toLowerCase();
+    const debut = correspondances[i].index + correspondances[i][0].length;
+    const fin = (i+1 < correspondances.length) ? correspondances[i+1].index : texte.length;
+    const contenu = texte.slice(debut, fin).trim();
+    const nombre = contenu.match(/(\d+(?:[.,]\d+)?)/);
+    if(!nombre) continue;
+    const valeur = parseFloat(nombre[1].replace(",", "."));
+    if(cle === "note") resultat.note = Math.max(0, Math.min(5, Math.round(valeur)));
+    else if(cle === "prix") resultat.prix = valeur;
+  }
+  return resultat;
+}
+document.getElementById("btnAvisAppliquer").addEventListener("click", async function(){
+  if(!navigator.clipboard || !navigator.clipboard.readText){
+    toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");
+    return;
+  }
+  if(!avisVinCourantId || !bottles.some(x=>x.id===avisVinCourantId)){
+    toast("Charge d'abord un vin (icône 📝 sur une carte)");
+    return;
+  }
+  let texte = "";
+  try{
+    texte = await navigator.clipboard.readText();
+  }catch(e){
+    toast("Impossible de lire le presse-papier (autorise l'accès si demandé)");
+    return;
+  }
+  const texteNettoye = texte.replace(/\*\*/g, "").replace(/__/g, "").trim();
+  const { note, prix } = extraireNoteEtPrix(texte);
+
+  document.getElementById("pageParametres").style.display = "none";
+  ouvrirFiche(avisVinCourantId);
+  document.getElementById("fCommentaire").value = texteNettoye;
+  if(note !== null){ noteChoisie = note; dessinerEtoiles(); }
+  if(prix !== null) document.getElementById("fPrix").value = prix;
+  document.getElementById("ficheSectionBasse").open = true;
+  const details = [];
+  if(note !== null) details.push(`note ${note}/5 détectée`);
+  if(prix !== null) details.push(`prix ${prix} € détecté`);
+  toast("Réponse chargée dans la fiche" + (details.length ? " — " + details.join(", ") : "") + " — vérifie puis Enregistre");
 });
 
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{

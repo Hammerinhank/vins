@@ -57,8 +57,8 @@
     {
       "id": "f0ef9e79-7869-4887-9038-74a103a53852",
       "dateAjout": "2026-08-28",
-      "quantiteBue": 0,
-      "dateDerniereDegustation": "2026-08-28",
+      "quantiteBue": 1,
+      "dateDerniereDegustation": "2026-08-29",
       "nom": "Muscat de beautés de Venise",
       "domaine": "Pierre Amandieu",
       "appellation": "",
@@ -67,7 +67,7 @@
       "couleur": "liquoreux",
       "millesime": "",
       "cepages": "",
-      "quantite": 1,
+      "quantite": 0,
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
@@ -84,7 +84,7 @@
       "id": "f796e394-37fc-4088-a593-422847b18ae8",
       "dateAjout": "2026-08-28",
       "quantiteBue": 0,
-      "dateDerniereDegustation": "",
+      "dateDerniereDegustation": "2026-08-29",
       "nom": "Château la sabatiere - monbazillac",
       "domaine": "",
       "appellation": "",
@@ -349,6 +349,6 @@
       "photoFichier": "images/6ae2a616-20a7-4778-8a33-f9a10e10f3d9.jpg"
     }
   ],
-  "maj": "2026-08-29T10:35:45.532Z",
+  "maj": "2026-08-29T12:01:38.668Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

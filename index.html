@@ -801,6 +801,7 @@
     </div>
     <div class="page-tabs" id="pageTabs">
       <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
+      <button class="page-tab-btn" data-page="avis" type="button" title="Avis">📝</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
       <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🩺</button>
     </div>
@@ -820,6 +821,14 @@
       <button class="btn btn-gold" id="btnSaisieCreerVin" type="button">➕ Créer un nouveau vin à partir de la réponse copiée</button>
     </div>
     <p class="panel-note">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
+  </div>
+
+  <div class="page-body" id="pageCorpsAvis" style="display:none;">
+    <p class="panel-note" id="avisContexte">Touche l'icône 📝 sur une carte de la liste pour charger l'étiquette d'un vin ici.</p>
+    <div class="field">
+      <label>Étiquette</label>
+      <textarea id="avisEtiquette" rows="10"></textarea>
+    </div>
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
@@ -884,8 +893,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.14";
+const VERSION = "1.10.15";
 const HISTORY = [
+  { version:"1.10.15", date:"2026-08-28", notes:"Nouvel onglet « 📝 Avis » à côté de Saisie rapide, avec un champ Étiquette. Chaque carte de la liste porte désormais une icône 📝, à gauche de l'icône photo, sans avoir besoin d'ouvrir la fiche du vin : au toucher, elle copie le contenu du champ Étiquette de ce vin dans la page Avis et l'affiche directement." },
   { version:"1.10.14", date:"2026-08-28", notes:"Ajout dans Paramètres du bouton « 👁 Aperçu du mode consultation » : ouvre un nouvel onglet en lecture seule (via ?apercu), sans activer ni modifier le réglage « Limiter l'URL sans ?edition » — pratique pour vérifier le rendu du mode consultation avant de l'activer pour de bon." },
   { version:"1.10.13", date:"2026-08-28", notes:"Corrigé : le retour à la taille normale reposait uniquement sur l'événement blur, pas toujours déclenché de façon fiable sur iOS selon l'endroit touché. Un tap ou clic n'importe où ailleurs sur la page referme désormais systématiquement tout champ agrandi, quel qu'il soit." },
   { version:"1.10.12", date:"2026-08-28", notes:"Diagnostic exact : un <input> ne peut jamais passer à la ligne, quelle que soit sa hauteur — l'agrandissement à l'appui long ne servait donc à rien sur les champs sur une ligne. Tous ces champs (Nom, Domaine, Appellation, Région, Cépages, Emplacement, Lieu d'achat, Millésime, champs de synchronisation GitHub, recherche, fenêtre de vérification…) sont remplacés par des zones de texte habillées pour ressembler à un champ normal d'une ligne, mais qui deviennent de vraies zones multi-lignes avec retour à la ligne une fois agrandies à l'appui long — on peut enfin voir tout le texte qu'un simple champ aurait coupé." },
@@ -1428,6 +1438,9 @@ function carteBouteille(b){
         ? `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Masquer la photo">${ICONE_CAMERA_MASQUEE}</button>`
         : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Voir la photo">${ICONE_CAMERA}</button>`)
     : "";
+  const iconeAvis = MODE_EDITION
+    ? `<button type="button" class="icon-photo-btn" data-action="voirAvis" title="Avis — étiquette">📝</button>`
+    : "";
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
   const quantite = Number(b.quantite)||0;
@@ -1470,6 +1483,7 @@ function carteBouteille(b){
       <div class="bottle-footer">
         ${controleQuantite}
         <div class="footer-actions">
+          ${iconeAvis}
           ${iconePhoto}
           <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
         </div>
@@ -1525,6 +1539,8 @@ function renderGrille(){
         renderGrille();
       });
     }
+    const btnAvisCard = card.querySelector('[data-action="voirAvis"]');
+    if(btnAvisCard) btnAvisCard.addEventListener("click", e=>{ e.stopPropagation(); ouvrirAvisPourVin(id); });
   });
 }
 
@@ -2182,15 +2198,24 @@ function afficherPageOnglet(cle){
     btn.classList.toggle("active", btn.dataset.page === cle);
   });
   document.getElementById("pageCorpsSaisie").style.display = cle === "saisie" ? "flex" : "none";
+  document.getElementById("pageCorpsAvis").style.display = cle === "avis" ? "flex" : "none";
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
   document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
   document.getElementById("pageTitre").textContent =
-    cle === "saisie" ? "Saisie rapide" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
+    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
 }
 document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>afficherPageOnglet(btn.dataset.page));
 });
+function ouvrirAvisPourVin(id){
+  const b = bottles.find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById("avisContexte").textContent = (b.numero ? "N°" + b.numero + " — " : "") + (b.nom || "Sans nom");
+  document.getElementById("avisEtiquette").value = b.etiquette || "";
+  afficherPageOnglet("avis");
+  document.getElementById("pageParametres").style.display = "block";
+}
 
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;

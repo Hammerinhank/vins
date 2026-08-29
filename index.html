@@ -792,6 +792,28 @@
   </div>
 </div>
 
+<!-- Modal vérification des champs extraits avant application au vin (page Avis) -->
+<div class="overlay" id="overlayVerifAvis">
+  <div class="modal verif-texte-box">
+    <div class="modal-header">
+      <h2>Vérifier avant d'appliquer au vin</h2>
+      <button class="modal-close" id="closeVerifAvis" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche.</p>
+      <div class="field"><label>Commentaire</label><textarea id="verifAvisCommentaire" rows="8"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Note (0 à 5)</label><input type="number" id="verifAvisNote" min="0" max="5" step="1"></div>
+        <div class="field"><label>Prix unitaire (€)</label><input type="number" id="verifAvisPrix" min="0" step="0.01"></div>
+      </div>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn btn-ghost" id="btnAnnulerVerifAvis" type="button">Annuler</button>
+        <button class="btn btn-gold" id="btnConfirmerVerifAvis" type="button">Appliquer à la fiche</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Page paramètres / saisie rapide -->
 <div class="page-parametres" id="pageParametres" style="display:none;">
   <div class="page-top-sticky">
@@ -912,8 +934,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.18";
+const VERSION = "1.10.19";
 const HISTORY = [
+  { version:"1.10.19", date:"2026-08-28", notes:"Le bouton « 📥 Appliquer la réponse au vin » passe désormais par une fenêtre de vérification, comme pour la création d'un vin : Commentaire, Note et Prix extraits du presse-papier s'affichent, modifiables, avec le choix de confirmer (« Appliquer à la fiche ») ou d'annuler, avant d'ouvrir la fiche du vin pour l'enregistrement final." },
   { version:"1.10.18", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse au vin » sur la page Avis : lit le presse-papier (la réponse de ChatGPT/Claude), l'utilise intégralement comme commentaire, et en extrait « Note : » et « Prix : » (robuste au gras Markdown comme pour Nom/Domaine/Étiquette) pour ajuster les étoiles et le prix unitaire — le tout appliqué à la fiche du vin ouverte pour vérification, à valider par Enregistrer. La question par défaut demande maintenant explicitement une note et un prix en fin de réponse pour que l'extraction ait quelque chose à trouver." },
   { version:"1.10.17", date:"2026-08-28", notes:"Ajout du bouton « 💬 Demander un avis à ChatGPT/Claude » sur la page Avis : il compose la deuxième question (définie dans Paramètres) enrichie du nom, du domaine et de l'étiquette actuellement affichés sur cette page (« Le vin dont il est question s'appelle « … » et le domaine est « … » et sur l'étiquette on peut lire les informations suivantes « … ». »), puis ouvre directement l'assistant choisi avec cette question pré-remplie." },
   { version:"1.10.16", date:"2026-08-28", notes:"Ajout dans Paramètres d'une deuxième question pour l'assistant IA (avis sur un vin), initialisée à « Que penses-tu de ce vin ? », modifiable et persistante sur GitHub comme la première. La page Avis affiche maintenant aussi Nom et Domaine, placés avant Étiquette : l'icône 📝 sur chaque carte copie désormais ces trois champs du vin concerné." },
@@ -2297,17 +2320,31 @@ document.getElementById("btnAvisAppliquer").addEventListener("click", async func
   }
   const texteNettoye = texte.replace(/\*\*/g, "").replace(/__/g, "").trim();
   const { note, prix } = extraireNoteEtPrix(texte);
+  document.getElementById("verifAvisCommentaire").value = texteNettoye;
+  document.getElementById("verifAvisNote").value = note !== null ? note : "";
+  document.getElementById("verifAvisPrix").value = prix !== null ? prix : "";
+  document.getElementById("overlayVerifAvis").classList.add("show");
+});
+document.getElementById("closeVerifAvis").addEventListener("click", ()=>document.getElementById("overlayVerifAvis").classList.remove("show"));
+document.getElementById("btnAnnulerVerifAvis").addEventListener("click", ()=>document.getElementById("overlayVerifAvis").classList.remove("show"));
+document.getElementById("btnConfirmerVerifAvis").addEventListener("click", ()=>{
+  if(!avisVinCourantId || !bottles.some(x=>x.id===avisVinCourantId)){
+    toast("Ce vin n'existe plus");
+    document.getElementById("overlayVerifAvis").classList.remove("show");
+    return;
+  }
+  const commentaire = document.getElementById("verifAvisCommentaire").value.trim();
+  const noteVal = document.getElementById("verifAvisNote").value;
+  const prixVal = document.getElementById("verifAvisPrix").value;
+  document.getElementById("overlayVerifAvis").classList.remove("show");
 
   document.getElementById("pageParametres").style.display = "none";
   ouvrirFiche(avisVinCourantId);
-  document.getElementById("fCommentaire").value = texteNettoye;
-  if(note !== null){ noteChoisie = note; dessinerEtoiles(); }
-  if(prix !== null) document.getElementById("fPrix").value = prix;
+  document.getElementById("fCommentaire").value = commentaire;
+  if(noteVal !== ""){ noteChoisie = Math.max(0, Math.min(5, Math.round(parseFloat(noteVal)))); dessinerEtoiles(); }
+  if(prixVal !== "") document.getElementById("fPrix").value = prixVal;
   document.getElementById("ficheSectionBasse").open = true;
-  const details = [];
-  if(note !== null) details.push(`note ${note}/5 détectée`);
-  if(prix !== null) details.push(`prix ${prix} € détecté`);
-  toast("Réponse chargée dans la fiche" + (details.length ? " — " + details.join(", ") : "") + " — vérifie puis Enregistre");
+  toast("Valeurs appliquées à la fiche — vérifie puis Enregistre");
 });
 
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{

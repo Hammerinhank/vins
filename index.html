@@ -686,6 +686,7 @@
               <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
               <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
               <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;">🤖 Identifier avec ChatGPT</button>
+              <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;">📥 Appliquer la réponse à ce vin</button>
             </div>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
           </div>
@@ -773,15 +774,15 @@
   </div>
 </div>
 
-<!-- Modal vérification des champs extraits avant création du vin -->
+<!-- Modal vérification des champs extraits avant création OU mise à jour d'un vin -->
 <div class="overlay" id="overlayVerifTexte">
   <div class="modal verif-texte-box">
     <div class="modal-header">
-      <h2>Vérifier avant de créer le vin</h2>
+      <h2 id="verifTexteTitre">Vérifier avant de créer le vin</h2>
       <button class="modal-close" id="closeVerifTexte" type="button">✕</button>
     </div>
     <div class="modal-body">
-      <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
+      <p class="verif-photo-note" id="verifTexteNote">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
       <div class="field"><label>Nom / cuvée</label><textarea id="verifTexteNom" class="champ-ligne-unique" rows="1"></textarea></div>
       <div class="field"><label>Domaine / producteur</label><textarea id="verifTexteDomaine" class="champ-ligne-unique" rows="1"></textarea></div>
       <div class="field"><label>Millésime</label><textarea id="verifTexteMillesime" class="champ-ligne-unique" rows="1"></textarea></div>
@@ -940,8 +941,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.21";
+const VERSION = "1.10.22";
 const HISTORY = [
+  { version:"1.10.22", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse à ce vin », juste à côté de « Identifier avec ChatGPT/Claude » dans les Détails complémentaires. Contrairement au bouton équivalent de Saisie rapide, il ne crée pas un nouveau vin : il passe par la même fenêtre de vérification (Nom, Domaine, Millésime, Étiquette, modifiables), puis applique ces valeurs à la fiche déjà ouverte — sans la fermer ni en créer une autre. Rien n'est enregistré tant qu'on ne clique pas sur Enregistrer." },
   { version:"1.10.21", date:"2026-08-28", notes:"La page Avis affiche maintenant aussi le Millésime (entre Domaine et Étiquette), copié depuis le vin comme les autres champs, et inclus dans la question envoyée à l'assistant. Son cadre passe en rouge quand il est vide, en temps réel." },
   { version:"1.10.20", date:"2026-08-28", notes:"Le prix unitaire s'affiche maintenant à droite des étoiles sur chaque carte de la liste, quand il est renseigné." },
   { version:"1.10.19", date:"2026-08-28", notes:"Le bouton « 📥 Appliquer la réponse au vin » passe désormais par une fenêtre de vérification, comme pour la création d'un vin : Commentaire, Note et Prix extraits du presse-papier s'affichent, modifiables, avec le choix de confirmer (« Appliquer à la fiche ») ou d'annuler, avant d'ouvrir la fiche du vin pour l'enregistrement final." },
@@ -1026,6 +1028,7 @@ let recherche = "";
 let groupBy = "couleur";
 let sortKey = "ajout_desc";
 let ficheEnCours = null; // id en édition, ou null = ajout
+let verifTexteModeMiseAJour = false; // false = la validation crée un nouveau vin (Saisie rapide) ; true = elle met à jour la fiche déjà ouverte
 let photoEnCoursPendante = "";   // base64 pleine résolution, en attente d'envoi vers GitHub
 let photoEnCoursMiniature = "";  // base64 miniature, toujours conservée localement
 let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dépôt (ex. images/xxx.jpg)
@@ -1690,6 +1693,7 @@ function viderFormulaire(){
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
   document.getElementById("btnIdentifierChatGPT").style.display = "none";
+  document.getElementById("btnAppliquerReponseFiche").style.display = "none";
   majBoutonChoisirPhoto();
 }
 
@@ -1755,6 +1759,7 @@ function ouvrirFiche(id){
   photoEnCoursFichier = b.photoFichier || "";
   const uneImageExiste = !!(photoEnCoursPendante || photoEnCoursMiniature || photoEnCoursFichier);
   document.getElementById("btnIdentifierChatGPT").style.display = uneImageExiste ? "inline-flex" : "none";
+  document.getElementById("btnAppliquerReponseFiche").style.display = uneImageExiste ? "inline-flex" : "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
   document.getElementById("photoPreview").style.display = "none";
   if(uneImageExiste && avecPhoto){
@@ -1906,6 +1911,7 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
     document.getElementById("btnChargerPhoto").style.display = "none";
     document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
+    document.getElementById("btnAppliquerReponseFiche").style.display = "inline-flex";
     document.getElementById("ficheSectionBasse").open = true;
     majBoutonChoisirPhoto();
   }).catch(()=>toast("Impossible de charger cette image"));
@@ -1924,6 +1930,7 @@ document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   document.getElementById("btnRetirerPhoto").style.display = "none";
   document.getElementById("btnChargerPhoto").style.display = "none";
   document.getElementById("btnIdentifierChatGPT").style.display = "none";
+  document.getElementById("btnAppliquerReponseFiche").style.display = "none";
   majBoutonChoisirPhoto();
 });
 
@@ -2074,6 +2081,36 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   if(!sections.nom && !sections.domaine && !sections.etiquette){
     toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
   }
+  verifTexteModeMiseAJour = false;
+  document.getElementById("verifTexteTitre").textContent = "Vérifier avant de créer le vin";
+  document.getElementById("verifTexteNote").textContent = "Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.";
+  document.getElementById("btnConfirmerVerifTexte").textContent = "Créer le vin";
+  document.getElementById("verifTexteNom").value = sections.nom;
+  document.getElementById("verifTexteDomaine").value = sections.domaine;
+  document.getElementById("verifTexteMillesime").value = sections.millesime;
+  document.getElementById("verifTexteEtiquette").value = sections.etiquette;
+  document.getElementById("overlayVerifTexte").classList.add("show");
+});
+document.getElementById("btnAppliquerReponseFiche").addEventListener("click", async function(){
+  if(!navigator.clipboard || !navigator.clipboard.readText){
+    toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");
+    return;
+  }
+  let texte = "";
+  try{
+    texte = await navigator.clipboard.readText();
+  }catch(e){
+    toast("Impossible de lire le presse-papier (autorise l'accès si demandé)");
+    return;
+  }
+  const sections = extraireSectionsReponseIA(texte);
+  if(!sections.nom && !sections.domaine && !sections.etiquette){
+    toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
+  }
+  verifTexteModeMiseAJour = true;
+  document.getElementById("verifTexteTitre").textContent = "Vérifier avant de mettre à jour ce vin";
+  document.getElementById("verifTexteNote").textContent = "Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche de ce vin (rien n'est encore enregistré).";
+  document.getElementById("btnConfirmerVerifTexte").textContent = "Mettre à jour ce vin";
   document.getElementById("verifTexteNom").value = sections.nom;
   document.getElementById("verifTexteDomaine").value = sections.domaine;
   document.getElementById("verifTexteMillesime").value = sections.millesime;
@@ -2088,6 +2125,18 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
   const millesime = document.getElementById("verifTexteMillesime").value.trim();
   const etiquette = document.getElementById("verifTexteEtiquette").value.trim();
   document.getElementById("overlayVerifTexte").classList.remove("show");
+
+  if(verifTexteModeMiseAJour){
+    // Met à jour la fiche déjà ouverte (celle depuis laquelle « Appliquer la réponse à ce vin » a été touché) —
+    // ne crée rien de nouveau, ne ferme ni ne rouvre la fiche.
+    document.getElementById("fNom").value = nom;
+    document.getElementById("fDomaine").value = domaine;
+    if(millesime) document.getElementById("fMillesime").value = millesime;
+    document.getElementById("fEtiquette").value = etiquette;
+    if(etiquette) document.getElementById("ficheSectionBasse").open = true;
+    toast("Champs mis à jour — vérifie puis Enregistre");
+    return;
+  }
 
   document.getElementById("pageParametres").style.display = "none";
   ouvrirAjout();
@@ -2105,6 +2154,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
     document.getElementById("photoPreview").style.display = "block";
     document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
     document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
+    document.getElementById("btnAppliquerReponseFiche").style.display = "inline-flex";
     majBoutonChoisirPhoto();
   }
 
@@ -2198,7 +2248,7 @@ function appliquerModeEdition(){
     numeroValeur.style.pointerEvents = MODE_EDITION ? "" : "none";
     numeroValeur.style.cursor = MODE_EDITION ? "" : "default";
   }
-  ["btnChoisirPhoto","btnRetirerPhoto","btnSauverFiche"].forEach(id=>{
+  ["btnChoisirPhoto","btnRetirerPhoto","btnSauverFiche","btnAppliquerReponseFiche"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.classList.toggle("action-edition", !MODE_EDITION);
   });
   const btnFermerFiche = document.getElementById("btnAnnulerFiche");

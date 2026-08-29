@@ -68,6 +68,7 @@
   }
   .header-left{display:flex;align-items:center;gap:12px;}
   .logo-mark{flex:none;}
+  .logo-mark-btn{background:none;border:none;padding:0;margin:0;line-height:0;cursor:pointer;flex:none;}
   .app-header h1{font-size:26px;letter-spacing:.01em;}
   .app-header h1 .accent{color:var(--gold-soft);font-style:italic;font-weight:500;}
   .version-badge{
@@ -404,6 +405,24 @@
   .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
+  /* page paramètres (page entière) */
+  .page-parametres{
+    position:fixed;inset:0;background:var(--bg);z-index:150;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .page-parametres .page-header{
+    position:sticky;top:0;background:var(--bg-panel);z-index:2;
+    display:flex;align-items:center;gap:14px;
+    padding:16px;border-bottom:1px solid var(--line-soft);
+  }
+  .page-parametres .page-header h1{font-size:19px;}
+  .page-back{
+    background:none;border:none;color:var(--gold-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;
+    padding:6px 0;flex:none;
+  }
+  .page-body{max-width:640px;margin:0 auto;padding:22px 16px 60px 16px;display:flex;flex-direction:column;gap:16px;}
+
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
@@ -418,11 +437,13 @@
 
 <header class="app-header">
   <div class="header-left">
-    <svg class="logo-mark" width="26" height="34" viewBox="0 0 26 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 1H16V6.5C16 6.5 20 9.5 20 16V30C20 32 18.2 33 16.5 33H9.5C7.8 33 6 32 6 30V16C6 9.5 10 6.5 10 6.5V1Z" stroke="#C9A227" stroke-width="1.4"/>
-      <line x1="6" y1="16" x2="20" y2="16" stroke="#C9A227" stroke-width="1.2"/>
-      <rect x="9.6" y="1" width="6.8" height="3.6" fill="#C9A227"/>
-    </svg>
+    <button class="logo-mark-btn" id="btnOuvrirParametres" type="button" aria-label="Paramètres de l'application">
+      <svg class="logo-mark" width="26" height="34" viewBox="0 0 26 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 1H16V6.5C16 6.5 20 9.5 20 16V30C20 32 18.2 33 16.5 33H9.5C7.8 33 6 32 6 30V16C6 9.5 10 6.5 10 6.5V1Z" stroke="#C9A227" stroke-width="1.4"/>
+        <line x1="6" y1="16" x2="20" y2="16" stroke="#C9A227" stroke-width="1.2"/>
+        <rect x="9.6" y="1" width="6.8" height="3.6" fill="#C9A227"/>
+      </svg>
+    </button>
     <div>
       <p class="eyebrow">Cellier personnel</p>
       <h1>Cave <span class="accent">à Vin</span></h1>
@@ -665,6 +686,24 @@
   </div>
 </div>
 
+<!-- Page paramètres -->
+<div class="page-parametres" id="pageParametres" style="display:none;">
+  <div class="page-header">
+    <button class="page-back" id="btnFermerParametres" type="button">← Retour</button>
+    <h1>Paramètres</h1>
+  </div>
+  <div class="page-body">
+    <div class="field">
+      <label>Question envoyée à ChatGPT (identification d'un vin à partir de sa photo)</label>
+      <textarea id="paramQuestionChatGPT" rows="4"></textarea>
+    </div>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnEnregistrerParametres" type="button">Enregistrer</button>
+    </div>
+    <p class="panel-note" id="paramSyncStatus"></p>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -672,8 +711,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.8.5";
+const VERSION = "1.9.0";
 const HISTORY = [
+  { version:"1.9.0", date:"2026-08-28", notes:"L'icône bouteille en haut à gauche (inchangée visuellement) ouvre désormais une page Paramètres à part entière, occupant tout l'écran, dans ce même fichier (bouton « ← Retour » pour revenir). Premier réglage disponible : le texte de la question envoyée à ChatGPT pour identifier un vin à partir de sa photo, modifiable et initialisé avec le texte utilisé jusqu'ici. Comme la case « Avec photo », ce réglage est synchronisé sur GitHub (cave-reglages.json) au clic sur Enregistrer." },
   { version:"1.8.5", date:"2026-08-28", notes:"Le bouton « 🤖 Identifier avec ChatGPT » passe désormais par une étape de vérification : après la copie dans le presse-papier, une fenêtre affiche la photo copiée pour confirmation, avec les boutons Annuler ou Ouvrir ChatGPT — ChatGPT ne s'ouvre que si on confirme." },
   { version:"1.8.4", date:"2026-08-28", notes:"Ajout d'un bouton « 🤖 Identifier avec ChatGPT » dans les Détails complémentaires (visible dès qu'une photo existe) : il copie la photo du vin (pleine résolution si disponible) au format PNG dans le presse-papier, et ouvre ChatGPT dans un nouvel onglet avec la question déjà rédigée. Il reste à coller la photo (Cmd+V) dans ChatGPT une fois la page ouverte, aucune méthode web ne permettant de le faire automatiquement." },
   { version:"1.8.3", date:"2026-08-28", notes:"Le fond des bandeaux de section utilise une teinte propre (mélange de doré, ou de la couleur du vin quand le regroupement se fait par couleur), différente de tous les autres fonds déjà utilisés dans l'app, pour bien se détacher visuellement au lieu de se fondre avec les cartes ou les boutons." },
@@ -728,6 +768,8 @@ let noteChoisie = 0;
 let numeroFicheCourant = null;   // numéro proposé/en cours pour la fiche ouverte (ajout ou édition), appliqué seulement à l'enregistrement
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
+const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
+let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
 /* ---- Badge de version / statut de synchronisation GitHub ---- */
@@ -1032,7 +1074,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1043,7 +1085,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -1627,7 +1669,7 @@ document.getElementById("closeVerifPhoto").addEventListener("click", ()=>documen
 document.getElementById("btnAnnulerVerifPhoto").addEventListener("click", ()=>document.getElementById("overlayVerifPhoto").classList.remove("show"));
 document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
   document.getElementById("overlayVerifPhoto").classList.remove("show");
-  const question = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
+  const question = questionChatGPT || QUESTION_CHATGPT_DEFAUT;
   window.open("https://chatgpt.com/?q=" + encodeURIComponent(question), "_blank");
 });
 
@@ -1679,6 +1721,33 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
     if(!ok && chargerConfig().token){
       toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
     }
+  });
+});
+
+/* ===================== PAGE PARAMÈTRES ===================== */
+document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
+  document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  document.getElementById("paramSyncStatus").textContent = "";
+  document.getElementById("pageParametres").style.display = "block";
+});
+document.getElementById("btnFermerParametres").addEventListener("click", ()=>{
+  document.getElementById("pageParametres").style.display = "none";
+});
+document.getElementById("btnEnregistrerParametres").addEventListener("click", function(){
+  const valeur = document.getElementById("paramQuestionChatGPT").value.trim();
+  questionChatGPT = valeur || QUESTION_CHATGPT_DEFAUT;
+  document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  sauvegarderReglagesLocal();
+  const statusEl = document.getElementById("paramSyncStatus");
+  statusEl.textContent = "Enregistrement…";
+  const btn = this;
+  btn.disabled = true;
+  pousserReglagesVersGitHub().then(ok=>{
+    statusEl.textContent = ok
+      ? "Enregistré et synchronisé sur GitHub."
+      : "Enregistré sur cet appareil — échec de l'envoi vers GitHub (vérifie la synchronisation).";
+    toast(ok ? "Paramètres enregistrés" : "Enregistré localement — échec GitHub");
+    btn.disabled = false;
   });
 });
 
@@ -1920,14 +1989,23 @@ chargerBouteilles();
 remplirChampsConfig();
 const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
+questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
 recupererReglagesDepuisGitHub().then(distant=>{
+  let changement = false;
   if(distant && typeof distant.avecPhoto === "boolean" && distant.avecPhoto !== avecPhoto){
     avecPhoto = distant.avecPhoto;
     document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+    changement = true;
+  }
+  if(distant && typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
+    questionChatGPT = distant.questionChatGPT;
+    changement = true;
+  }
+  if(changement){
     sauvegarderReglagesLocal();
     renderGrille();
   }

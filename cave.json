@@ -503,7 +503,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Casier D, Rang Haut",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -513,6 +513,6 @@
       "photoFichier": "images/997fd96c-0522-4995-bb65-eda36cebdc84.jpg"
     }
   ],
-  "maj": "2026-08-29T13:55:22.213Z",
-  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
+  "maj": "2026-08-29T13:57:44.205Z",
+  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

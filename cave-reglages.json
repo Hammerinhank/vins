@@ -1,6 +1,6 @@
 {
   "avecPhoto": false,
-  "questionChatGPT": "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, sans aucun autre commentaire.",
+  "questionChatGPT": "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : » et ajoute après « étiquette : » tout ce que tu auras pu extraire de l’étiquette en l’organisant de façon à ce que cela soit bien compréhensible .",
   "assistantIA": "claude",
-  "maj": "2026-08-29T07:27:08.488Z"
+  "maj": "2026-08-29T08:26:47.195Z"
 }

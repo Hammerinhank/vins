@@ -783,8 +783,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.5";
+const VERSION = "1.9.6";
 const HISTORY = [
+  { version:"1.9.6", date:"2026-08-28", notes:"La recherche par N° est désormais exacte : taper « 4 » ne remonte que le vin N°4, plus les N°14, 24, 45, etc. Les autres champs (nom, domaine, appellation…) continuent d'être cherchés en sous-chaîne comme avant." },
   { version:"1.9.5", date:"2026-08-28", notes:"Corrigé : l'extraction Nom/Domaine/Étiquette échouait quand la réponse copiée utilisait le gras Markdown (« **nom :** »), ce qui est le cas par défaut avec ChatGPT/Claude — les astérisques sont maintenant ignorées. Ajout d'une fenêtre de vérification avant la création du vin : les trois champs extraits s'affichent, modifiables, avec le choix de confirmer (« Créer le vin ») ou d'annuler, pour ne jamais créer une fiche avec un contenu incorrect." },
   { version:"1.9.4", date:"2026-08-28", notes:"Nouveau champ « Étiquette » (texte libre) dans les Détails complémentaires de chaque vin. Le 3ᵉ bouton de la Saisie rapide attend maintenant une réponse structurée en trois sections « Nom : », « Domaine : » et « Étiquette : » copiées depuis ChatGPT/Claude : il remplit les champs Nom et Domaine, place le texte de l'étiquette dans ce nouveau champ, et attache aussi la photo utilisée pour l'identification au nouveau vin. Un message prévient si la réponse copiée ne suit pas ce format." },
   { version:"1.9.3", date:"2026-08-28", notes:"Corrigé : depuis la page Saisie rapide, le bouton « Identifier avec... » semblait ne rien faire. En réalité la fenêtre de vérification s'ouvrait bien, mais restait cachée derrière la page (ordre d'empilement incorrect) — corrigé. Par sécurité, cette fenêtre s'affiche désormais dans tous les cas dès que la photo est prête, même si la copie dans le presse-papier échoue de son côté (un message signale alors cet échec séparément, sans plus bloquer l'affichage)." },
@@ -1238,9 +1239,17 @@ function bouteillesFiltrees(){
   if(filtreCouleur !== "toutes") list = list.filter(b=>b.couleur===filtreCouleur);
   if(filtreApogeeOnly) list = list.filter(b=>statutApogee(b)==="now");
   if(recherche.trim()){
-    const q = recherche.trim().toLowerCase();
-    list = list.filter(b => [b.nom,b.domaine,b.appellation,b.region,b.cepages,b.commentaire,b.numero]
-      .some(v => v!=null && String(v).toLowerCase().includes(q)));
+    const brut = recherche.trim();
+    const q = brut.toLowerCase();
+    // Une recherche purement numérique doit correspondre au N° exactement (4 ne doit pas remonter 14 ou 45),
+    // alors que les autres champs restent recherchés en sous-chaîne comme avant.
+    const qNombre = /^\d+$/.test(brut) ? parseInt(brut, 10) : null;
+    list = list.filter(b => {
+      const texteCorrespond = [b.nom,b.domaine,b.appellation,b.region,b.cepages,b.commentaire]
+        .some(v => v!=null && String(v).toLowerCase().includes(q));
+      const numeroCorrespond = qNombre !== null && b.numero === qNombre;
+      return texteCorrespond || numeroCorrespond;
+    });
   }
   list.sort((a,b)=>{
     switch(sortKey){

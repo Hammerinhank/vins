@@ -140,7 +140,7 @@
     max-width:960px;margin:0 auto;padding:0 16px 10px 16px;
     display:flex;flex-wrap:wrap;gap:8px;align-items:center;
   }
-  .toolbar input[type=text], .toolbar select{
+  .toolbar textarea, .toolbar select{
     background:var(--bg-panel);
     border:1px solid var(--line);
     color:var(--text);
@@ -148,7 +148,7 @@
     border-radius:8px;
     font-size:13.5px;
   }
-  .toolbar input[type=text]{flex:1 1 160px;min-width:120px;}
+  .toolbar textarea{flex:1 1 160px;min-width:120px;}
   .toolbar select{flex:0 0 auto;}
   .btn{
     border:1px solid var(--line);
@@ -332,7 +332,7 @@
     white-space:pre;color:var(--text-muted);min-height:180px;
   }
   .emplacement-row{display:flex;gap:6px;align-items:stretch;}
-  .emplacement-row input{flex:1;min-width:0;}
+  .emplacement-row input, .emplacement-row textarea{flex:1;min-width:0;}
   .emplacement-select{
     flex:none;width:44px;
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
@@ -489,6 +489,20 @@
   }
   input.champ-agrandi{ height:44px !important; }
   textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 260px) !important; }
+
+  /* Champ « une seule ligne » : une textarea habillée pour ressembler à un simple champ texte (une ligne,
+     pas de retour à la ligne visible, pas de poignée de redimensionnement) — mais qui, dès qu'on l'agrandit
+     à l'appui long, se comporte en vraie zone multi-lignes avec retour à la ligne, pour voir tout le texte
+     qu'un input n'aurait jamais pu afficher au-delà d'une seule ligne. */
+  textarea.champ-ligne-unique{
+    height:auto;min-height:0;
+    white-space:nowrap;overflow-x:auto;overflow-y:hidden;
+    resize:none;line-height:1.3;
+  }
+  textarea.champ-ligne-unique.champ-agrandi{
+    white-space:pre-wrap !important;
+    overflow-x:hidden !important;overflow-y:auto !important;
+  }
 </style>
 </head>
 <body>
@@ -513,7 +527,7 @@
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="toolbar">
-  <input type="text" id="rechercheInput" placeholder="Rechercher (nom, domaine, N°…)">
+  <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)"></textarea>
   <select id="filtreCouleurSel">
     <option value="toutes">Toutes couleurs</option>
     <option value="rouge">Rouge</option>
@@ -563,12 +577,12 @@
     <div class="panel-body">
       <p class="panel-note">Ta cave est toujours enregistrée sur cet appareil (hors ligne) : les fiches, en version complète, et une petite miniature de chaque photo. Cette section permet en plus de sauvegarder/récupérer la cave dans un dépôt GitHub, pour la retrouver sur un autre appareil. Les photos en pleine résolution sont alors envoyées comme fichiers séparés dans le dépôt (dossier images/), ce qui libère de la place sur cet appareil et évite d'atteindre la limite de stockage du navigateur. Le jeton n'est jamais synchronisé, seulement gardé sur cet appareil.</p>
       <div class="field-row">
-        <div class="field"><label>Utilisateur GitHub</label><input type="text" id="cfgUser" autocomplete="off"></div>
-        <div class="field"><label>Dépôt</label><input type="text" id="cfgRepo" autocomplete="off"></div>
+        <div class="field"><label>Utilisateur GitHub</label><textarea id="cfgUser" class="champ-ligne-unique" rows="1" autocomplete="off"></textarea></div>
+        <div class="field"><label>Dépôt</label><textarea id="cfgRepo" class="champ-ligne-unique" rows="1" autocomplete="off"></textarea></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Branche</label><input type="text" id="cfgBranche" value="main"></div>
-        <div class="field"><label>Chemin du fichier</label><input type="text" id="cfgChemin" value="cave.json"></div>
+        <div class="field"><label>Branche</label><textarea id="cfgBranche" class="champ-ligne-unique" rows="1">main</textarea></div>
+        <div class="field"><label>Chemin du fichier</label><textarea id="cfgChemin" class="champ-ligne-unique" rows="1">cave.json</textarea></div>
       </div>
       <div class="field"><label>Jeton d'accès (PAT)</label><input type="password" id="cfgToken" autocomplete="off"></div>
       <div class="panel-row">
@@ -607,10 +621,10 @@
           <span class="numero-fiche-note">à noter sur l'étiquette</span>
         </div>
 
-        <div class="field"><label>Nom / cuvée *</label><input type="text" id="fNom" placeholder="ex. Clos des Ormes"></div>
+        <div class="field"><label>Nom / cuvée *</label><textarea id="fNom" class="champ-ligne-unique" rows="1" placeholder="ex. Clos des Ormes"></textarea></div>
         <div class="field-row">
-          <div class="field"><label>Domaine / producteur</label><input type="text" id="fDomaine"></div>
-          <div class="field"><label>Pays</label><input type="text" id="fPays" value="France"></div>
+          <div class="field"><label>Domaine / producteur</label><textarea id="fDomaine" class="champ-ligne-unique" rows="1"></textarea></div>
+          <div class="field"><label>Pays</label><textarea id="fPays" class="champ-ligne-unique" rows="1">France</textarea></div>
         </div>
 
         <div class="field"><label>Couleur</label>
@@ -618,7 +632,7 @@
         </div>
 
         <div class="field-row">
-          <div class="field"><label>Millésime</label><input type="text" id="fMillesime" placeholder="ex. 2018 ou NM"></div>
+          <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM"></textarea></div>
           <div class="field"><label>Quantité en cave</label>
             <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off">
             <datalist id="fQuantiteListe">
@@ -641,7 +655,7 @@
 
         <div class="field"><label>Emplacement (casier / rangée)</label>
           <div class="emplacement-row">
-            <input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3">
+            <textarea id="fEmplacement" class="champ-ligne-unique" rows="1" placeholder="ex. Casier B, rang 3"></textarea>
             <select class="emplacement-select" id="fEmplacementGauche" title="Insérer la partie gauche">
               <option value="">📍</option>
             </select>
@@ -675,18 +689,18 @@
           </div>
 
           <div class="field-row">
-            <div class="field"><label>Région</label><input type="text" id="fRegion"></div>
-            <div class="field"><label>Appellation</label><input type="text" id="fAppellation"></div>
+            <div class="field"><label>Région</label><textarea id="fRegion" class="champ-ligne-unique" rows="1"></textarea></div>
+            <div class="field"><label>Appellation</label><textarea id="fAppellation" class="champ-ligne-unique" rows="1"></textarea></div>
           </div>
 
           <div class="field-row">
-            <div class="field"><label>Cépage(s)</label><input type="text" id="fCepages"></div>
+            <div class="field"><label>Cépage(s)</label><textarea id="fCepages" class="champ-ligne-unique" rows="1"></textarea></div>
             <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01"></div>
           </div>
 
           <div class="field-row">
             <div class="field"><label>Date d'achat</label><input type="date" id="fDateAchat"></div>
-            <div class="field"><label>Lieu d'achat</label><input type="text" id="fLieuAchat"></div>
+            <div class="field"><label>Lieu d'achat</label><textarea id="fLieuAchat" class="champ-ligne-unique" rows="1"></textarea></div>
           </div>
 
           <div class="field-row">
@@ -766,9 +780,9 @@
     </div>
     <div class="modal-body">
       <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
-      <div class="field"><label>Nom / cuvée</label><input type="text" id="verifTexteNom"></div>
-      <div class="field"><label>Domaine / producteur</label><input type="text" id="verifTexteDomaine"></div>
-      <div class="field"><label>Millésime</label><input type="text" id="verifTexteMillesime"></div>
+      <div class="field"><label>Nom / cuvée</label><textarea id="verifTexteNom" class="champ-ligne-unique" rows="1"></textarea></div>
+      <div class="field"><label>Domaine / producteur</label><textarea id="verifTexteDomaine" class="champ-ligne-unique" rows="1"></textarea></div>
+      <div class="field"><label>Millésime</label><textarea id="verifTexteMillesime" class="champ-ligne-unique" rows="1"></textarea></div>
       <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5"></textarea></div>
       <div class="modal-actions" style="justify-content:center;">
         <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button">Annuler</button>
@@ -866,8 +880,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.11";
+const VERSION = "1.10.12";
 const HISTORY = [
+  { version:"1.10.12", date:"2026-08-28", notes:"Diagnostic exact : un <input> ne peut jamais passer à la ligne, quelle que soit sa hauteur — l'agrandissement à l'appui long ne servait donc à rien sur les champs sur une ligne. Tous ces champs (Nom, Domaine, Appellation, Région, Cépages, Emplacement, Lieu d'achat, Millésime, champs de synchronisation GitHub, recherche, fenêtre de vérification…) sont remplacés par des zones de texte habillées pour ressembler à un champ normal d'une ligne, mais qui deviennent de vraies zones multi-lignes avec retour à la ligne une fois agrandies à l'appui long — on peut enfin voir tout le texte qu'un simple champ aurait coupé." },
   { version:"1.10.11", date:"2026-08-28", notes:"Corrigé la vraie cause de « Échec de la récupération » : au-delà de 1 Mo, l'API GitHub standard renvoie un statut 200 mais un contenu vide (limite bien connue de l'API), ce que le diagnostic a permis de confirmer. Toutes les lectures de fichiers GitHub (récupération de la cave, photos, réglages, vérification au lancement, diagnostic) utilisent désormais le format « brut » de l'API, sans cette limite." },
   { version:"1.10.10", date:"2026-08-28", notes:"La police diminue (au lieu d'augmenter) quand un champ est agrandi à l'appui long : la case étant plus grande et les caractères plus petits, on voit vraiment plus de texte d'un coup, au lieu de simplement zoomer sur ce qui était déjà affiché." },
   { version:"1.10.9", date:"2026-08-28", notes:"Suppression de l'effet « pop-up » (position fixe + fond assombri) pour l'agrandissement à l'appui long : le champ grandit maintenant sur place, à sa position normale dans la page, en gardant le même élément HTML — juste plus grand (police et hauteur). Corrige aussi le souci de sélection de texte devenue impossible dans la zone agrandie." },
@@ -2501,16 +2516,16 @@ document.getElementById("btnLancerDiagnostic").addEventListener("click", async f
 /* Tout champ texte (input ou textarea, hors cases à cocher/menus) peut être agrandi par un appui long
    (~500 ms sans bouger le doigt/la souris) pour faciliter l'édition, et repasse à sa taille normale
    par un nouvel appui long, en changeant de champ, ou en touchant le fond assombri autour. */
-const SELECTEUR_CHAMPS_TEXTE = 'input[type="text"], input[type="number"], input[type="date"], input[type="password"], textarea';
+const SELECTEUR_CHAMPS_TEXTE = 'input[type="number"], input[type="date"], input[type="password"], textarea';
 const DUREE_APPUI_LONG = 500;
 const TOLERANCE_DEPLACEMENT = 10;
 
 function agrandirChamp(el){
+  el.classList.add("champ-agrandi"); // d'abord, pour activer le retour à la ligne avant de mesurer
   if(el.tagName === "TEXTAREA"){
     const hauteur = Math.min(Math.max(el.scrollHeight, 160), Math.round(window.innerHeight*0.6));
     el.style.setProperty("--champ-agrandi-hauteur", hauteur + "px");
   }
-  el.classList.add("champ-agrandi");
   el.scrollIntoView({ behavior:"smooth", block:"center" });
 }
 function reduireChamp(el){

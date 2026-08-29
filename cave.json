@@ -270,13 +270,13 @@
       "dateAjout": "2026-08-29",
       "quantiteBue": 0,
       "dateDerniereDegustation": "",
-      "nom": "Château Le Raît – Bordeaux (Appellation Bordeaux Contrôlée), millésime 2018",
+      "nom": "Château Le Raît – Bordeaux",
       "domaine": "SCEA Capoul & Fils",
       "appellation": "",
       "region": "",
       "pays": "France",
       "couleur": "rouge",
-      "millesime": "",
+      "millesime": "2018",
       "cepages": "",
       "quantite": 1,
       "prixUnitaire": "",
@@ -292,6 +292,6 @@
       "photoFichier": "images/65134ebb-2db5-41b5-ab64-00b77025f283.jpg"
     }
   ],
-  "maj": "2026-08-29T09:25:21.866Z",
+  "maj": "2026-08-29T09:26:58.126Z",
   "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

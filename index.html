@@ -649,6 +649,8 @@
             </div>
           </div>
 
+          <div class="field"><label>Étiquette</label><textarea id="fEtiquette" placeholder="Description de l'étiquette (visuel, mentions…)"></textarea></div>
+
           <div class="field"><label>Commentaire / notes de dégustation</label><textarea id="fCommentaire" placeholder="Robe, nez, bouche, accords mets-vin…"></textarea></div>
 
           <div class="fiche-action-supprimer" id="ficheActionSupprimer"></div>
@@ -759,8 +761,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.3";
+const VERSION = "1.9.4";
 const HISTORY = [
+  { version:"1.9.4", date:"2026-08-28", notes:"Nouveau champ « Étiquette » (texte libre) dans les Détails complémentaires de chaque vin. Le 3ᵉ bouton de la Saisie rapide attend maintenant une réponse structurée en trois sections « Nom : », « Domaine : » et « Étiquette : » copiées depuis ChatGPT/Claude : il remplit les champs Nom et Domaine, place le texte de l'étiquette dans ce nouveau champ, et attache aussi la photo utilisée pour l'identification au nouveau vin. Un message prévient si la réponse copiée ne suit pas ce format." },
   { version:"1.9.3", date:"2026-08-28", notes:"Corrigé : depuis la page Saisie rapide, le bouton « Identifier avec... » semblait ne rien faire. En réalité la fenêtre de vérification s'ouvrait bien, mais restait cachée derrière la page (ordre d'empilement incorrect) — corrigé. Par sécurité, cette fenêtre s'affiche désormais dans tous les cas dès que la photo est prête, même si la copie dans le presse-papier échoue de son côté (un message signale alors cet échec séparément, sans plus bloquer l'affichage)." },
   { version:"1.9.2", date:"2026-08-28", notes:"La page ouverte par l'icône bouteille porte maintenant une rangée d'onglets (⚡ Saisie rapide / ⚙️ Paramètres). Nouvelle page « Saisie rapide » : un bouton prend/choisit une photo et la copie dans le presse-papier, un second lance l'identification IA (identique au bouton de la fiche), un troisième lit le texte du presse-papier (la réponse copiée depuis ChatGPT/Claude) et ouvre la création d'un nouveau vin avec ce texte placé dans le commentaire de dégustation — le découpage en champs (nom, domaine…) viendra affiner cela plus tard." },
   { version:"1.9.1", date:"2026-08-28", notes:"Ajout dans la page Paramètres d'un choix d'assistant IA (ChatGPT ou Claude) pour l'identification d'un vin par photo, persistant sur GitHub comme les autres réglages. Le bouton « Identifier avec... » et la fenêtre de vérification s'adaptent au choix ; Claude s'ouvre via claude.ai/new avec la question pré-remplie (mécanisme non officiellement documenté par Anthropic, à surveiller s'il cesse de fonctionner un jour)." },
@@ -1426,7 +1429,7 @@ function majBoutonChoisirPhoto(){
 }
 
 function viderFormulaire(){
-  ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fCommentaire"]
+  ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire"]
     .forEach(id=>document.getElementById(id).value="");
   document.getElementById("fPays").value = "France";
   document.getElementById("fQuantite").value = 1;
@@ -1496,6 +1499,7 @@ function ouvrirFiche(id){
   document.getElementById("fEmplacement").value = b.emplacement||"";
   document.getElementById("fBoireDe").value = b.boireDe||"";
   document.getElementById("fBoireA").value = b.boireA||"";
+  document.getElementById("fEtiquette").value = b.etiquette||"";
   document.getElementById("fCommentaire").value = b.commentaire||"";
   selectionnerCouleur(b.couleur||"rouge");
   noteChoisie = b.note||0;
@@ -1606,6 +1610,7 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
     boireDe: document.getElementById("fBoireDe").value,
     boireA: document.getElementById("fBoireA").value,
     note: noteChoisie,
+    etiquette: document.getElementById("fEtiquette").value.trim(),
     commentaire: document.getElementById("fCommentaire").value.trim(),
     photoMiniature: photoSupprimee ? "" : photoEnCoursMiniature,
     photoFichier: photoSupprimee ? "" : photoEnCoursFichier,
@@ -1742,8 +1747,10 @@ document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
 
 /* ===================== PAGE SAISIE RAPIDE ===================== */
 let saisiePhotoDataUrl = "";
+let saisiePhotoMiniature = "";
 function reinitialiserSaisieRapide(){
   saisiePhotoDataUrl = "";
+  saisiePhotoMiniature = "";
   document.getElementById("saisiePhotoInput").value = "";
   document.getElementById("saisiePhotoApercu").style.display = "none";
   document.getElementById("btnSaisieIdentifier").disabled = true;
@@ -1752,18 +1759,20 @@ document.getElementById("btnSaisiePhoto").addEventListener("click", ()=>document
 document.getElementById("saisiePhotoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
-  const promesseDataUrl = compresserImage(file, 1600, 0.82);
+  const promessePleine = compresserImage(file, 1600, 0.82);
+  const promesseMiniature = compresserImage(file, 480, 0.65);
   if(navigator.clipboard && typeof ClipboardItem !== "undefined"){
     try{
-      navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseDataUrl.then(dataUrlVersPng) }) ])
+      navigator.clipboard.write([ new ClipboardItem({ "image/png": promessePleine.then(dataUrlVersPng) }) ])
         .then(()=> toast("Photo copiée dans le presse-papier"))
         .catch(()=> toast("Photo prête, mais échec de la copie dans le presse-papier"));
     }catch(e){
       toast("Photo prête, mais échec de la copie dans le presse-papier");
     }
   }
-  promesseDataUrl.then(pleine=>{
+  Promise.all([promessePleine, promesseMiniature]).then(([pleine, miniature])=>{
     saisiePhotoDataUrl = pleine;
+    saisiePhotoMiniature = miniature;
     document.getElementById("saisiePhotoApercu").src = pleine;
     document.getElementById("saisiePhotoApercu").style.display = "block";
     document.getElementById("btnSaisieIdentifier").disabled = false;
@@ -1773,6 +1782,26 @@ document.getElementById("btnSaisieIdentifier").addEventListener("click", functio
   if(!saisiePhotoDataUrl){ toast("Prends d'abord une photo"); return; }
   lancerIdentificationIA(Promise.resolve(saisiePhotoDataUrl));
 });
+
+/* La réponse de l'IA, copiée manuellement depuis ChatGPT/Claude, est attendue sous la forme de trois sections
+   introduites par « Nom : », « Domaine : » et « Étiquette : » (accents/casse variables tolérés). */
+function extraireSectionsReponseIA(texte){
+  const resultat = { nom:"", domaine:"", etiquette:"" };
+  if(!texte) return resultat;
+  const regex = /^\s*(nom|domaine|[ée]tiquette)\s*:\s*/gim;
+  const correspondances = [...texte.matchAll(regex)];
+  for(let i=0; i<correspondances.length; i++){
+    let cle = correspondances[i][1].toLowerCase();
+    if(cle === "étiquette") cle = "etiquette";
+    const debut = correspondances[i].index + correspondances[i][0].length;
+    const fin = (i+1 < correspondances.length) ? correspondances[i+1].index : texte.length;
+    const contenu = texte.slice(debut, fin).trim();
+    if(cle === "nom") resultat.nom = contenu;
+    else if(cle === "domaine") resultat.domaine = contenu;
+    else if(cle === "etiquette") resultat.etiquette = contenu;
+  }
+  return resultat;
+}
 document.getElementById("btnSaisieCreerVin").addEventListener("click", async function(){
   if(!navigator.clipboard || !navigator.clipboard.readText){
     toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");
@@ -1785,10 +1814,30 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
     toast("Impossible de lire le presse-papier (autorise l'accès si demandé)");
     return;
   }
+  const sections = extraireSectionsReponseIA(texte);
+  if(!sections.nom && !sections.domaine && !sections.etiquette){
+    toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
+  }
+
   document.getElementById("pageParametres").style.display = "none";
   ouvrirAjout();
-  if(texte && texte.trim()){
-    document.getElementById("fCommentaire").value = texte.trim();
+
+  document.getElementById("fNom").value = sections.nom;
+  document.getElementById("fDomaine").value = sections.domaine;
+  document.getElementById("fEtiquette").value = sections.etiquette;
+
+  if(saisiePhotoDataUrl){
+    photoEnCoursPendante = saisiePhotoDataUrl;
+    photoEnCoursMiniature = saisiePhotoMiniature || saisiePhotoDataUrl;
+    photoSupprimee = false;
+    document.getElementById("photoPreview").src = photoEnCoursPendante;
+    document.getElementById("photoPreview").style.display = "block";
+    document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
+    document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
+    majBoutonChoisirPhoto();
+  }
+
+  if(sections.etiquette || saisiePhotoDataUrl){
     document.getElementById("ficheSectionBasse").open = true;
   }
 });

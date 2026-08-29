@@ -482,13 +482,13 @@
   /* ---------- Agrandissement à l'appui long (tous champs texte) : grandit sur place, même élément,
      sans changer de position ni recouvrir le reste de la page. ---------- */
   .champ-agrandi{
-    font-size:19px !important;
+    font-size:12px !important;
     border-color:var(--gold) !important;
     position:relative !important;
     z-index:1;
   }
-  input.champ-agrandi{ height:52px !important; }
-  textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 220px) !important; }
+  input.champ-agrandi{ height:44px !important; }
+  textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 260px) !important; }
 </style>
 </head>
 <body>
@@ -866,8 +866,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.9";
+const VERSION = "1.10.10";
 const HISTORY = [
+  { version:"1.10.10", date:"2026-08-28", notes:"La police diminue (au lieu d'augmenter) quand un champ est agrandi à l'appui long : la case étant plus grande et les caractères plus petits, on voit vraiment plus de texte d'un coup, au lieu de simplement zoomer sur ce qui était déjà affiché." },
   { version:"1.10.9", date:"2026-08-28", notes:"Suppression de l'effet « pop-up » (position fixe + fond assombri) pour l'agrandissement à l'appui long : le champ grandit maintenant sur place, à sa position normale dans la page, en gardant le même élément HTML — juste plus grand (police et hauteur). Corrige aussi le souci de sélection de texte devenue impossible dans la zone agrandie." },
   { version:"1.10.8", date:"2026-08-28", notes:"Corrigé : l'appui long déclenchait aussi la sélection de texte native d'iOS sur toute la page (surlignage bleu généralisé). La sélection/le menu contextuel natifs sont désormais désactivés partout sauf à l'intérieur des champs texte eux-mêmes, où le copier-coller reste pleinement disponible." },
   { version:"1.10.7", date:"2026-08-28", notes:"Remplacement du double-tap (peu fiable) par un appui long (~500 ms sans bouger le doigt) pour agrandir/réduire un champ texte, aussi bien au toucher qu'à la souris. Le retour à la taille normale en changeant de champ ou en touchant le fond assombri reste inchangé." },

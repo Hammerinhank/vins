@@ -229,6 +229,7 @@
   .bottle-meta-row .millesime{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--gold-soft);}
   .stars{font-size:12px;letter-spacing:1px;color:var(--gold);}
   .stars .empty{color:var(--line);}
+  .prix-carte{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
   .bottle-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
   .tag{
     font-size:10.5px;font-family:'IBM Plex Mono',monospace;
@@ -934,8 +935,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.19";
+const VERSION = "1.10.20";
 const HISTORY = [
+  { version:"1.10.20", date:"2026-08-28", notes:"Le prix unitaire s'affiche maintenant à droite des étoiles sur chaque carte de la liste, quand il est renseigné." },
   { version:"1.10.19", date:"2026-08-28", notes:"Le bouton « 📥 Appliquer la réponse au vin » passe désormais par une fenêtre de vérification, comme pour la création d'un vin : Commentaire, Note et Prix extraits du presse-papier s'affichent, modifiables, avec le choix de confirmer (« Appliquer à la fiche ») ou d'annuler, avant d'ouvrir la fiche du vin pour l'enregistrement final." },
   { version:"1.10.18", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse au vin » sur la page Avis : lit le presse-papier (la réponse de ChatGPT/Claude), l'utilise intégralement comme commentaire, et en extrait « Note : » et « Prix : » (robuste au gras Markdown comme pour Nom/Domaine/Étiquette) pour ajuster les étoiles et le prix unitaire — le tout appliqué à la fiche du vin ouverte pour vérification, à valider par Enregistrer. La question par défaut demande maintenant explicitement une note et un prix en fin de réponse pour que l'extraction ait quelque chose à trouver." },
   { version:"1.10.17", date:"2026-08-28", notes:"Ajout du bouton « 💬 Demander un avis à ChatGPT/Claude » sur la page Avis : il compose la deuxième question (définie dans Paramètres) enrichie du nom, du domaine et de l'étiquette actuellement affichés sur cette page (« Le vin dont il est question s'appelle « … » et le domaine est « … » et sur l'étiquette on peut lire les informations suivantes « … ». »), puis ouvre directement l'assistant choisi avec cette question pré-remplie." },
@@ -1524,6 +1526,7 @@ function carteBouteille(b){
           <span class="capsule ${coul.key}"></span>
           <span class="millesime">${escapeHtml(b.millesime || "NM")}</span>
           <span class="stars">${stars}</span>
+          ${b.prixUnitaire!==""&&b.prixUnitaire!=null ? `<span class="prix-carte">${euro(b.prixUnitaire)}</span>` : ""}
         </div>
         ${tags.length ? `<div class="bottle-tags">${tags.map(t=>`<span class="tag${t.cls?" "+t.cls:""}">${escapeHtml(t.text)}</span>`).join("")}</div>` : ""}
       </div>

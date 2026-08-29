@@ -443,6 +443,11 @@
   .page-tab-btn.active{border-color:var(--gold);background:var(--bg-card);color:var(--text);}
   .page-body{max-width:640px;margin:0 auto;padding:22px 16px 60px 16px;display:flex;flex-direction:column;gap:16px;}
 
+  body.mode-consultation .action-edition{display:none !important;}
+  .qty-lecture{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);
+  }
+
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
@@ -457,7 +462,7 @@
 
 <header class="app-header">
   <div class="header-left">
-    <button class="logo-mark-btn" id="btnOuvrirParametres" type="button" aria-label="Paramètres de l'application">
+    <button class="logo-mark-btn action-edition" id="btnOuvrirParametres" type="button" aria-label="Paramètres de l'application">
       <svg class="logo-mark" width="26" height="34" viewBox="0 0 26 34" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 1H16V6.5C16 6.5 20 9.5 20 16V30C20 32 18.2 33 16.5 33H9.5C7.8 33 6 32 6 30V16C6 9.5 10 6.5 10 6.5V1Z" stroke="#C9A227" stroke-width="1.4"/>
         <line x1="6" y1="16" x2="20" y2="16" stroke="#C9A227" stroke-width="1.2"/>
@@ -489,7 +494,7 @@
   </select>
   <select id="groupBySel">
     <option value="aucun">Ne pas regrouper</option>
-    <option value="couleur">Regrouper par couleur</option>
+    <option value="couleur" selected>Regrouper par couleur</option>
     <option value="region">Regrouper par région</option>
     <option value="emplacement">Regrouper par emplacement</option>
   </select>
@@ -503,7 +508,7 @@
     <option value="prix_asc">Prix croissant</option>
     <option value="apogee_asc">Apogée : à boire en premier</option>
   </select>
-  <button class="btn btn-gold" id="btnAjouter" type="button">+ Ajouter un vin</button>
+  <button class="btn btn-gold action-edition" id="btnAjouter" type="button">+ Ajouter un vin</button>
 </div>
 
 <div class="toolbar" id="chipsToolbar">
@@ -519,7 +524,7 @@
 
 <div class="grid-wrap" id="gridWrap"></div>
 
-<div class="settings">
+<div class="settings action-edition">
   <details class="panel" id="panelSync">
     <summary>Synchronisation GitHub (optionnelle)</summary>
     <div class="panel-body">
@@ -784,8 +789,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.8";
+const VERSION = "1.10.1";
 const HISTORY = [
+  { version:"1.10.1", date:"2026-08-28", notes:"La liste s'ouvre maintenant toujours regroupée par couleur par défaut (au lieu de « Ne pas regrouper »), à chaque lancement de l'app." },
+  { version:"1.10.0", date:"2026-08-28", notes:"Deux liens désormais possibles : l'URL habituelle ouvre l'app en mode consultation (rien de modifiable — pas d'ajout, de suppression, de bue, d'édition de champ, ni d'accès à la synchronisation GitHub ou aux paramètres) ; en ajoutant ?edition à la fin de l'URL, tout fonctionne comme avant. Permet de partager la cave sans risque de fausse manipulation." },
   { version:"1.9.8", date:"2026-08-28", notes:"« Saisie rapide » est maintenant l'onglet ouvert par défaut en touchant l'icône bouteille (au lieu de « Paramètres »). Le 3ᵉ bouton reconnaît en plus une section « Millésime : » dans la réponse copiée et remplit ce champ si elle est présente ; la fenêtre de vérification affiche aussi ce millésime extrait, modifiable comme les autres champs, avant la création du vin." },
   { version:"1.9.7", date:"2026-08-28", notes:"Recherche par N° vraiment exclusive cette fois : une saisie purement numérique (ex. « 4 ») ne cherche plus que sur le champ N° (égalité stricte) et ne consulte plus du tout les autres champs (nom, domaine…) — corrige le cas où un nom de vin contenant accidentellement ce chiffre (ex. « … 14 ») remontait encore par la recherche texte." },
   { version:"1.9.6", date:"2026-08-28", notes:"La recherche par N° est désormais exacte : taper « 4 » ne remonte que le vin N°4, plus les N°14, 24, 45, etc. Les autres champs (nom, domaine, appellation…) continuent d'être cherchés en sous-chaîne comme avant." },
@@ -833,12 +840,16 @@ const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
 const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
 const LS_INSTANCE_ID = "cave_instance_id_v1";
 
+// Mode consultation / édition : deux liens distincts à partager. Sans « ?edition » dans l'URL, l'app
+// s'ouvre en lecture seule (rien n'est modifiable) ; avec « ?edition », tout fonctionne normalement.
+const MODE_EDITION = new URLSearchParams(location.search).has("edition");
+
 let bottles = [];
 let filtreStatut = "cave";
 let filtreCouleur = "toutes";
 let filtreApogeeOnly = false;
 let recherche = "";
-let groupBy = "aucun";
+let groupBy = "couleur";
 let sortKey = "ajout_desc";
 let ficheEnCours = null; // id en édition, ou null = ajout
 let photoEnCoursPendante = "";   // base64 pleine résolution, en attente d'envoi vers GitHub
@@ -1310,6 +1321,14 @@ function carteBouteille(b){
     tags.push({ text: quantiteBue + " " + suffixe + date });
   }
 
+  const controleQuantite = MODE_EDITION
+    ? `<div class="qty-control">
+          <button type="button" data-action="bue" title="Marquer une bouteille comme bue"${quantite<=0?" disabled":""}>🍷</button>
+          <span class="qty-val">${quantite}</span>
+          <button type="button" data-action="annulerBue" title="Annuler la dernière bue"${quantiteBue<=0?' style="display:none;"':""}>↩</button>
+        </div>`
+    : `<span class="qty-lecture">${quantite} en cave</span>`;
+
   return `
   <div class="bottle-card" data-id="${b.id}">
     ${photoHtml}
@@ -1328,11 +1347,7 @@ function carteBouteille(b){
         ${tags.length ? `<div class="bottle-tags">${tags.map(t=>`<span class="tag${t.cls?" "+t.cls:""}">${escapeHtml(t.text)}</span>`).join("")}</div>` : ""}
       </div>
       <div class="bottle-footer">
-        <div class="qty-control">
-          <button type="button" data-action="bue" title="Marquer une bouteille comme bue"${quantite<=0?" disabled":""}>🍷</button>
-          <span class="qty-val">${quantite}</span>
-          <button type="button" data-action="annulerBue" title="Annuler la dernière bue"${quantiteBue<=0?' style="display:none;"':""}>↩</button>
-        </div>
+        ${controleQuantite}
         <div class="footer-actions">
           ${iconePhoto}
           <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
@@ -1375,8 +1390,10 @@ function renderGrille(){
     card.querySelectorAll('[data-action="ouvrir"]').forEach(el=>{
       el.addEventListener("click", ()=>ouvrirFiche(id));
     });
-    card.querySelector('[data-action="bue"]').addEventListener("click", e=>{ e.stopPropagation(); marquerBue(id); });
-    card.querySelector('[data-action="annulerBue"]').addEventListener("click", e=>{ e.stopPropagation(); annulerBue(id); });
+    const btnBue = card.querySelector('[data-action="bue"]');
+    if(btnBue) btnBue.addEventListener("click", e=>{ e.stopPropagation(); marquerBue(id); });
+    const btnAnnulerBueCard = card.querySelector('[data-action="annulerBue"]');
+    if(btnAnnulerBueCard) btnAnnulerBueCard.addEventListener("click", e=>{ e.stopPropagation(); annulerBue(id); });
     const btnPhoto = card.querySelector('[data-action="togglePhoto"]');
     if(btnPhoto){
       btnPhoto.addEventListener("click", e=>{
@@ -1561,50 +1578,52 @@ function ouvrirFiche(id){
 
   const zoneSupprimer = document.getElementById("ficheActionSupprimer");
   zoneSupprimer.innerHTML = "";
-  const btnSupprimer = document.createElement("button");
-  btnSupprimer.type = "button";
-  btnSupprimer.className = "btn btn-danger btn-sm";
-  btnSupprimer.textContent = "Supprimer";
-  btnSupprimer.addEventListener("click", ()=>{
-    demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?`, ()=>{
-      const cheminPhoto = b.photoFichier;
-      bottles = bottles.filter(x=>x.id!==id);
-      sauvegarderBouteilles();
-      document.getElementById("overlayFiche").classList.remove("show");
-      rafraichirTout();
-      toast("Vin supprimé");
-      if(cheminPhoto){
-        supprimerPhotoDistante(cheminPhoto).then(ok=>{
-          if(!ok && chargerConfig().token) toast("Vin supprimé — la photo sur GitHub n'a pas pu être retirée");
-        });
-      }
-    });
-  });
-  zoneSupprimer.appendChild(btnSupprimer);
-
   const zoneBue = document.getElementById("ficheActionsBue");
   zoneBue.innerHTML = "";
-  if((Number(b.quantite)||0) > 0){
-    const btnBue = document.createElement("button");
-    btnBue.type = "button";
-    btnBue.className = "btn-bue-principal";
-    btnBue.textContent = "🍷 Marquer une bouteille comme bue";
-    btnBue.addEventListener("click", ()=>{
-      marquerBue(id);
-      document.getElementById("overlayFiche").classList.remove("show");
+  if(MODE_EDITION){
+    const btnSupprimer = document.createElement("button");
+    btnSupprimer.type = "button";
+    btnSupprimer.className = "btn btn-danger btn-sm";
+    btnSupprimer.textContent = "Supprimer";
+    btnSupprimer.addEventListener("click", ()=>{
+      demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?`, ()=>{
+        const cheminPhoto = b.photoFichier;
+        bottles = bottles.filter(x=>x.id!==id);
+        sauvegarderBouteilles();
+        document.getElementById("overlayFiche").classList.remove("show");
+        rafraichirTout();
+        toast("Vin supprimé");
+        if(cheminPhoto){
+          supprimerPhotoDistante(cheminPhoto).then(ok=>{
+            if(!ok && chargerConfig().token) toast("Vin supprimé — la photo sur GitHub n'a pas pu être retirée");
+          });
+        }
+      });
     });
-    zoneBue.appendChild(btnBue);
-  }
-  if((Number(b.quantiteBue)||0) > 0){
-    const btnAnnulerBue = document.createElement("button");
-    btnAnnulerBue.type = "button";
-    btnAnnulerBue.className = "btn btn-ghost btn-sm";
-    btnAnnulerBue.textContent = "↩ Annuler la dernière bue";
-    btnAnnulerBue.addEventListener("click", ()=>{
-      annulerBue(id);
-      document.getElementById("overlayFiche").classList.remove("show");
-    });
-    zoneBue.appendChild(btnAnnulerBue);
+    zoneSupprimer.appendChild(btnSupprimer);
+
+    if((Number(b.quantite)||0) > 0){
+      const btnBue = document.createElement("button");
+      btnBue.type = "button";
+      btnBue.className = "btn-bue-principal";
+      btnBue.textContent = "🍷 Marquer une bouteille comme bue";
+      btnBue.addEventListener("click", ()=>{
+        marquerBue(id);
+        document.getElementById("overlayFiche").classList.remove("show");
+      });
+      zoneBue.appendChild(btnBue);
+    }
+    if((Number(b.quantiteBue)||0) > 0){
+      const btnAnnulerBue = document.createElement("button");
+      btnAnnulerBue.type = "button";
+      btnAnnulerBue.className = "btn btn-ghost btn-sm";
+      btnAnnulerBue.textContent = "↩ Annuler la dernière bue";
+      btnAnnulerBue.addEventListener("click", ()=>{
+        annulerBue(id);
+        document.getElementById("overlayFiche").classList.remove("show");
+      });
+      zoneBue.appendChild(btnAnnulerBue);
+    }
   }
 
   document.getElementById("overlayFiche").classList.add("show");
@@ -2279,6 +2298,26 @@ recupererReglagesDepuisGitHub().then(distant=>{
 });
 
 verifierGitHubAuLancement();
+
+/* Mode consultation : verrouille la fiche (champs, couleur, étoiles, numéro) et masque les actions
+   d'édition (Enregistrer, ajout/retrait de photo). Les boutons/panneaux d'édition eux-mêmes sont déjà
+   masqués via la classe CSS « action-edition » sur body.mode-consultation. */
+if(!MODE_EDITION){
+  document.body.classList.add("mode-consultation");
+  ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
+   "fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
+    .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = true; });
+  ["couleurChoices","starPicker"].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.style.pointerEvents = "none";
+  });
+  const numeroValeur = document.getElementById("numeroFicheValeur");
+  if(numeroValeur){ numeroValeur.style.pointerEvents = "none"; numeroValeur.style.cursor = "default"; }
+  ["btnChoisirPhoto","btnRetirerPhoto","btnSauverFiche"].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.classList.add("action-edition");
+  });
+  const btnFermerFiche = document.getElementById("btnAnnulerFiche");
+  if(btnFermerFiche) btnFermerFiche.textContent = "Fermer";
+}
 
 })();
 </script>

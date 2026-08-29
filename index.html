@@ -409,6 +409,8 @@
 
   /* verification photo modal */
   .verif-photo-box{max-width:440px;border-radius:16px;}
+  .verif-texte-box{max-width:460px;border-radius:16px;}
+  .verif-texte-box .modal-body{text-align:left;}
   .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
@@ -706,6 +708,26 @@
   </div>
 </div>
 
+<!-- Modal vérification des champs extraits avant création du vin -->
+<div class="overlay" id="overlayVerifTexte">
+  <div class="modal verif-texte-box">
+    <div class="modal-header">
+      <h2>Vérifier avant de créer le vin</h2>
+      <button class="modal-close" id="closeVerifTexte" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
+      <div class="field"><label>Nom / cuvée</label><input type="text" id="verifTexteNom"></div>
+      <div class="field"><label>Domaine / producteur</label><input type="text" id="verifTexteDomaine"></div>
+      <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5"></textarea></div>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button">Annuler</button>
+        <button class="btn btn-gold" id="btnConfirmerVerifTexte" type="button">Créer le vin</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Page paramètres / saisie rapide -->
 <div class="page-parametres" id="pageParametres" style="display:none;">
   <div class="page-top-sticky">
@@ -761,8 +783,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.4";
+const VERSION = "1.9.5";
 const HISTORY = [
+  { version:"1.9.5", date:"2026-08-28", notes:"Corrigé : l'extraction Nom/Domaine/Étiquette échouait quand la réponse copiée utilisait le gras Markdown (« **nom :** »), ce qui est le cas par défaut avec ChatGPT/Claude — les astérisques sont maintenant ignorées. Ajout d'une fenêtre de vérification avant la création du vin : les trois champs extraits s'affichent, modifiables, avec le choix de confirmer (« Créer le vin ») ou d'annuler, pour ne jamais créer une fiche avec un contenu incorrect." },
   { version:"1.9.4", date:"2026-08-28", notes:"Nouveau champ « Étiquette » (texte libre) dans les Détails complémentaires de chaque vin. Le 3ᵉ bouton de la Saisie rapide attend maintenant une réponse structurée en trois sections « Nom : », « Domaine : » et « Étiquette : » copiées depuis ChatGPT/Claude : il remplit les champs Nom et Domaine, place le texte de l'étiquette dans ce nouveau champ, et attache aussi la photo utilisée pour l'identification au nouveau vin. Un message prévient si la réponse copiée ne suit pas ce format." },
   { version:"1.9.3", date:"2026-08-28", notes:"Corrigé : depuis la page Saisie rapide, le bouton « Identifier avec... » semblait ne rien faire. En réalité la fenêtre de vérification s'ouvrait bien, mais restait cachée derrière la page (ordre d'empilement incorrect) — corrigé. Par sécurité, cette fenêtre s'affiche désormais dans tous les cas dès que la photo est prête, même si la copie dans le presse-papier échoue de son côté (un message signale alors cet échec séparément, sans plus bloquer l'affichage)." },
   { version:"1.9.2", date:"2026-08-28", notes:"La page ouverte par l'icône bouteille porte maintenant une rangée d'onglets (⚡ Saisie rapide / ⚙️ Paramètres). Nouvelle page « Saisie rapide » : un bouton prend/choisit une photo et la copie dans le presse-papier, un second lance l'identification IA (identique au bouton de la fiche), un troisième lit le texte du presse-papier (la réponse copiée depuis ChatGPT/Claude) et ouvre la création d'un nouveau vin avec ce texte placé dans le commentaire de dégustation — le découpage en champs (nom, domaine…) viendra affiner cela plus tard." },
@@ -1785,9 +1808,11 @@ document.getElementById("btnSaisieIdentifier").addEventListener("click", functio
 
 /* La réponse de l'IA, copiée manuellement depuis ChatGPT/Claude, est attendue sous la forme de trois sections
    introduites par « Nom : », « Domaine : » et « Étiquette : » (accents/casse variables tolérés). */
-function extraireSectionsReponseIA(texte){
+function extraireSectionsReponseIA(texteBrut){
   const resultat = { nom:"", domaine:"", etiquette:"" };
-  if(!texte) return resultat;
+  if(!texteBrut) return resultat;
+  // Retire le gras Markdown (**texte** / __texte__) qui empêcherait sinon de repérer « Nom : » etc. en début de ligne.
+  const texte = texteBrut.replace(/\*\*/g, "").replace(/__/g, "");
   const regex = /^\s*(nom|domaine|[ée]tiquette)\s*:\s*/gim;
   const correspondances = [...texte.matchAll(regex)];
   for(let i=0; i<correspondances.length; i++){
@@ -1818,13 +1843,25 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   if(!sections.nom && !sections.domaine && !sections.etiquette){
     toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
   }
+  document.getElementById("verifTexteNom").value = sections.nom;
+  document.getElementById("verifTexteDomaine").value = sections.domaine;
+  document.getElementById("verifTexteEtiquette").value = sections.etiquette;
+  document.getElementById("overlayVerifTexte").classList.add("show");
+});
+document.getElementById("closeVerifTexte").addEventListener("click", ()=>document.getElementById("overlayVerifTexte").classList.remove("show"));
+document.getElementById("btnAnnulerVerifTexte").addEventListener("click", ()=>document.getElementById("overlayVerifTexte").classList.remove("show"));
+document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>{
+  const nom = document.getElementById("verifTexteNom").value.trim();
+  const domaine = document.getElementById("verifTexteDomaine").value.trim();
+  const etiquette = document.getElementById("verifTexteEtiquette").value.trim();
+  document.getElementById("overlayVerifTexte").classList.remove("show");
 
   document.getElementById("pageParametres").style.display = "none";
   ouvrirAjout();
 
-  document.getElementById("fNom").value = sections.nom;
-  document.getElementById("fDomaine").value = sections.domaine;
-  document.getElementById("fEtiquette").value = sections.etiquette;
+  document.getElementById("fNom").value = nom;
+  document.getElementById("fDomaine").value = domaine;
+  document.getElementById("fEtiquette").value = etiquette;
 
   if(saisiePhotoDataUrl){
     photoEnCoursPendante = saisiePhotoDataUrl;
@@ -1837,7 +1874,7 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
     majBoutonChoisirPhoto();
   }
 
-  if(sections.etiquette || saisiePhotoDataUrl){
+  if(etiquette || saisiePhotoDataUrl){
     document.getElementById("ficheSectionBasse").open = true;
   }
 });

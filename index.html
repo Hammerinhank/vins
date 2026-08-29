@@ -866,8 +866,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.10";
+const VERSION = "1.10.11";
 const HISTORY = [
+  { version:"1.10.11", date:"2026-08-28", notes:"Corrigé la vraie cause de « Échec de la récupération » : au-delà de 1 Mo, l'API GitHub standard renvoie un statut 200 mais un contenu vide (limite bien connue de l'API), ce que le diagnostic a permis de confirmer. Toutes les lectures de fichiers GitHub (récupération de la cave, photos, réglages, vérification au lancement, diagnostic) utilisent désormais le format « brut » de l'API, sans cette limite." },
   { version:"1.10.10", date:"2026-08-28", notes:"La police diminue (au lieu d'augmenter) quand un champ est agrandi à l'appui long : la case étant plus grande et les caractères plus petits, on voit vraiment plus de texte d'un coup, au lieu de simplement zoomer sur ce qui était déjà affiché." },
   { version:"1.10.9", date:"2026-08-28", notes:"Suppression de l'effet « pop-up » (position fixe + fond assombri) pour l'agrandissement à l'appui long : le champ grandit maintenant sur place, à sa position normale dans la page, en gardant le même élément HTML — juste plus grand (police et hauteur). Corrige aussi le souci de sélection de texte devenue impossible dans la zone agrandie." },
   { version:"1.10.8", date:"2026-08-28", notes:"Corrigé : l'appui long déclenchait aussi la sélection de texte native d'iOS sur toute la page (surlignage bleu généralisé). La sélection/le menu contextuel natifs sont désormais désactivés partout sauf à l'intérieur des champs texte eux-mêmes, où le copier-coller reste pleinement disponible." },
@@ -1193,11 +1194,18 @@ async function obtenirPhotoDepuisGitHub(cheminFichier){
   const cfg = chargerConfig();
   if(!cfg.user || !cfg.repo || !cfg.token || !cheminFichier) return null;
   try{
+    // Média « raw » : contourne la limite de 1 Mo de l'API JSON standard (au-delà, celle-ci renvoie un
+    // contenu vide malgré un statut 200) et évite le passage par base64 côté JSON.
     const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cheminFichier)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
-    const res = await githubAPI(url, cfg);
+    const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     if(!res.ok) return null;
-    const info = await res.json();
-    return "data:image/jpeg;base64," + info.content.replace(/\n/g,"");
+    const blob = await res.blob();
+    return await new Promise((resolve, reject)=>{
+      const lecteur = new FileReader();
+      lecteur.onload = () => resolve(lecteur.result);
+      lecteur.onerror = reject;
+      lecteur.readAsDataURL(blob);
+    });
   }catch(e){ return null; }
 }
 /* Envoie vers GitHub, en fichiers séparés (images/<id>.jpg), toutes les photos pleine résolution encore en attente localement ; libère ensuite l'espace local correspondant. */
@@ -1284,10 +1292,9 @@ async function recupererReglagesDepuisGitHub(){
   if(!cfg.user || !cfg.repo || !cfg.token) return null;
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_REGLAGES)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
-    const res = await githubAPI(base, cfg);
+    const res = await githubAPI(base, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     if(!res.ok) return null;
-    const info = await res.json();
-    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    const texte = await res.text();
     return JSON.parse(texte);
   }catch(e){ return null; }
 }
@@ -2359,10 +2366,9 @@ async function verifierGitHubAuLancement(){
     const chemin = cfg.chemin || "cave.json";
     const branche = cfg.branche || "main";
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
-    const res = await githubAPI(base + "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now(), cfg);
+    const res = await githubAPI(base + "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now(), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     if(!res.ok) return;
-    const info = await res.json();
-    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    const texte = await res.text();
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
     const origineDistante = data.origine || null;
@@ -2404,11 +2410,10 @@ document.getElementById("btnPull").addEventListener("click", async function(){
   statusEl.textContent = "Récupération en cours…";
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
-    const res = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche) + "&_=" + Date.now(), cfg);
+    const res = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche) + "&_=" + Date.now(), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     if(res.status === 404){ throw new Error("Fichier introuvable sur GitHub"); }
     if(!res.ok){ throw new Error("Erreur " + res.status); }
-    const info = await res.json();
-    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    const texte = await res.text();
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
     demanderConfirmation("Récupérer depuis GitHub", `Remplacer la cave locale (${bottles.length} vin(s)) par la version GitHub (${distantes.length} vin(s)) ?`, ()=>{
@@ -2459,18 +2464,16 @@ document.getElementById("btnLancerDiagnostic").addEventListener("click", async f
     const chemin = cfg.chemin || "cave.json";
     const branche = cfg.branche || "main";
     const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${encodeURIComponent(branche)}&_=${Date.now()}`;
-    journalAjouter("URL interrogée : " + url);
-    const res = await githubAPI(url, cfg);
+    journalAjouter("URL interrogée (média « raw », sans limite de 1 Mo) : " + url);
+    const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     journalAjouter("Statut HTTP reçu : " + res.status + " " + res.statusText);
     if(!res.ok){
       const texteErreur = await res.text().catch(()=>"(impossible de lire le corps de la réponse)");
       journalAjouter("Corps de la réponse d'erreur : " + texteErreur);
       throw new Error("Échec HTTP " + res.status);
     }
-    const info = await res.json();
-    journalAjouter("Réponse reçue — sha : " + info.sha + " · taille encodée (base64) : " + (info.content ? info.content.length : 0) + " caractères");
-    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
-    journalAjouter("Décodage base64 → texte réussi : " + texte.length + " caractères.");
+    const texte = await res.text();
+    journalAjouter("Contenu brut reçu : " + texte.length + " caractères.");
     document.getElementById("journalJson").value = texte;
     let data;
     try{

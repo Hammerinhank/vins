@@ -331,6 +331,12 @@
     border-radius:8px;font-size:16px;text-align:center;text-align-last:center;
     -webkit-appearance:none;appearance:none;padding:0;
   }
+  .emplacement-icon-btn{
+    flex:none;width:44px;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;font-size:16px;text-align:center;padding:0;
+  }
+  .emplacement-icon-btn:disabled{opacity:.35;}
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -623,6 +629,7 @@
             <select class="emplacement-select" id="fEmplacementDroite" title="Insérer la partie droite">
               <option value="">📌</option>
             </select>
+            <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" title="Reprendre le dernier emplacement utilisé" disabled>🔁</button>
           </div>
         </div>
 
@@ -823,8 +830,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.3";
+const VERSION = "1.10.4";
 const HISTORY = [
+  { version:"1.10.4", date:"2026-08-28", notes:"Ajout d'une troisième icône (🔁) à droite des deux combo box d'Emplacement : elle remet dans le champ la valeur complète d'Emplacement enregistrée sur le dernier vin sauvegardé où ce champ avait été renseigné. Grisée tant qu'aucun emplacement n'a encore été enregistré sur cet appareil." },
   { version:"1.10.3", date:"2026-08-28", notes:"Deux petites combo box (📍 / 📌) ajoutées à droite du champ Emplacement, réduites à une icône quand fermées : la première remplace la partie gauche (avant la virgule), la seconde la partie droite (après la virgule), sans toucher à l'autre partie. Leurs listes de valeurs proposées se définissent dans Paramètres (une valeur par ligne), synchronisées sur GitHub comme les autres réglages." },
   { version:"1.10.2", date:"2026-08-28", notes:"Ajout dans Paramètres d'une case « Limiter l'URL sans ?edition à la consultation seule », décochée par défaut : tant qu'elle n'est pas activée, l'URL habituelle continue de tout permettre comme avant, exactement comme avant l'introduction du mode consultation. Une fois cochée et enregistrée (synchronisé sur GitHub comme les autres réglages), seule l'URL avec ?edition permet de modifier la cave." },
   { version:"1.10.1", date:"2026-08-28", notes:"La liste s'ouvre maintenant toujours regroupée par couleur par défaut (au lieu de « Ne pas regrouper »), à chaque lancement de l'app." },
@@ -874,6 +882,7 @@ const LS_REGLAGES = "cave_reglages_v1";
 const CHEMIN_REGLAGES = "cave-reglages.json";
 const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
 const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
+const LS_DERNIER_EMPLACEMENT = "cave_dernier_emplacement_v1";
 const LS_INSTANCE_ID = "cave_instance_id_v1";
 
 // Mode consultation / édition : deux liens distincts à partager. Sans « ?edition » dans l'URL, l'app
@@ -904,6 +913,7 @@ let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé p
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
 let emplacementGaucheListe = [];   // valeurs proposées pour la partie gauche du champ Emplacement, persistantes via cave-reglages.json
 let emplacementDroiteListe = [];   // valeurs proposées pour la partie droite du champ Emplacement, persistantes via cave-reglages.json
+let dernierEmplacementUtilise = "";   // dernier emplacement enregistré (sur n'importe quel vin), pour le bouton « reprendre » ; propre à cet appareil
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
 /* ---- Badge de version / statut de synchronisation GitHub ---- */
@@ -1727,6 +1737,11 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
     }, data));
   }
   sauvegarderBouteilles();
+  if(data.emplacement){
+    dernierEmplacementUtilise = data.emplacement;
+    try{ localStorage.setItem(LS_DERNIER_EMPLACEMENT, dernierEmplacementUtilise); }catch(e){}
+    majBoutonDernierEmplacement();
+  }
   document.getElementById("overlayFiche").classList.remove("show");
   rafraichirTout();
   toast("Vin enregistré");
@@ -2024,7 +2039,7 @@ function appliquerModeEdition(){
   MODE_EDITION = !limitationConsultationActive || new URLSearchParams(location.search).has("edition");
   document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fEmplacementGauche","fEmplacementDroite","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
+   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
   ["couleurChoices","starPicker"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";
@@ -2069,6 +2084,13 @@ document.getElementById("fEmplacementGauche").addEventListener("change", functio
 document.getElementById("fEmplacementDroite").addEventListener("change", function(){
   if(this.value) appliquerPartieEmplacement("droite", this.value);
   this.selectedIndex = 0;
+});
+function majBoutonDernierEmplacement(){
+  const btn = document.getElementById("btnEmplacementDernier");
+  if(btn) btn.disabled = !dernierEmplacementUtilise;
+}
+document.getElementById("btnEmplacementDernier").addEventListener("click", ()=>{
+  if(dernierEmplacementUtilise) document.getElementById("fEmplacement").value = dernierEmplacementUtilise;
 });
 
 function selectionnerAssistant(cle){
@@ -2115,6 +2137,7 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   majLibelleAssistant();
   limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
   appliquerModeEdition();
+  majBoutonDernierEmplacement();
   emplacementGaucheListe = texteVersListe(document.getElementById("paramEmplacementGauche").value);
   emplacementDroiteListe = texteVersListe(document.getElementById("paramEmplacementDroite").value);
   construireSelectsEmplacement();
@@ -2377,10 +2400,12 @@ assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];
 emplacementDroiteListe = Array.isArray(reglagesLocaux.emplacementDroiteListe) ? reglagesLocaux.emplacementDroiteListe : [];
+try{ dernierEmplacementUtilise = localStorage.getItem(LS_DERNIER_EMPLACEMENT) || ""; }catch(e){ dernierEmplacementUtilise = ""; }
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 majLibelleAssistant();
 appliquerModeEdition();
 construireSelectsEmplacement();
+majBoutonDernierEmplacement();
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
@@ -2416,7 +2441,7 @@ recupererReglagesDepuisGitHub().then(distant=>{
     construireSelectsEmplacement();
     changement = true;
   }
-  if(changementModeEdition) appliquerModeEdition();
+  if(changementModeEdition){ appliquerModeEdition(); majBoutonDernierEmplacement(); }
   if(changement){
     sauvegarderReglagesLocal();
     renderGrille();

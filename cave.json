@@ -124,7 +124,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Casier G, Rang Milieu haut",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -151,7 +151,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Casier G, Rang Milieu haut",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -178,7 +178,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Casier G, Rang Milieu haut",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -350,6 +350,6 @@
       "photoFichier": "images/6ae2a616-20a7-4778-8a33-f9a10e10f3d9.jpg"
     }
   ],
-  "maj": "2026-08-29T12:12:42.799Z",
-  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
+  "maj": "2026-08-29T12:18:01.912Z",
+  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

@@ -837,6 +837,9 @@
       <label>Étiquette</label>
       <textarea id="avisEtiquette" rows="10"></textarea>
     </div>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnAvisEnvoyer" type="button">💬 Demander un avis à ChatGPT</button>
+    </div>
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
@@ -905,8 +908,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.16";
+const VERSION = "1.10.17";
 const HISTORY = [
+  { version:"1.10.17", date:"2026-08-28", notes:"Ajout du bouton « 💬 Demander un avis à ChatGPT/Claude » sur la page Avis : il compose la deuxième question (définie dans Paramètres) enrichie du nom, du domaine et de l'étiquette actuellement affichés sur cette page (« Le vin dont il est question s'appelle « … » et le domaine est « … » et sur l'étiquette on peut lire les informations suivantes « … ». »), puis ouvre directement l'assistant choisi avec cette question pré-remplie." },
   { version:"1.10.16", date:"2026-08-28", notes:"Ajout dans Paramètres d'une deuxième question pour l'assistant IA (avis sur un vin), initialisée à « Que penses-tu de ce vin ? », modifiable et persistante sur GitHub comme la première. La page Avis affiche maintenant aussi Nom et Domaine, placés avant Étiquette : l'icône 📝 sur chaque carte copie désormais ces trois champs du vin concerné." },
   { version:"1.10.15", date:"2026-08-28", notes:"Nouvel onglet « 📝 Avis » à côté de Saisie rapide, avec un champ Étiquette. Chaque carte de la liste porte désormais une icône 📝, à gauche de l'icône photo, sans avoir besoin d'ouvrir la fiche du vin : au toucher, elle copie le contenu du champ Étiquette de ce vin dans la page Avis et l'affiche directement." },
   { version:"1.10.14", date:"2026-08-28", notes:"Ajout dans Paramètres du bouton « 👁 Aperçu du mode consultation » : ouvre un nouvel onglet en lecture seule (via ?apercu), sans activer ni modifier le réglage « Limiter l'URL sans ?edition » — pratique pour vérifier le rendu du mode consultation avant de l'activer pour de bon." },
@@ -2132,6 +2136,8 @@ function majLibelleAssistant(){
   if(btn) btn.textContent = texte;
   const btnSaisie = document.getElementById("btnSaisieIdentifier");
   if(btnSaisie) btnSaisie.textContent = texte;
+  const btnAvis = document.getElementById("btnAvisEnvoyer");
+  if(btnAvis) btnAvis.textContent = "💬 Demander un avis à " + nom;
 }
 /* Recalcule MODE_EDITION à partir de l'URL et de la limitation, puis (dés)applique le verrouillage de la
    fiche et l'affichage des boutons/panneaux d'édition. Réversible : peut être rappelée à tout moment
@@ -2233,6 +2239,17 @@ function ouvrirAvisPourVin(id){
   afficherPageOnglet("avis");
   document.getElementById("pageParametres").style.display = "block";
 }
+document.getElementById("btnAvisEnvoyer").addEventListener("click", ()=>{
+  const nom = document.getElementById("avisNom").value.trim();
+  const domaine = document.getElementById("avisDomaine").value.trim();
+  const etiquette = document.getElementById("avisEtiquette").value.trim();
+  const base = questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
+  const question = base + ` Le vin dont il est question s'appelle « ${nom} » et le domaine est « ${domaine} » et sur l'étiquette on peut lire les informations suivantes « ${etiquette} ».`;
+  const url = assistantIA === "claude"
+    ? "https://claude.ai/new?q=" + encodeURIComponent(question)
+    : "https://chatgpt.com/?q=" + encodeURIComponent(question);
+  window.open(url, "_blank");
+});
 
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;

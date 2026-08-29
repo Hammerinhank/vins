@@ -31,6 +31,7 @@
     --danger:#B4472F;
     --ok:#6E8F5C;
     --orange:#D9822B;
+    --vif:#FF3D68;
     --radius:10px;
     --radius-lg:16px;
     --shadow:0 10px 30px rgba(0,0,0,.5);
@@ -313,6 +314,7 @@
     -webkit-overflow-scrolling:touch;
   }
   @media(min-width:640px){.modal{border-radius:18px;}}
+  #overlayFiche .modal{border:2px solid var(--vif);}
   .modal-header{
     position:sticky;top:0;background:var(--bg-panel);z-index:2;
     display:flex;align-items:center;justify-content:space-between;
@@ -367,6 +369,13 @@
   .assistant-choice.active{border-color:var(--gold);color:var(--text);background:var(--bg-card);font-weight:600;}
   .star-picker{display:flex;gap:4px;font-size:24px;color:var(--line);}
   .star-picker span.on{color:var(--gold);}
+  .note-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .field .note-numerique-input{
+    width:90px;flex:0 0 90px;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    padding:8px 10px;border-radius:8px;font-size:14px;
+    font-family:'IBM Plex Mono',monospace;
+  }
   .photo-section{display:flex;flex-direction:column;gap:9px;}
   .photo-img{
     width:100%;max-height:240px;object-fit:cover;
@@ -716,8 +725,11 @@
           </div>
 
           <div class="field"><label>Note</label>
-            <div class="star-picker" id="starPicker">
-              <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+            <div class="note-row">
+              <div class="star-picker" id="starPicker">
+                <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+              </div>
+              <input type="number" id="fNoteNumerique" class="note-numerique-input" step="0.1" placeholder="Note chiffrée">
             </div>
           </div>
 
@@ -899,6 +911,10 @@
         <input type="checkbox" id="listeAvecNumero">
         Numéroter
       </label>
+      <label class="checkbox-chip" for="listeAvecNroVin">
+        <input type="checkbox" id="listeAvecNroVin">
+        N° du vin
+      </label>
     </div>
     <div class="panel-row">
       <button class="btn btn-gold" id="btnGenererListe" type="button">📋 Générer la liste</button>
@@ -976,8 +992,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.25";
+const VERSION = "1.10.28";
 const HISTORY = [
+  { version:"1.10.28", date:"2026-08-29", notes:"La fiche descriptive d'un vin (fenêtre d'ajout/modification) est désormais entourée d'un fin liseré de couleur très vive, pour bien la distinguer des autres fenêtres de l'application." },
+  { version:"1.10.27", date:"2026-08-29", notes:"Ajout d'un champ « Note chiffrée » à droite des étoiles dans la fiche détaillée, pour stocker une note numérique libre en plus de la note en étoiles." },
+  { version:"1.10.26", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « N° du vin » qui préfixe chaque ligne par « N° xxx », en tête de ligne mais après la numérotation incrémentale (1., 2.…) quand celle-ci est aussi cochée." },
   { version:"1.10.25", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « Prix » qui ajoute le prix unitaire en euros à la suite de chaque nom, quand il est renseigné. Par ailleurs, dans la grille principale, toute carte affichant la photo d'un vin (photo + résumé de la fiche) est désormais encadrée d'un liseré doré bien visible, pour la distinguer nettement des cartes sans photo." },
   { version:"1.10.24", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « Numéroter » qui fait commencer chaque ligne par son numéro d'ordre (1., 2., 3.…), et nouveau bouton « 📎 Copier » qui copie directement le contenu de la zone de texte dans le presse-papier." },
   { version:"1.10.23", date:"2026-08-29", notes:"Nouvel onglet « 📋 Liste », à côté de Saisie rapide et Avis, dans la page ouverte par l'icône bouteille : une zone de texte modifiable, remplie par le bouton « Générer la liste » avec le nom de chaque vin de la cave (triés par ordre alphabétique) — deux cases à cocher, Domaine et Millésime, permettent d'ajouter ces informations à la suite de chaque nom." },
@@ -1715,7 +1734,7 @@ function majBoutonChoisirPhoto(){
 }
 
 function viderFormulaire(){
-  ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire"]
+  ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fNoteNumerique"]
     .forEach(id=>document.getElementById(id).value="");
   document.getElementById("fPays").value = "France";
   document.getElementById("fQuantite").value = 1;
@@ -1791,6 +1810,7 @@ function ouvrirFiche(id){
   selectionnerCouleur(b.couleur||"rouge");
   noteChoisie = b.note||0;
   dessinerEtoiles();
+  document.getElementById("fNoteNumerique").value = (b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="") ? b.noteNumerique : "";
   photoSupprimee = false;
   photoEnCoursPendante = b.photoPendingBase64 || "";
   photoEnCoursMiniature = meilleureMiniature(b);
@@ -1900,6 +1920,7 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
     boireDe: document.getElementById("fBoireDe").value,
     boireA: document.getElementById("fBoireA").value,
     note: noteChoisie,
+    noteNumerique: document.getElementById("fNoteNumerique").value !== "" ? parseFloat(document.getElementById("fNoteNumerique").value) : "",
     etiquette: document.getElementById("fEtiquette").value.trim(),
     commentaire: document.getElementById("fCommentaire").value.trim(),
     photoMiniature: photoSupprimee ? "" : photoEnCoursMiniature,
@@ -2261,6 +2282,7 @@ function genererListeTexte(){
   const avecMillesime = document.getElementById("listeAvecMillesime").checked;
   const avecPrix = document.getElementById("listeAvecPrix").checked;
   const avecNumero = document.getElementById("listeAvecNumero").checked;
+  const avecNroVin = document.getElementById("listeAvecNroVin").checked;
   const lignes = bottles
     .slice()
     .sort((a,b)=> (a.nom||"").localeCompare(b.nom||"", "fr"))
@@ -2269,6 +2291,7 @@ function genererListeTexte(){
       if(avecDomaine && b.domaine) ligne += " — " + b.domaine;
       if(avecMillesime && b.millesime) ligne += " (" + b.millesime + ")";
       if(avecPrix && b.prixUnitaire!==""&&b.prixUnitaire!=null) ligne += " — " + euro(b.prixUnitaire);
+      if(avecNroVin && b.numero) ligne = "N° " + b.numero + " " + ligne;
       if(avecNumero) ligne = (i+1) + ". " + ligne;
       return ligne;
     });
@@ -2315,7 +2338,7 @@ function appliquerModeEdition(){
   }
   document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
+   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
   ["couleurChoices","starPicker"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";

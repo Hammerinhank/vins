@@ -849,6 +849,10 @@
         Limiter l'URL sans ?edition à la consultation seule
       </label>
       <p class="panel-note">Décochée (par défaut) : l'URL habituelle permet toujours de modifier la cave, comme avant. Cochée : seule l'URL avec « ?edition » à la fin permet de modifier quoi que ce soit — l'URL habituelle passe en lecture seule.</p>
+      <div class="panel-row">
+        <button class="btn btn-ghost" id="btnApercuConsultation" type="button">👁 Aperçu du mode consultation</button>
+      </div>
+      <p class="panel-note">Ouvre un nouvel onglet en mode consultation, sans rien activer ni modifier — pratique pour vérifier son rendu avant de décider de l'activer pour de bon.</p>
     </div>
     <div class="panel-row">
       <button class="btn btn-gold" id="btnEnregistrerParametres" type="button">Enregistrer</button>
@@ -880,8 +884,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.12";
+const VERSION = "1.10.14";
 const HISTORY = [
+  { version:"1.10.14", date:"2026-08-28", notes:"Ajout dans Paramètres du bouton « 👁 Aperçu du mode consultation » : ouvre un nouvel onglet en lecture seule (via ?apercu), sans activer ni modifier le réglage « Limiter l'URL sans ?edition » — pratique pour vérifier le rendu du mode consultation avant de l'activer pour de bon." },
+  { version:"1.10.13", date:"2026-08-28", notes:"Corrigé : le retour à la taille normale reposait uniquement sur l'événement blur, pas toujours déclenché de façon fiable sur iOS selon l'endroit touché. Un tap ou clic n'importe où ailleurs sur la page referme désormais systématiquement tout champ agrandi, quel qu'il soit." },
   { version:"1.10.12", date:"2026-08-28", notes:"Diagnostic exact : un <input> ne peut jamais passer à la ligne, quelle que soit sa hauteur — l'agrandissement à l'appui long ne servait donc à rien sur les champs sur une ligne. Tous ces champs (Nom, Domaine, Appellation, Région, Cépages, Emplacement, Lieu d'achat, Millésime, champs de synchronisation GitHub, recherche, fenêtre de vérification…) sont remplacés par des zones de texte habillées pour ressembler à un champ normal d'une ligne, mais qui deviennent de vraies zones multi-lignes avec retour à la ligne une fois agrandies à l'appui long — on peut enfin voir tout le texte qu'un simple champ aurait coupé." },
   { version:"1.10.11", date:"2026-08-28", notes:"Corrigé la vraie cause de « Échec de la récupération » : au-delà de 1 Mo, l'API GitHub standard renvoie un statut 200 mais un contenu vide (limite bien connue de l'API), ce que le diagnostic a permis de confirmer. Toutes les lectures de fichiers GitHub (récupération de la cave, photos, réglages, vérification au lancement, diagnostic) utilisent désormais le format « brut » de l'API, sans cette limite." },
   { version:"1.10.10", date:"2026-08-28", notes:"La police diminue (au lieu d'augmenter) quand un champ est agrandi à l'appui long : la case étant plus grande et les caractères plus petits, on voit vraiment plus de texte d'un coup, au lieu de simplement zoomer sur ce qui était déjà affiché." },
@@ -2100,7 +2106,12 @@ function majLibelleAssistant(){
    fiche et l'affichage des boutons/panneaux d'édition. Réversible : peut être rappelée à tout moment
    (changement du réglage, retour de la synchro GitHub) sans laisser l'interface dans un état incohérent. */
 function appliquerModeEdition(){
-  MODE_EDITION = !limitationConsultationActive || new URLSearchParams(location.search).has("edition");
+  const parametresUrl = new URLSearchParams(location.search);
+  if(parametresUrl.has("apercu")){
+    MODE_EDITION = false; // forçage de prévisualisation, indépendant du réglage et de ?edition
+  }else{
+    MODE_EDITION = !limitationConsultationActive || parametresUrl.has("edition");
+  }
   document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
    "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
@@ -2193,6 +2204,9 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
 });
 document.getElementById("btnFermerParametres").addEventListener("click", ()=>{
   document.getElementById("pageParametres").style.display = "none";
+});
+document.getElementById("btnApercuConsultation").addEventListener("click", ()=>{
+  window.open(location.origin + location.pathname + "?apercu", "_blank");
 });
 document.getElementById("btnEnregistrerParametres").addEventListener("click", function(){
   const valeur = document.getElementById("paramQuestionChatGPT").value.trim();
@@ -2550,6 +2564,9 @@ function annulerAppuiLongTactile(){
 }
 document.addEventListener("touchstart", function(e){
   const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
+  // Referme tout champ agrandi dès qu'on touche ailleurs (y compris un endroit non focusable, où
+  // l'événement blur n'est pas toujours fiable sur iOS).
+  document.querySelectorAll(".champ-agrandi").forEach(champ=>{ if(champ !== cible) reduireChamp(champ); });
   if(!cible){ annulerAppuiLongTactile(); return; }
   const touch = e.touches[0];
   appuiLongCible = cible;
@@ -2583,6 +2600,7 @@ function annulerAppuiLongSouris(){
 }
 document.addEventListener("mousedown", function(e){
   const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
+  document.querySelectorAll(".champ-agrandi").forEach(champ=>{ if(champ !== cible) reduireChamp(champ); });
   if(!cible){ annulerAppuiLongSouris(); return; }
   appuiLongCibleSouris = cible;
   appuiLongDepartSouris = { x: e.clientX, y: e.clientY };

@@ -824,7 +824,15 @@
   </div>
 
   <div class="page-body" id="pageCorpsAvis" style="display:none;">
-    <p class="panel-note" id="avisContexte">Touche l'icône 📝 sur une carte de la liste pour charger l'étiquette d'un vin ici.</p>
+    <p class="panel-note" id="avisContexte">Touche l'icône 📝 sur une carte de la liste pour charger un vin ici.</p>
+    <div class="field">
+      <label>Nom</label>
+      <textarea id="avisNom" class="champ-ligne-unique" rows="1"></textarea>
+    </div>
+    <div class="field">
+      <label>Domaine</label>
+      <textarea id="avisDomaine" class="champ-ligne-unique" rows="1"></textarea>
+    </div>
     <div class="field">
       <label>Étiquette</label>
       <textarea id="avisEtiquette" rows="10"></textarea>
@@ -842,6 +850,10 @@
     <div class="field">
       <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
       <textarea id="paramQuestionChatGPT" rows="4"></textarea>
+    </div>
+    <div class="field">
+      <label>Deuxième question envoyée à l'assistant (avis sur un vin)</label>
+      <textarea id="paramQuestionAvis" rows="4"></textarea>
     </div>
     <div class="field">
       <label>Emplacement — valeurs de la partie gauche (une par ligne)</label>
@@ -893,8 +905,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.15";
+const VERSION = "1.10.16";
 const HISTORY = [
+  { version:"1.10.16", date:"2026-08-28", notes:"Ajout dans Paramètres d'une deuxième question pour l'assistant IA (avis sur un vin), initialisée à « Que penses-tu de ce vin ? », modifiable et persistante sur GitHub comme la première. La page Avis affiche maintenant aussi Nom et Domaine, placés avant Étiquette : l'icône 📝 sur chaque carte copie désormais ces trois champs du vin concerné." },
   { version:"1.10.15", date:"2026-08-28", notes:"Nouvel onglet « 📝 Avis » à côté de Saisie rapide, avec un champ Étiquette. Chaque carte de la liste porte désormais une icône 📝, à gauche de l'icône photo, sans avoir besoin d'ouvrir la fiche du vin : au toucher, elle copie le contenu du champ Étiquette de ce vin dans la page Avis et l'affiche directement." },
   { version:"1.10.14", date:"2026-08-28", notes:"Ajout dans Paramètres du bouton « 👁 Aperçu du mode consultation » : ouvre un nouvel onglet en lecture seule (via ?apercu), sans activer ni modifier le réglage « Limiter l'URL sans ?edition » — pratique pour vérifier le rendu du mode consultation avant de l'activer pour de bon." },
   { version:"1.10.13", date:"2026-08-28", notes:"Corrigé : le retour à la taille normale reposait uniquement sur l'événement blur, pas toujours déclenché de façon fiable sur iOS selon l'endroit touché. Un tap ou clic n'importe où ailleurs sur la page referme désormais systématiquement tout champ agrandi, quel qu'il soit." },
@@ -983,6 +996,8 @@ let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
+const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ?";
+let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
 let emplacementGaucheListe = [];   // valeurs proposées pour la partie gauche du champ Emplacement, persistantes via cave-reglages.json
@@ -1299,7 +1314,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1310,7 +1325,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -2212,6 +2227,8 @@ function ouvrirAvisPourVin(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
   document.getElementById("avisContexte").textContent = (b.numero ? "N°" + b.numero + " — " : "") + (b.nom || "Sans nom");
+  document.getElementById("avisNom").value = b.nom || "";
+  document.getElementById("avisDomaine").value = b.domaine || "";
   document.getElementById("avisEtiquette").value = b.etiquette || "";
   afficherPageOnglet("avis");
   document.getElementById("pageParametres").style.display = "block";
@@ -2219,6 +2236,7 @@ function ouvrirAvisPourVin(id){
 
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  document.getElementById("paramQuestionAvis").value = questionAvisChatGPT;
   selectionnerAssistant(assistantIA);
   document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
   document.getElementById("paramEmplacementGauche").value = listeVersTexte(emplacementGaucheListe);
@@ -2237,6 +2255,9 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   const valeur = document.getElementById("paramQuestionChatGPT").value.trim();
   questionChatGPT = valeur || QUESTION_CHATGPT_DEFAUT;
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  const valeurAvis = document.getElementById("paramQuestionAvis").value.trim();
+  questionAvisChatGPT = valeurAvis || QUESTION_AVIS_DEFAUT;
+  document.getElementById("paramQuestionAvis").value = questionAvisChatGPT;
   const choixActif = document.querySelector("#assistantChoices .assistant-choice.active");
   assistantIA = choixActif ? choixActif.dataset.key : "chatgpt";
   majLibelleAssistant();
@@ -2656,6 +2677,7 @@ remplirChampsConfig();
 const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
+questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
 assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];
@@ -2679,6 +2701,10 @@ recupererReglagesDepuisGitHub().then(distant=>{
   }
   if(distant && typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
     questionChatGPT = distant.questionChatGPT;
+    changement = true;
+  }
+  if(distant && typeof distant.questionAvisChatGPT === "string" && distant.questionAvisChatGPT && distant.questionAvisChatGPT !== questionAvisChatGPT){
+    questionAvisChatGPT = distant.questionAvisChatGPT;
     changement = true;
   }
   if(distant && (distant.assistantIA === "claude" || distant.assistantIA === "chatgpt") && distant.assistantIA !== assistantIA){

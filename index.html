@@ -412,15 +412,18 @@
   .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
-  /* page paramètres (page entière) */
+  /* page paramètres / saisie rapide (page entière) */
   .page-parametres{
     position:fixed;inset:0;background:var(--bg);z-index:150;overflow-y:auto;
     -webkit-overflow-scrolling:touch;
   }
-  .page-parametres .page-header{
+  .page-top-sticky{
     position:sticky;top:0;background:var(--bg-panel);z-index:2;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .page-parametres .page-header{
     display:flex;align-items:center;gap:14px;
-    padding:16px;border-bottom:1px solid var(--line-soft);
+    padding:16px 16px 10px 16px;
   }
   .page-parametres .page-header h1{font-size:19px;}
   .page-back{
@@ -428,6 +431,14 @@
     font-family:'IBM Plex Mono',monospace;font-size:13.5px;
     padding:6px 0;flex:none;
   }
+  .page-tabs{display:flex;gap:8px;padding:0 16px 14px 16px;max-width:640px;margin:0 auto;}
+  .page-tab-btn{
+    width:42px;height:42px;border-radius:10px;flex:none;
+    border:1px solid var(--line);background:var(--bg-panel-2);
+    font-size:18px;display:flex;align-items:center;justify-content:center;
+    color:var(--text-muted);
+  }
+  .page-tab-btn.active{border-color:var(--gold);background:var(--bg-card);color:var(--text);}
   .page-body{max-width:640px;margin:0 auto;padding:22px 16px 60px 16px;display:flex;flex-direction:column;gap:16px;}
 
   .toast{
@@ -693,13 +704,36 @@
   </div>
 </div>
 
-<!-- Page paramètres -->
+<!-- Page paramètres / saisie rapide -->
 <div class="page-parametres" id="pageParametres" style="display:none;">
-  <div class="page-header">
-    <button class="page-back" id="btnFermerParametres" type="button">← Retour</button>
-    <h1>Paramètres</h1>
+  <div class="page-top-sticky">
+    <div class="page-header">
+      <button class="page-back" id="btnFermerParametres" type="button">← Retour</button>
+      <h1 id="pageTitre">Paramètres</h1>
+    </div>
+    <div class="page-tabs" id="pageTabs">
+      <button class="page-tab-btn" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
+      <button class="page-tab-btn active" data-page="parametres" type="button" title="Paramètres">⚙️</button>
+    </div>
   </div>
-  <div class="page-body">
+
+  <div class="page-body" id="pageCorpsSaisie" style="display:none;">
+    <p class="panel-note">Prends ou choisis la photo d'une étiquette, identifie le vin avec l'IA, colle sa réponse dans ChatGPT/Claude puis reviens ici pour créer la fiche à partir du texte copié.</p>
+    <div class="panel-row">
+      <button class="btn" id="btnSaisiePhoto" type="button">📷 Prendre / choisir une photo</button>
+    </div>
+    <input type="file" id="saisiePhotoInput" accept="image/*" style="display:none">
+    <img id="saisiePhotoApercu" class="photo-img" style="display:none" alt="Photo capturée">
+    <div class="panel-row">
+      <button class="btn btn-ghost" id="btnSaisieIdentifier" type="button" disabled>🤖 Identifier avec ChatGPT</button>
+    </div>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnSaisieCreerVin" type="button">➕ Créer un nouveau vin à partir de la réponse copiée</button>
+    </div>
+    <p class="panel-note">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
+  </div>
+
+  <div class="page-body" id="pageCorpsParametres">
     <div class="field">
       <label>Assistant IA pour l'identification par photo</label>
       <div class="assistant-choices" id="assistantChoices">
@@ -725,8 +759,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.1";
+const VERSION = "1.9.2";
 const HISTORY = [
+  { version:"1.9.2", date:"2026-08-28", notes:"La page ouverte par l'icône bouteille porte maintenant une rangée d'onglets (⚡ Saisie rapide / ⚙️ Paramètres). Nouvelle page « Saisie rapide » : un bouton prend/choisit une photo et la copie dans le presse-papier, un second lance l'identification IA (identique au bouton de la fiche), un troisième lit le texte du presse-papier (la réponse copiée depuis ChatGPT/Claude) et ouvre la création d'un nouveau vin avec ce texte placé dans le commentaire de dégustation — le découpage en champs (nom, domaine…) viendra affiner cela plus tard." },
   { version:"1.9.1", date:"2026-08-28", notes:"Ajout dans la page Paramètres d'un choix d'assistant IA (ChatGPT ou Claude) pour l'identification d'un vin par photo, persistant sur GitHub comme les autres réglages. Le bouton « Identifier avec... » et la fenêtre de vérification s'adaptent au choix ; Claude s'ouvre via claude.ai/new avec la question pré-remplie (mécanisme non officiellement documenté par Anthropic, à surveiller s'il cesse de fonctionner un jour)." },
   { version:"1.9.0", date:"2026-08-28", notes:"L'icône bouteille en haut à gauche (inchangée visuellement) ouvre désormais une page Paramètres à part entière, occupant tout l'écran, dans ce même fichier (bouton « ← Retour » pour revenir). Premier réglage disponible : le texte de la question envoyée à ChatGPT pour identifier un vin à partir de sa photo, modifiable et initialisé avec le texte utilisé jusqu'ici. Comme la case « Avec photo », ce réglage est synchronisé sur GitHub (cave-reglages.json) au clic sur Enregistrer." },
   { version:"1.8.5", date:"2026-08-28", notes:"Le bouton « 🤖 Identifier avec ChatGPT » passe désormais par une étape de vérification : après la copie dans le presse-papier, une fenêtre affiche la photo copiée pour confirmation, avec les boutons Annuler ou Ouvrir ChatGPT — ChatGPT ne s'ouvre que si on confirme." },
@@ -1634,7 +1669,7 @@ document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
   majBoutonChoisirPhoto();
 });
 
-/* ---- Identifier le vin via ChatGPT : copie la photo (pleine résolution si possible) dans le presse-papier au format PNG, et ouvre ChatGPT avec la question pré-remplie. La photo doit ensuite être collée manuellement dans ChatGPT (aucune API ne permet de l'y déposer directement depuis une simple page web). ---- */
+/* ---- Identifier un vin via IA : copie une photo (pleine résolution si possible) dans le presse-papier au format PNG, affiche une vérification, puis ouvre ChatGPT/Claude avec la question pré-remplie. La photo doit ensuite être collée manuellement (aucune API ne permet de l'y déposer directement depuis une simple page web). Fonction partagée entre le bouton de la fiche et celui de la Saisie rapide. ---- */
 async function meilleureSourcePourChatGPT(){
   if(photoEnCoursPendante) return photoEnCoursPendante;
   if(photoEnCoursFichier){
@@ -1657,18 +1692,13 @@ function dataUrlVersPng(dataUrl){
     img.src = dataUrl;
   });
 }
-document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
-  if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
-    toast("Aucune photo à envoyer pour ce vin");
-    return;
-  }
+function lancerIdentificationIA(promesseSource){
   if(!navigator.clipboard || typeof ClipboardItem === "undefined"){
     toast("Ce navigateur ne permet pas de copier une image dans le presse-papier");
     return;
   }
   // navigator.clipboard.write() doit être appelé de façon synchrone dans le gestionnaire de clic pour rester
   // autorisé par Safari ; on lui passe donc directement la promesse de l'image plutôt que d'attendre son résultat avant.
-  const promesseSource = meilleureSourcePourChatGPT();
   const promesseImage = promesseSource.then(source=>{
     if(!source) throw new Error("Aucune image disponible");
     return dataUrlVersPng(source);
@@ -1681,6 +1711,13 @@ document.getElementById("btnIdentifierChatGPT").addEventListener("click", functi
       document.getElementById("overlayVerifPhoto").classList.add("show");
     })
     .catch(()=> toast("Impossible de copier la photo dans le presse-papier"));
+}
+document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
+  if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
+    toast("Aucune photo à envoyer pour ce vin");
+    return;
+  }
+  lancerIdentificationIA(meilleureSourcePourChatGPT());
 });
 document.getElementById("closeVerifPhoto").addEventListener("click", ()=>document.getElementById("overlayVerifPhoto").classList.remove("show"));
 document.getElementById("btnAnnulerVerifPhoto").addEventListener("click", ()=>document.getElementById("overlayVerifPhoto").classList.remove("show"));
@@ -1692,6 +1729,56 @@ document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
     : "https://chatgpt.com/?q=" + encodeURIComponent(question);
   window.open(url, "_blank");
 });
+
+/* ===================== PAGE SAISIE RAPIDE ===================== */
+let saisiePhotoDataUrl = "";
+function reinitialiserSaisieRapide(){
+  saisiePhotoDataUrl = "";
+  document.getElementById("saisiePhotoInput").value = "";
+  document.getElementById("saisiePhotoApercu").style.display = "none";
+  document.getElementById("btnSaisieIdentifier").disabled = true;
+}
+document.getElementById("btnSaisiePhoto").addEventListener("click", ()=>document.getElementById("saisiePhotoInput").click());
+document.getElementById("saisiePhotoInput").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const promesseDataUrl = compresserImage(file, 1600, 0.82);
+  if(navigator.clipboard && typeof ClipboardItem !== "undefined"){
+    navigator.clipboard.write([ new ClipboardItem({ "image/png": promesseDataUrl.then(dataUrlVersPng) }) ])
+      .then(()=> toast("Photo copiée dans le presse-papier"))
+      .catch(()=> toast("Photo prête, mais échec de la copie dans le presse-papier"));
+  }
+  promesseDataUrl.then(pleine=>{
+    saisiePhotoDataUrl = pleine;
+    document.getElementById("saisiePhotoApercu").src = pleine;
+    document.getElementById("saisiePhotoApercu").style.display = "block";
+    document.getElementById("btnSaisieIdentifier").disabled = false;
+  }).catch(()=>toast("Impossible de charger cette image"));
+});
+document.getElementById("btnSaisieIdentifier").addEventListener("click", function(){
+  if(!saisiePhotoDataUrl){ toast("Prends d'abord une photo"); return; }
+  lancerIdentificationIA(Promise.resolve(saisiePhotoDataUrl));
+});
+document.getElementById("btnSaisieCreerVin").addEventListener("click", async function(){
+  if(!navigator.clipboard || !navigator.clipboard.readText){
+    toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");
+    return;
+  }
+  let texte = "";
+  try{
+    texte = await navigator.clipboard.readText();
+  }catch(e){
+    toast("Impossible de lire le presse-papier (autorise l'accès si demandé)");
+    return;
+  }
+  document.getElementById("pageParametres").style.display = "none";
+  ouvrirAjout();
+  if(texte && texte.trim()){
+    document.getElementById("fCommentaire").value = texte.trim();
+    document.getElementById("ficheSectionBasse").open = true;
+  }
+});
+
 
 function compresserImage(file, maxDim, qualite){
   return new Promise((resolve,reject)=>{
@@ -1747,8 +1834,11 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
 /* ===================== PAGE PARAMÈTRES ===================== */
 function majLibelleAssistant(){
   const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
+  const texte = "🤖 Identifier avec " + nom;
   const btn = document.getElementById("btnIdentifierChatGPT");
-  if(btn) btn.textContent = "🤖 Identifier avec " + nom;
+  if(btn) btn.textContent = texte;
+  const btnSaisie = document.getElementById("btnSaisieIdentifier");
+  if(btnSaisie) btnSaisie.textContent = texte;
 }
 function selectionnerAssistant(cle){
   document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
@@ -1759,10 +1849,24 @@ document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
   el.addEventListener("click", ()=>selectionnerAssistant(el.dataset.key));
 });
 
+function afficherPageOnglet(cle){
+  document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.page === cle);
+  });
+  document.getElementById("pageCorpsSaisie").style.display = cle === "saisie" ? "flex" : "none";
+  document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
+  document.getElementById("pageTitre").textContent = cle === "saisie" ? "Saisie rapide" : "Paramètres";
+  if(cle === "saisie") reinitialiserSaisieRapide();
+}
+document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>afficherPageOnglet(btn.dataset.page));
+});
+
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
   selectionnerAssistant(assistantIA);
   document.getElementById("paramSyncStatus").textContent = "";
+  afficherPageOnglet("parametres");
   document.getElementById("pageParametres").style.display = "block";
 });
 document.getElementById("btnFermerParametres").addEventListener("click", ()=>{

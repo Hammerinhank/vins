@@ -506,7 +506,7 @@
       "region": "",
       "pays": "France",
       "couleur": "rouge",
-      "millesime": "2020 (Récolte 2020)",
+      "millesime": "2020",
       "cepages": "",
       "quantite": 1,
       "prixUnitaire": 25,
@@ -814,6 +814,6 @@
       "noteIncertaine": ""
     }
   ],
-  "maj": "2026-08-29T21:15:53.258Z",
-  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
+  "maj": "2026-08-29T21:25:54.471Z",
+  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

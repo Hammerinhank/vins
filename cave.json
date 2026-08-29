@@ -694,7 +694,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Hors casier",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -721,7 +721,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Hors casier",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -748,7 +748,7 @@
       "prixUnitaire": "",
       "dateAchat": "",
       "lieuAchat": "",
-      "emplacement": "",
+      "emplacement": "Hors casier",
       "boireDe": "",
       "boireA": "",
       "note": 0,
@@ -758,6 +758,6 @@
       "photoFichier": "images/ed6e6c60-4796-4e50-a5fe-09ffe3605e50.jpg"
     }
   ],
-  "maj": "2026-08-29T17:15:01.565Z",
+  "maj": "2026-08-29T18:50:00.021Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

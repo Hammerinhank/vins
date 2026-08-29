@@ -876,8 +876,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.6";
+const VERSION = "1.10.7";
 const HISTORY = [
+  { version:"1.10.7", date:"2026-08-28", notes:"Remplacement du double-tap (peu fiable) par un appui long (~500 ms sans bouger le doigt) pour agrandir/réduire un champ texte, aussi bien au toucher qu'à la souris. Le retour à la taille normale en changeant de champ ou en touchant le fond assombri reste inchangé." },
   { version:"1.10.6", date:"2026-08-28", notes:"Nouvel onglet « 🩺 Journal / Diagnostic » à côté de Saisie rapide et Paramètres : le bouton « Lancer le diagnostic » relance une récupération GitHub en détaillant chaque étape (config utilisée, URL, statut HTTP, décodage, contenu) dans une zone de texte copiable, sans jamais modifier la cave locale ; le contenu JSON brut récupéré s'affiche aussi intégralement dans une seconde zone, pour transmission facile en cas de problème." },
   { version:"1.10.5", date:"2026-08-28", notes:"Tous les champs texte (partout dans l'app) s'agrandissent maintenant d'un double-tap pour faciliter l'édition — les champs multi-lignes s'ajustent à la hauteur de leur contenu. Un nouveau double-tap, un changement de champ, ou un tap sur le fond assombri qui apparaît autour, les ramène à leur taille normale. Détection tactile dédiée pour un fonctionnement fiable sur iPhone." },
   { version:"1.10.4", date:"2026-08-28", notes:"Ajout d'une troisième icône (🔁) à droite des deux combo box d'Emplacement : elle remet dans le champ la valeur complète d'Emplacement enregistrée sur le dernier vin sauvegardé où ce champ avait été renseigné. Grisée tant qu'aucun emplacement n'a encore été enregistré sur cet appareil." },
@@ -2500,13 +2501,13 @@ document.getElementById("btnLancerDiagnostic").addEventListener("click", async f
   btn.disabled = false;
 });
 
-/* ===================== AGRANDISSEMENT DES CHAMPS TEXTE AU DOUBLE-TAP ===================== */
-/* Tout champ texte (input ou textarea, hors cases à cocher/menus) peut être agrandi d'un double-tap
-   pour faciliter l'édition, et repasse à sa taille normale d'un nouveau double-tap ou en changeant de
-   champ. La détection tactile est faite à la main (deux touchend rapprochés dans le temps sur le même
-   élément) plutôt qu'avec l'événement dblclick natif, plus fiable sur Safari iOS ; dblclick reste géré
-   en complément pour un usage à la souris/trackpad. */
+/* ===================== AGRANDISSEMENT DES CHAMPS TEXTE À L'APPUI LONG ===================== */
+/* Tout champ texte (input ou textarea, hors cases à cocher/menus) peut être agrandi par un appui long
+   (~500 ms sans bouger le doigt/la souris) pour faciliter l'édition, et repasse à sa taille normale
+   par un nouvel appui long, en changeant de champ, ou en touchant le fond assombri autour. */
 const SELECTEUR_CHAMPS_TEXTE = 'input[type="text"], input[type="number"], input[type="date"], input[type="password"], textarea';
+const DUREE_APPUI_LONG = 500;
+const TOLERANCE_DEPLACEMENT = 10;
 
 function agrandirChamp(el){
   if(el.tagName === "TEXTAREA"){
@@ -2524,26 +2525,70 @@ function reduireChamp(el){
 function reduireTousLesChampsAgrandis(){
   document.querySelectorAll(".champ-agrandi").forEach(reduireChamp);
 }
+function basculerAgrandissement(el){
+  if(el.classList.contains("champ-agrandi")) reduireChamp(el); else agrandirChamp(el);
+}
 
-let dernierTapChampEl = null;
-let dernierTapChampTemps = 0;
-document.addEventListener("touchend", function(e){
+/* Appui long tactile (iPhone/iPad) */
+let appuiLongTimer = null;
+let appuiLongCible = null;
+let appuiLongDepart = null;
+function annulerAppuiLongTactile(){
+  if(appuiLongTimer){ clearTimeout(appuiLongTimer); appuiLongTimer = null; }
+  appuiLongCible = null;
+  appuiLongDepart = null;
+}
+document.addEventListener("touchstart", function(e){
   const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
-  if(!cible) return;
-  const maintenant = Date.now();
-  if(cible === dernierTapChampEl && (maintenant - dernierTapChampTemps) < 350){
-    if(cible.classList.contains("champ-agrandi")) reduireChamp(cible); else agrandirChamp(cible);
-    dernierTapChampEl = null;
-  }else{
-    dernierTapChampEl = cible;
-    dernierTapChampTemps = maintenant;
+  if(!cible){ annulerAppuiLongTactile(); return; }
+  const touch = e.touches[0];
+  appuiLongCible = cible;
+  appuiLongDepart = { x: touch.clientX, y: touch.clientY };
+  appuiLongTimer = setTimeout(()=>{
+    if(appuiLongCible === cible){
+      basculerAgrandissement(cible);
+      if(navigator.vibrate) navigator.vibrate(15);
+    }
+    appuiLongTimer = null;
+  }, DUREE_APPUI_LONG);
+}, { passive:true });
+document.addEventListener("touchmove", function(e){
+  if(!appuiLongCible || !appuiLongDepart) return;
+  const touch = e.touches[0];
+  if(Math.abs(touch.clientX - appuiLongDepart.x) > TOLERANCE_DEPLACEMENT || Math.abs(touch.clientY - appuiLongDepart.y) > TOLERANCE_DEPLACEMENT){
+    annulerAppuiLongTactile();
   }
 }, { passive:true });
-document.addEventListener("dblclick", function(e){
+document.addEventListener("touchend", annulerAppuiLongTactile, { passive:true });
+document.addEventListener("touchcancel", annulerAppuiLongTactile, { passive:true });
+
+/* Appui long à la souris (iMac/trackpad) */
+let appuiLongTimerSouris = null;
+let appuiLongCibleSouris = null;
+let appuiLongDepartSouris = null;
+function annulerAppuiLongSouris(){
+  if(appuiLongTimerSouris){ clearTimeout(appuiLongTimerSouris); appuiLongTimerSouris = null; }
+  appuiLongCibleSouris = null;
+  appuiLongDepartSouris = null;
+}
+document.addEventListener("mousedown", function(e){
   const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
-  if(!cible) return;
-  if(cible.classList.contains("champ-agrandi")) reduireChamp(cible); else agrandirChamp(cible);
+  if(!cible){ annulerAppuiLongSouris(); return; }
+  appuiLongCibleSouris = cible;
+  appuiLongDepartSouris = { x: e.clientX, y: e.clientY };
+  appuiLongTimerSouris = setTimeout(()=>{
+    if(appuiLongCibleSouris === cible) basculerAgrandissement(cible);
+    appuiLongTimerSouris = null;
+  }, DUREE_APPUI_LONG);
 });
+document.addEventListener("mousemove", function(e){
+  if(!appuiLongCibleSouris || !appuiLongDepartSouris) return;
+  if(Math.abs(e.clientX - appuiLongDepartSouris.x) > TOLERANCE_DEPLACEMENT || Math.abs(e.clientY - appuiLongDepartSouris.y) > TOLERANCE_DEPLACEMENT){
+    annulerAppuiLongSouris();
+  }
+});
+document.addEventListener("mouseup", annulerAppuiLongSouris);
+
 document.addEventListener("blur", function(e){
   if(e.target && e.target.classList && e.target.classList.contains("champ-agrandi")) reduireChamp(e.target);
 }, true);

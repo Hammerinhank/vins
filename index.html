@@ -323,6 +323,10 @@
     padding:10px 11px;border-radius:8px;font-size:14.5px;
   }
   .field textarea{resize:vertical;min-height:70px;font-family:'Inter',sans-serif;}
+  .journal-textarea{
+    font-family:'IBM Plex Mono',monospace !important;font-size:11.5px !important;
+    white-space:pre;color:var(--text-muted);min-height:180px;
+  }
   .emplacement-row{display:flex;gap:6px;align-items:stretch;}
   .emplacement-row input{flex:1;min-width:0;}
   .emplacement-select{
@@ -792,6 +796,7 @@
     <div class="page-tabs" id="pageTabs">
       <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
+      <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🩺</button>
     </div>
   </div>
 
@@ -844,6 +849,22 @@
     </div>
     <p class="panel-note" id="paramSyncStatus"></p>
   </div>
+
+  <div class="page-body" id="pageCorpsJournal" style="display:none;">
+    <p class="panel-note">Aide au diagnostic d'un problème de synchronisation GitHub : relance une récupération en détaillant chaque étape (sans jamais modifier la cave locale), et affiche le contenu brut du fichier récupéré pour que tu puisses me le transmettre.</p>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnLancerDiagnostic" type="button">🔍 Lancer le diagnostic</button>
+      <button class="btn btn-ghost" id="btnEffacerJournal" type="button">Effacer</button>
+    </div>
+    <div class="field">
+      <label>Journal détaillé</label>
+      <textarea id="journalTexte" readonly rows="10" class="journal-textarea" placeholder="Touche « Lancer le diagnostic » pour commencer…"></textarea>
+    </div>
+    <div class="field">
+      <label>Contenu JSON brut récupéré</label>
+      <textarea id="journalJson" readonly rows="10" class="journal-textarea" placeholder="Apparaîtra ici une fois le fichier récupéré."></textarea>
+    </div>
+  </div>
 </div>
 
 <div class="overlay-champ-agrandi" id="overlayChampAgrandi"></div>
@@ -855,8 +876,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.5";
+const VERSION = "1.10.6";
 const HISTORY = [
+  { version:"1.10.6", date:"2026-08-28", notes:"Nouvel onglet « 🩺 Journal / Diagnostic » à côté de Saisie rapide et Paramètres : le bouton « Lancer le diagnostic » relance une récupération GitHub en détaillant chaque étape (config utilisée, URL, statut HTTP, décodage, contenu) dans une zone de texte copiable, sans jamais modifier la cave locale ; le contenu JSON brut récupéré s'affiche aussi intégralement dans une seconde zone, pour transmission facile en cas de problème." },
   { version:"1.10.5", date:"2026-08-28", notes:"Tous les champs texte (partout dans l'app) s'agrandissent maintenant d'un double-tap pour faciliter l'édition — les champs multi-lignes s'ajustent à la hauteur de leur contenu. Un nouveau double-tap, un changement de champ, ou un tap sur le fond assombri qui apparaît autour, les ramène à leur taille normale. Détection tactile dédiée pour un fonctionnement fiable sur iPhone." },
   { version:"1.10.4", date:"2026-08-28", notes:"Ajout d'une troisième icône (🔁) à droite des deux combo box d'Emplacement : elle remet dans le champ la valeur complète d'Emplacement enregistrée sur le dernier vin sauvegardé où ce champ avait été renseigné. Grisée tant qu'aucun emplacement n'a encore été enregistré sur cet appareil." },
   { version:"1.10.3", date:"2026-08-28", notes:"Deux petites combo box (📍 / 📌) ajoutées à droite du champ Emplacement, réduites à une icône quand fermées : la première remplace la partie gauche (avant la virgule), la seconde la partie droite (après la virgule), sans toucher à l'autre partie. Leurs listes de valeurs proposées se définissent dans Paramètres (une valeur par ligne), synchronisées sur GitHub comme les autres réglages." },
@@ -2134,7 +2156,9 @@ function afficherPageOnglet(cle){
   });
   document.getElementById("pageCorpsSaisie").style.display = cle === "saisie" ? "flex" : "none";
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
-  document.getElementById("pageTitre").textContent = cle === "saisie" ? "Saisie rapide" : "Paramètres";
+  document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
+  document.getElementById("pageTitre").textContent =
+    cle === "saisie" ? "Saisie rapide" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
 }
 document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
@@ -2408,6 +2432,70 @@ document.getElementById("btnPull").addEventListener("click", async function(){
   }catch(err){
     statusEl.textContent = "Échec de la récupération : " + err.message;
     toast("Échec de la récupération depuis GitHub");
+  }
+  btn.disabled = false;
+});
+
+/* ===================== PAGE JOURNAL / DIAGNOSTIC ===================== */
+function journalAjouter(ligne){
+  const zone = document.getElementById("journalTexte");
+  const heure = new Date().toLocaleTimeString("fr-FR");
+  zone.value += `[${heure}] ${ligne}\n`;
+  zone.scrollTop = zone.scrollHeight;
+}
+document.getElementById("btnEffacerJournal").addEventListener("click", ()=>{
+  document.getElementById("journalTexte").value = "";
+  document.getElementById("journalJson").value = "";
+});
+document.getElementById("btnLancerDiagnostic").addEventListener("click", async function(){
+  const btn = this;
+  btn.disabled = true;
+  const cfg = chargerConfig();
+  journalAjouter("=== Nouveau diagnostic ===");
+  journalAjouter(`Config locale — utilisateur: ${cfg.user||"(vide)"} · dépôt: ${cfg.repo||"(vide)"} · branche: ${cfg.branche||"main"} · chemin: ${cfg.chemin||"cave.json"} · jeton présent: ${cfg.token ? "oui" : "non"}`);
+  journalAjouter(`Identifiant de cet appareil (INSTANCE_ID) : ${INSTANCE_ID}`);
+  journalAjouter(`Nombre de vins actuellement en local sur cet appareil : ${bottles.length}`);
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    journalAjouter("ARRÊT : configuration GitHub incomplète (utilisateur, dépôt ou jeton manquant).");
+    toast("Configuration GitHub incomplète — voir le journal");
+    btn.disabled = false;
+    return;
+  }
+  try{
+    const chemin = cfg.chemin || "cave.json";
+    const branche = cfg.branche || "main";
+    const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${encodeURIComponent(branche)}&_=${Date.now()}`;
+    journalAjouter("URL interrogée : " + url);
+    const res = await githubAPI(url, cfg);
+    journalAjouter("Statut HTTP reçu : " + res.status + " " + res.statusText);
+    if(!res.ok){
+      const texteErreur = await res.text().catch(()=>"(impossible de lire le corps de la réponse)");
+      journalAjouter("Corps de la réponse d'erreur : " + texteErreur);
+      throw new Error("Échec HTTP " + res.status);
+    }
+    const info = await res.json();
+    journalAjouter("Réponse reçue — sha : " + info.sha + " · taille encodée (base64) : " + (info.content ? info.content.length : 0) + " caractères");
+    const texte = decodeURIComponent(escape(atob(info.content.replace(/\n/g,""))));
+    journalAjouter("Décodage base64 → texte réussi : " + texte.length + " caractères.");
+    document.getElementById("journalJson").value = texte;
+    let data;
+    try{
+      data = JSON.parse(texte);
+      journalAjouter("Analyse JSON réussie.");
+    }catch(erreurParse){
+      journalAjouter("ÉCHEC de l'analyse JSON : " + erreurParse.message);
+      throw erreurParse;
+    }
+    const distantes = Array.isArray(data.bottles) ? data.bottles : [];
+    journalAjouter("Nombre de vins dans le fichier récupéré : " + distantes.length);
+    journalAjouter("Champ « maj » (date d'envoi) : " + (data.maj || "(absent)"));
+    journalAjouter("Champ « origine » (appareil d'envoi) : " + (data.origine || "(absent)"));
+    journalAjouter("=== Diagnostic terminé avec succès — la cave locale n'a PAS été modifiée ===");
+    toast("Diagnostic terminé — voir le journal");
+  }catch(err){
+    journalAjouter("ERREUR : " + (err && err.message ? err.message : String(err)));
+    journalAjouter("=== Diagnostic terminé avec échec ===");
+    toast("Le diagnostic a rencontré une erreur — voir le journal");
   }
   btn.disabled = false;
 });

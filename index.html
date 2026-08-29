@@ -323,6 +323,14 @@
     padding:10px 11px;border-radius:8px;font-size:14.5px;
   }
   .field textarea{resize:vertical;min-height:70px;font-family:'Inter',sans-serif;}
+  .emplacement-row{display:flex;gap:6px;align-items:stretch;}
+  .emplacement-row input{flex:1;min-width:0;}
+  .emplacement-select{
+    flex:none;width:44px;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;font-size:16px;text-align:center;text-align-last:center;
+    -webkit-appearance:none;appearance:none;padding:0;
+  }
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -606,7 +614,17 @@
           </div>
         </div>
 
-        <div class="field"><label>Emplacement (casier / rangée)</label><input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3"></div>
+        <div class="field"><label>Emplacement (casier / rangée)</label>
+          <div class="emplacement-row">
+            <input type="text" id="fEmplacement" placeholder="ex. Casier B, rang 3">
+            <select class="emplacement-select" id="fEmplacementGauche" title="Insérer la partie gauche">
+              <option value="">📍</option>
+            </select>
+            <select class="emplacement-select" id="fEmplacementDroite" title="Insérer la partie droite">
+              <option value="">📌</option>
+            </select>
+          </div>
+        </div>
 
         <div class="fiche-actions-bue" id="ficheActionsBue"></div>
       </div>
@@ -776,6 +794,14 @@
       <textarea id="paramQuestionChatGPT" rows="4"></textarea>
     </div>
     <div class="field">
+      <label>Emplacement — valeurs de la partie gauche (une par ligne)</label>
+      <textarea id="paramEmplacementGauche" rows="4" placeholder="Casier A&#10;Casier B&#10;Cave à vin"></textarea>
+    </div>
+    <div class="field">
+      <label>Emplacement — valeurs de la partie droite (une par ligne)</label>
+      <textarea id="paramEmplacementDroite" rows="4" placeholder="Rang 1&#10;Rang 2&#10;Haut&#10;Bas"></textarea>
+    </div>
+    <div class="field">
       <label>Accès</label>
       <label class="checkbox-chip" for="paramLimitationConsultation">
         <input type="checkbox" id="paramLimitationConsultation">
@@ -797,8 +823,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.2";
+const VERSION = "1.10.3";
 const HISTORY = [
+  { version:"1.10.3", date:"2026-08-28", notes:"Deux petites combo box (📍 / 📌) ajoutées à droite du champ Emplacement, réduites à une icône quand fermées : la première remplace la partie gauche (avant la virgule), la seconde la partie droite (après la virgule), sans toucher à l'autre partie. Leurs listes de valeurs proposées se définissent dans Paramètres (une valeur par ligne), synchronisées sur GitHub comme les autres réglages." },
   { version:"1.10.2", date:"2026-08-28", notes:"Ajout dans Paramètres d'une case « Limiter l'URL sans ?edition à la consultation seule », décochée par défaut : tant qu'elle n'est pas activée, l'URL habituelle continue de tout permettre comme avant, exactement comme avant l'introduction du mode consultation. Une fois cochée et enregistrée (synchronisé sur GitHub comme les autres réglages), seule l'URL avec ?edition permet de modifier la cave." },
   { version:"1.10.1", date:"2026-08-28", notes:"La liste s'ouvre maintenant toujours regroupée par couleur par défaut (au lieu de « Ne pas regrouper »), à chaque lancement de l'app." },
   { version:"1.10.0", date:"2026-08-28", notes:"Deux liens désormais possibles : l'URL habituelle ouvre l'app en mode consultation (rien de modifiable — pas d'ajout, de suppression, de bue, d'édition de champ, ni d'accès à la synchronisation GitHub ou aux paramètres) ; en ajoutant ?edition à la fin de l'URL, tout fonctionne comme avant. Permet de partager la cave sans risque de fausse manipulation." },
@@ -875,6 +902,8 @@ const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée e
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
+let emplacementGaucheListe = [];   // valeurs proposées pour la partie gauche du champ Emplacement, persistantes via cave-reglages.json
+let emplacementDroiteListe = [];   // valeurs proposées pour la partie droite du champ Emplacement, persistantes via cave-reglages.json
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
 /* ---- Badge de version / statut de synchronisation GitHub ---- */
@@ -1179,7 +1208,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1190,7 +1219,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -1995,7 +2024,7 @@ function appliquerModeEdition(){
   MODE_EDITION = !limitationConsultationActive || new URLSearchParams(location.search).has("edition");
   document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
+   "fEmplacement","fEmplacementGauche","fEmplacementDroite","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
   ["couleurChoices","starPicker"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";
@@ -2011,6 +2040,37 @@ function appliquerModeEdition(){
   const btnFermerFiche = document.getElementById("btnAnnulerFiche");
   if(btnFermerFiche) btnFermerFiche.textContent = MODE_EDITION ? "Annuler" : "Fermer";
 }
+
+/* ---- Combo box « partie gauche/droite » du champ Emplacement (valeurs définies dans Paramètres) ---- */
+function texteVersListe(texte){
+  return (texte||"").split("\n").map(s=>s.trim()).filter(Boolean);
+}
+function listeVersTexte(liste){
+  return (liste||[]).join("\n");
+}
+function construireSelectsEmplacement(){
+  const selGauche = document.getElementById("fEmplacementGauche");
+  const selDroite = document.getElementById("fEmplacementDroite");
+  selGauche.innerHTML = `<option value="">📍</option>` + emplacementGaucheListe.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+  selDroite.innerHTML = `<option value="">📌</option>` + emplacementDroiteListe.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+}
+function appliquerPartieEmplacement(cote, valeur){
+  const input = document.getElementById("fEmplacement");
+  const virgule = input.value.indexOf(",");
+  let gauche = virgule === -1 ? input.value.trim() : input.value.slice(0, virgule).trim();
+  let droite = virgule === -1 ? "" : input.value.slice(virgule+1).trim();
+  if(cote === "gauche") gauche = valeur; else droite = valeur;
+  input.value = gauche && droite ? (gauche + ", " + droite) : (gauche || droite || "");
+}
+document.getElementById("fEmplacementGauche").addEventListener("change", function(){
+  if(this.value) appliquerPartieEmplacement("gauche", this.value);
+  this.selectedIndex = 0;
+});
+document.getElementById("fEmplacementDroite").addEventListener("change", function(){
+  if(this.value) appliquerPartieEmplacement("droite", this.value);
+  this.selectedIndex = 0;
+});
+
 function selectionnerAssistant(cle){
   document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
     el.classList.toggle("active", el.dataset.key === cle);
@@ -2037,6 +2097,8 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
   selectionnerAssistant(assistantIA);
   document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
+  document.getElementById("paramEmplacementGauche").value = listeVersTexte(emplacementGaucheListe);
+  document.getElementById("paramEmplacementDroite").value = listeVersTexte(emplacementDroiteListe);
   document.getElementById("paramSyncStatus").textContent = "";
   afficherPageOnglet("saisie");
   document.getElementById("pageParametres").style.display = "block";
@@ -2053,6 +2115,9 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   majLibelleAssistant();
   limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
   appliquerModeEdition();
+  emplacementGaucheListe = texteVersListe(document.getElementById("paramEmplacementGauche").value);
+  emplacementDroiteListe = texteVersListe(document.getElementById("paramEmplacementDroite").value);
+  construireSelectsEmplacement();
   renderGrille();
   sauvegarderReglagesLocal();
   const statusEl = document.getElementById("paramSyncStatus");
@@ -2310,9 +2375,12 @@ avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : 
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
+emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];
+emplacementDroiteListe = Array.isArray(reglagesLocaux.emplacementDroiteListe) ? reglagesLocaux.emplacementDroiteListe : [];
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 majLibelleAssistant();
 appliquerModeEdition();
+construireSelectsEmplacement();
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
@@ -2337,6 +2405,16 @@ recupererReglagesDepuisGitHub().then(distant=>{
     limitationConsultationActive = distant.limitationConsultationActive;
     changement = true;
     changementModeEdition = true;
+  }
+  if(distant && Array.isArray(distant.emplacementGaucheListe) && JSON.stringify(distant.emplacementGaucheListe) !== JSON.stringify(emplacementGaucheListe)){
+    emplacementGaucheListe = distant.emplacementGaucheListe;
+    construireSelectsEmplacement();
+    changement = true;
+  }
+  if(distant && Array.isArray(distant.emplacementDroiteListe) && JSON.stringify(distant.emplacementDroiteListe) !== JSON.stringify(emplacementDroiteListe)){
+    emplacementDroiteListe = distant.emplacementDroiteListe;
+    construireSelectsEmplacement();
+    changement = true;
   }
   if(changementModeEdition) appliquerModeEdition();
   if(changement){

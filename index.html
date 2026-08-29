@@ -314,7 +314,11 @@
     -webkit-overflow-scrolling:touch;
   }
   @media(min-width:640px){.modal{border-radius:18px;}}
-  #overlayFiche .modal{border:2px solid var(--vif);}
+  #overlayFiche .modal{
+    border:2px solid var(--vif);
+    border-radius:20px;
+    margin-bottom:max(14px, env(safe-area-inset-bottom));
+  }
   .modal-header{
     position:sticky;top:0;background:var(--bg-panel);z-index:2;
     display:flex;align-items:center;justify-content:space-between;
@@ -992,8 +996,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.28";
+const VERSION = "1.10.29";
 const HISTORY = [
+  { version:"1.10.29", date:"2026-08-29", notes:"La fiche descriptive est maintenant légèrement remontée (marge en bas, en tenant compte de la zone de sécurité de l'appareil) et ses coins sont arrondis sur tout le pourtour, pour que son liseré vif ne touche plus le bas de l'écran." },
   { version:"1.10.28", date:"2026-08-29", notes:"La fiche descriptive d'un vin (fenêtre d'ajout/modification) est désormais entourée d'un fin liseré de couleur très vive, pour bien la distinguer des autres fenêtres de l'application." },
   { version:"1.10.27", date:"2026-08-29", notes:"Ajout d'un champ « Note chiffrée » à droite des étoiles dans la fiche détaillée, pour stocker une note numérique libre en plus de la note en étoiles." },
   { version:"1.10.26", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « N° du vin » qui préfixe chaque ligne par « N° xxx », en tête de ligne mais après la numérotation incrémentale (1., 2.…) quand celle-ci est aussi cochée." },

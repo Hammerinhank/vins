@@ -887,9 +887,14 @@
         <input type="checkbox" id="listeAvecMillesime">
         Millésime
       </label>
+      <label class="checkbox-chip" for="listeAvecNumero">
+        <input type="checkbox" id="listeAvecNumero">
+        Numéroter
+      </label>
     </div>
     <div class="panel-row">
       <button class="btn btn-gold" id="btnGenererListe" type="button">📋 Générer la liste</button>
+      <button class="btn" id="btnCopierListe" type="button">📎 Copier</button>
     </div>
     <div class="field">
       <label>Liste des vins</label>
@@ -963,8 +968,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.23";
+const VERSION = "1.10.24";
 const HISTORY = [
+  { version:"1.10.24", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « Numéroter » qui fait commencer chaque ligne par son numéro d'ordre (1., 2., 3.…), et nouveau bouton « 📎 Copier » qui copie directement le contenu de la zone de texte dans le presse-papier." },
   { version:"1.10.23", date:"2026-08-29", notes:"Nouvel onglet « 📋 Liste », à côté de Saisie rapide et Avis, dans la page ouverte par l'icône bouteille : une zone de texte modifiable, remplie par le bouton « Générer la liste » avec le nom de chaque vin de la cave (triés par ordre alphabétique) — deux cases à cocher, Domaine et Millésime, permettent d'ajouter ces informations à la suite de chaque nom." },
   { version:"1.10.22", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse à ce vin », juste à côté de « Identifier avec ChatGPT/Claude » dans les Détails complémentaires. Contrairement au bouton équivalent de Saisie rapide, il ne crée pas un nouveau vin : il passe par la même fenêtre de vérification (Nom, Domaine, Millésime, Étiquette, modifiables), puis applique ces valeurs à la fiche déjà ouverte — sans la fermer ni en créer une autre. Rien n'est enregistré tant qu'on ne clique pas sur Enregistrer." },
   { version:"1.10.21", date:"2026-08-28", notes:"La page Avis affiche maintenant aussi le Millésime (entre Domaine et Étiquette), copié depuis le vin comme les autres champs, et inclus dans la question envoyée à l'assistant. Son cadre passe en rouge quand il est vide, en temps réel." },
@@ -2244,19 +2250,36 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
 function genererListeTexte(){
   const avecDomaine = document.getElementById("listeAvecDomaine").checked;
   const avecMillesime = document.getElementById("listeAvecMillesime").checked;
+  const avecNumero = document.getElementById("listeAvecNumero").checked;
   const lignes = bottles
     .slice()
     .sort((a,b)=> (a.nom||"").localeCompare(b.nom||"", "fr"))
-    .map(b=>{
+    .map((b,i)=>{
       let ligne = b.nom || "Sans nom";
       if(avecDomaine && b.domaine) ligne += " — " + b.domaine;
       if(avecMillesime && b.millesime) ligne += " (" + b.millesime + ")";
+      if(avecNumero) ligne = (i+1) + ". " + ligne;
       return ligne;
     });
   document.getElementById("listeTexte").value = lignes.join("\n");
   toast(lignes.length ? "Liste générée (" + lignes.length + " vin(s))" : "Aucun vin dans la cave");
 }
 document.getElementById("btnGenererListe").addEventListener("click", genererListeTexte);
+document.getElementById("btnCopierListe").addEventListener("click", async function(){
+  const texte = document.getElementById("listeTexte").value;
+  if(!texte){ toast("Rien à copier"); return; }
+  if(!navigator.clipboard || !navigator.clipboard.writeText){
+    toast("Ce navigateur ne permet pas la copie automatique — sélectionne et copie manuellement");
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(texte);
+    feedbackBouton(this, "✓ Copié");
+    toast("Liste copiée dans le presse-papier");
+  }catch(e){
+    toast("Échec de la copie — sélectionne et copie manuellement");
+  }
+});
 
 /* ===================== PAGE PARAMÈTRES ===================== */
 function majLibelleAssistant(){

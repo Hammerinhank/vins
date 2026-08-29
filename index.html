@@ -470,6 +470,29 @@
     transition:opacity .2s ease;
   }
   .toast.show{opacity:1;}
+
+  /* ---------- Agrandissement au double-tap/double-clic (tous champs texte) ---------- */
+  .overlay-champ-agrandi{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);
+    z-index:399;display:none;
+  }
+  .overlay-champ-agrandi.show{display:block;}
+  .champ-agrandi{
+    position:fixed !important;
+    left:16px !important; right:16px !important;
+    top:16% !important;
+    width:auto !important;
+    z-index:400 !important;
+    font-size:19px !important;
+    padding:14px !important;
+    border:2px solid var(--gold) !important;
+    border-radius:10px !important;
+    background:var(--bg-panel) !important;
+    color:var(--text) !important;
+    box-shadow:0 12px 48px rgba(0,0,0,.65) !important;
+  }
+  input.champ-agrandi{ height:56px !important; }
+  textarea.champ-agrandi{ height:var(--champ-agrandi-hauteur, 220px) !important; resize:none !important; }
 </style>
 </head>
 <body>
@@ -823,6 +846,8 @@
   </div>
 </div>
 
+<div class="overlay-champ-agrandi" id="overlayChampAgrandi"></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -830,8 +855,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.4";
+const VERSION = "1.10.5";
 const HISTORY = [
+  { version:"1.10.5", date:"2026-08-28", notes:"Tous les champs texte (partout dans l'app) s'agrandissent maintenant d'un double-tap pour faciliter l'édition — les champs multi-lignes s'ajustent à la hauteur de leur contenu. Un nouveau double-tap, un changement de champ, ou un tap sur le fond assombri qui apparaît autour, les ramène à leur taille normale. Détection tactile dédiée pour un fonctionnement fiable sur iPhone." },
   { version:"1.10.4", date:"2026-08-28", notes:"Ajout d'une troisième icône (🔁) à droite des deux combo box d'Emplacement : elle remet dans le champ la valeur complète d'Emplacement enregistrée sur le dernier vin sauvegardé où ce champ avait été renseigné. Grisée tant qu'aucun emplacement n'a encore été enregistré sur cet appareil." },
   { version:"1.10.3", date:"2026-08-28", notes:"Deux petites combo box (📍 / 📌) ajoutées à droite du champ Emplacement, réduites à une icône quand fermées : la première remplace la partie gauche (avant la virgule), la seconde la partie droite (après la virgule), sans toucher à l'autre partie. Leurs listes de valeurs proposées se définissent dans Paramètres (une valeur par ligne), synchronisées sur GitHub comme les autres réglages." },
   { version:"1.10.2", date:"2026-08-28", notes:"Ajout dans Paramètres d'une case « Limiter l'URL sans ?edition à la consultation seule », décochée par défaut : tant qu'elle n'est pas activée, l'URL habituelle continue de tout permettre comme avant, exactement comme avant l'introduction du mode consultation. Une fois cochée et enregistrée (synchronisé sur GitHub comme les autres réglages), seule l'URL avec ?edition permet de modifier la cave." },
@@ -2385,6 +2411,55 @@ document.getElementById("btnPull").addEventListener("click", async function(){
   }
   btn.disabled = false;
 });
+
+/* ===================== AGRANDISSEMENT DES CHAMPS TEXTE AU DOUBLE-TAP ===================== */
+/* Tout champ texte (input ou textarea, hors cases à cocher/menus) peut être agrandi d'un double-tap
+   pour faciliter l'édition, et repasse à sa taille normale d'un nouveau double-tap ou en changeant de
+   champ. La détection tactile est faite à la main (deux touchend rapprochés dans le temps sur le même
+   élément) plutôt qu'avec l'événement dblclick natif, plus fiable sur Safari iOS ; dblclick reste géré
+   en complément pour un usage à la souris/trackpad. */
+const SELECTEUR_CHAMPS_TEXTE = 'input[type="text"], input[type="number"], input[type="date"], input[type="password"], textarea';
+
+function agrandirChamp(el){
+  if(el.tagName === "TEXTAREA"){
+    const hauteur = Math.min(Math.max(el.scrollHeight, 160), Math.round(window.innerHeight*0.6));
+    el.style.setProperty("--champ-agrandi-hauteur", hauteur + "px");
+  }
+  el.classList.add("champ-agrandi");
+  document.getElementById("overlayChampAgrandi").classList.add("show");
+}
+function reduireChamp(el){
+  el.classList.remove("champ-agrandi");
+  el.style.removeProperty("--champ-agrandi-hauteur");
+  document.getElementById("overlayChampAgrandi").classList.remove("show");
+}
+function reduireTousLesChampsAgrandis(){
+  document.querySelectorAll(".champ-agrandi").forEach(reduireChamp);
+}
+
+let dernierTapChampEl = null;
+let dernierTapChampTemps = 0;
+document.addEventListener("touchend", function(e){
+  const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
+  if(!cible) return;
+  const maintenant = Date.now();
+  if(cible === dernierTapChampEl && (maintenant - dernierTapChampTemps) < 350){
+    if(cible.classList.contains("champ-agrandi")) reduireChamp(cible); else agrandirChamp(cible);
+    dernierTapChampEl = null;
+  }else{
+    dernierTapChampEl = cible;
+    dernierTapChampTemps = maintenant;
+  }
+}, { passive:true });
+document.addEventListener("dblclick", function(e){
+  const cible = e.target.closest && e.target.closest(SELECTEUR_CHAMPS_TEXTE);
+  if(!cible) return;
+  if(cible.classList.contains("champ-agrandi")) reduireChamp(cible); else agrandirChamp(cible);
+});
+document.addEventListener("blur", function(e){
+  if(e.target && e.target.classList && e.target.classList.contains("champ-agrandi")) reduireChamp(e.target);
+}, true);
+document.getElementById("overlayChampAgrandi").addEventListener("click", reduireTousLesChampsAgrandis);
 
 /* ===================== INITIALISATION ===================== */
 document.querySelectorAll(".overlay").forEach(ov=>{

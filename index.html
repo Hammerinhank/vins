@@ -209,6 +209,10 @@
     transition:transform .15s ease;
   }
   .bottle-card:active{transform:scale(.985);}
+  .bottle-card.avec-photo{
+    border:3px solid var(--gold-soft);
+    box-shadow:0 0 0 1px var(--gold), var(--shadow);
+  }
   .bottle-photo{
     width:100%;aspect-ratio:4/3;
     background:var(--bg-panel-2);
@@ -887,6 +891,10 @@
         <input type="checkbox" id="listeAvecMillesime">
         Millésime
       </label>
+      <label class="checkbox-chip" for="listeAvecPrix">
+        <input type="checkbox" id="listeAvecPrix">
+        Prix
+      </label>
       <label class="checkbox-chip" for="listeAvecNumero">
         <input type="checkbox" id="listeAvecNumero">
         Numéroter
@@ -968,8 +976,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.24";
+const VERSION = "1.10.25";
 const HISTORY = [
+  { version:"1.10.25", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « Prix » qui ajoute le prix unitaire en euros à la suite de chaque nom, quand il est renseigné. Par ailleurs, dans la grille principale, toute carte affichant la photo d'un vin (photo + résumé de la fiche) est désormais encadrée d'un liseré doré bien visible, pour la distinguer nettement des cartes sans photo." },
   { version:"1.10.24", date:"2026-08-29", notes:"Sur l'onglet « 📋 Liste » : nouvelle case à cocher « Numéroter » qui fait commencer chaque ligne par son numéro d'ordre (1., 2., 3.…), et nouveau bouton « 📎 Copier » qui copie directement le contenu de la zone de texte dans le presse-papier." },
   { version:"1.10.23", date:"2026-08-29", notes:"Nouvel onglet « 📋 Liste », à côté de Saisie rapide et Avis, dans la page ouverte par l'icône bouteille : une zone de texte modifiable, remplie par le bouton « Générer la liste » avec le nom de chaque vin de la cave (triés par ordre alphabétique) — deux cases à cocher, Domaine et Millésime, permettent d'ajouter ces informations à la suite de chaque nom." },
   { version:"1.10.22", date:"2026-08-28", notes:"Ajout du bouton « 📥 Appliquer la réponse à ce vin », juste à côté de « Identifier avec ChatGPT/Claude » dans les Détails complémentaires. Contrairement au bouton équivalent de Saisie rapide, il ne crée pas un nouveau vin : il passe par la même fenêtre de vérification (Nom, Domaine, Millésime, Étiquette, modifiables), puis applique ces valeurs à la fiche déjà ouverte — sans la fermer ni en créer une autre. Rien n'est enregistré tant qu'on ne clique pas sur Enregistrer." },
@@ -1551,7 +1560,7 @@ function carteBouteille(b){
     : `<span class="qty-lecture">${quantite} en cave</span>`;
 
   return `
-  <div class="bottle-card" data-id="${b.id}">
+  <div class="bottle-card${photoVisible?' avec-photo':''}" data-id="${b.id}">
     ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">
@@ -2250,6 +2259,7 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
 function genererListeTexte(){
   const avecDomaine = document.getElementById("listeAvecDomaine").checked;
   const avecMillesime = document.getElementById("listeAvecMillesime").checked;
+  const avecPrix = document.getElementById("listeAvecPrix").checked;
   const avecNumero = document.getElementById("listeAvecNumero").checked;
   const lignes = bottles
     .slice()
@@ -2258,6 +2268,7 @@ function genererListeTexte(){
       let ligne = b.nom || "Sans nom";
       if(avecDomaine && b.domaine) ligne += " — " + b.domaine;
       if(avecMillesime && b.millesime) ligne += " (" + b.millesime + ")";
+      if(avecPrix && b.prixUnitaire!==""&&b.prixUnitaire!=null) ligne += " — " + euro(b.prixUnitaire);
       if(avecNumero) ligne = (i+1) + ". " + ligne;
       return ligne;
     });

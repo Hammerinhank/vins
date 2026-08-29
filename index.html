@@ -775,6 +775,14 @@
       <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
       <textarea id="paramQuestionChatGPT" rows="4"></textarea>
     </div>
+    <div class="field">
+      <label>Accès</label>
+      <label class="checkbox-chip" for="paramLimitationConsultation">
+        <input type="checkbox" id="paramLimitationConsultation">
+        Limiter l'URL sans ?edition à la consultation seule
+      </label>
+      <p class="panel-note">Décochée (par défaut) : l'URL habituelle permet toujours de modifier la cave, comme avant. Cochée : seule l'URL avec « ?edition » à la fin permet de modifier quoi que ce soit — l'URL habituelle passe en lecture seule.</p>
+    </div>
     <div class="panel-row">
       <button class="btn btn-gold" id="btnEnregistrerParametres" type="button">Enregistrer</button>
     </div>
@@ -789,8 +797,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.1";
+const VERSION = "1.10.2";
 const HISTORY = [
+  { version:"1.10.2", date:"2026-08-28", notes:"Ajout dans Paramètres d'une case « Limiter l'URL sans ?edition à la consultation seule », décochée par défaut : tant qu'elle n'est pas activée, l'URL habituelle continue de tout permettre comme avant, exactement comme avant l'introduction du mode consultation. Une fois cochée et enregistrée (synchronisé sur GitHub comme les autres réglages), seule l'URL avec ?edition permet de modifier la cave." },
   { version:"1.10.1", date:"2026-08-28", notes:"La liste s'ouvre maintenant toujours regroupée par couleur par défaut (au lieu de « Ne pas regrouper »), à chaque lancement de l'app." },
   { version:"1.10.0", date:"2026-08-28", notes:"Deux liens désormais possibles : l'URL habituelle ouvre l'app en mode consultation (rien de modifiable — pas d'ajout, de suppression, de bue, d'édition de champ, ni d'accès à la synchronisation GitHub ou aux paramètres) ; en ajoutant ?edition à la fin de l'URL, tout fonctionne comme avant. Permet de partager la cave sans risque de fausse manipulation." },
   { version:"1.9.8", date:"2026-08-28", notes:"« Saisie rapide » est maintenant l'onglet ouvert par défaut en touchant l'icône bouteille (au lieu de « Paramètres »). Le 3ᵉ bouton reconnaît en plus une section « Millésime : » dans la réponse copiée et remplit ce champ si elle est présente ; la fenêtre de vérification affiche aussi ce millésime extrait, modifiable comme les autres champs, avant la création du vin." },
@@ -842,7 +851,9 @@ const LS_INSTANCE_ID = "cave_instance_id_v1";
 
 // Mode consultation / édition : deux liens distincts à partager. Sans « ?edition » dans l'URL, l'app
 // s'ouvre en lecture seule (rien n'est modifiable) ; avec « ?edition », tout fonctionne normalement.
-const MODE_EDITION = new URLSearchParams(location.search).has("edition");
+// Cette limitation elle-même peut être activée/désactivée dans les Paramètres (désactivée par défaut,
+// pour que l'URL habituelle continue à permettre l'édition tant qu'on ne l'a pas activée soi-même).
+let MODE_EDITION = new URLSearchParams(location.search).has("edition");
 
 let bottles = [];
 let filtreStatut = "cave";
@@ -863,6 +874,7 @@ let avecPhoto = true;              // case « Avec photo » : charge/affiche aut
 const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
+let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
 /* ---- Badge de version / statut de synchronisation GitHub ---- */
@@ -1167,7 +1179,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1178,7 +1190,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, limitationConsultationActive, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -1976,6 +1988,29 @@ function majLibelleAssistant(){
   const btnSaisie = document.getElementById("btnSaisieIdentifier");
   if(btnSaisie) btnSaisie.textContent = texte;
 }
+/* Recalcule MODE_EDITION à partir de l'URL et de la limitation, puis (dés)applique le verrouillage de la
+   fiche et l'affichage des boutons/panneaux d'édition. Réversible : peut être rappelée à tout moment
+   (changement du réglage, retour de la synchro GitHub) sans laisser l'interface dans un état incohérent. */
+function appliquerModeEdition(){
+  MODE_EDITION = !limitationConsultationActive || new URLSearchParams(location.search).has("edition");
+  document.body.classList.toggle("mode-consultation", !MODE_EDITION);
+  ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
+   "fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
+    .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
+  ["couleurChoices","starPicker"].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";
+  });
+  const numeroValeur = document.getElementById("numeroFicheValeur");
+  if(numeroValeur){
+    numeroValeur.style.pointerEvents = MODE_EDITION ? "" : "none";
+    numeroValeur.style.cursor = MODE_EDITION ? "" : "default";
+  }
+  ["btnChoisirPhoto","btnRetirerPhoto","btnSauverFiche"].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.classList.toggle("action-edition", !MODE_EDITION);
+  });
+  const btnFermerFiche = document.getElementById("btnAnnulerFiche");
+  if(btnFermerFiche) btnFermerFiche.textContent = MODE_EDITION ? "Annuler" : "Fermer";
+}
 function selectionnerAssistant(cle){
   document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
     el.classList.toggle("active", el.dataset.key === cle);
@@ -2001,6 +2036,7 @@ document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
   selectionnerAssistant(assistantIA);
+  document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
   document.getElementById("paramSyncStatus").textContent = "";
   afficherPageOnglet("saisie");
   document.getElementById("pageParametres").style.display = "block";
@@ -2015,6 +2051,9 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   const choixActif = document.querySelector("#assistantChoices .assistant-choice.active");
   assistantIA = choixActif ? choixActif.dataset.key : "chatgpt";
   majLibelleAssistant();
+  limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
+  appliquerModeEdition();
+  renderGrille();
   sauvegarderReglagesLocal();
   const statusEl = document.getElementById("paramSyncStatus");
   statusEl.textContent = "Enregistrement…";
@@ -2270,13 +2309,16 @@ const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
+limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 majLibelleAssistant();
+appliquerModeEdition();
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
 recupererReglagesDepuisGitHub().then(distant=>{
   let changement = false;
+  let changementModeEdition = false;
   if(distant && typeof distant.avecPhoto === "boolean" && distant.avecPhoto !== avecPhoto){
     avecPhoto = distant.avecPhoto;
     document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
@@ -2291,6 +2333,12 @@ recupererReglagesDepuisGitHub().then(distant=>{
     majLibelleAssistant();
     changement = true;
   }
+  if(distant && typeof distant.limitationConsultationActive === "boolean" && distant.limitationConsultationActive !== limitationConsultationActive){
+    limitationConsultationActive = distant.limitationConsultationActive;
+    changement = true;
+    changementModeEdition = true;
+  }
+  if(changementModeEdition) appliquerModeEdition();
   if(changement){
     sauvegarderReglagesLocal();
     renderGrille();
@@ -2298,26 +2346,6 @@ recupererReglagesDepuisGitHub().then(distant=>{
 });
 
 verifierGitHubAuLancement();
-
-/* Mode consultation : verrouille la fiche (champs, couleur, étoiles, numéro) et masque les actions
-   d'édition (Enregistrer, ajout/retrait de photo). Les boutons/panneaux d'édition eux-mêmes sont déjà
-   masqués via la classe CSS « action-edition » sur body.mode-consultation. */
-if(!MODE_EDITION){
-  document.body.classList.add("mode-consultation");
-  ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput"]
-    .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = true; });
-  ["couleurChoices","starPicker"].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.style.pointerEvents = "none";
-  });
-  const numeroValeur = document.getElementById("numeroFicheValeur");
-  if(numeroValeur){ numeroValeur.style.pointerEvents = "none"; numeroValeur.style.cursor = "default"; }
-  ["btnChoisirPhoto","btnRetirerPhoto","btnSauverFiche"].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.classList.add("action-edition");
-  });
-  const btnFermerFiche = document.getElementById("btnAnnulerFiche");
-  if(btnFermerFiche) btnFermerFiche.textContent = "Fermer";
-}
 
 })();
 </script>

@@ -330,6 +330,13 @@
     padding:7px 11px;border-radius:999px;font-size:12.5px;color:var(--text-muted);
   }
   .couleur-choice.active{border-color:var(--gold);color:var(--text);background:var(--bg-card);}
+  .assistant-choices{display:flex;gap:8px;flex-wrap:wrap;}
+  .assistant-choice{
+    border:1px solid var(--line);background:var(--bg-panel-2);
+    padding:9px 16px;border-radius:999px;font-size:13px;color:var(--text-muted);
+    cursor:pointer;
+  }
+  .assistant-choice.active{border-color:var(--gold);color:var(--text);background:var(--bg-card);font-weight:600;}
   .star-picker{display:flex;gap:4px;font-size:24px;color:var(--line);}
   .star-picker span.on{color:var(--gold);}
   .photo-section{display:flex;flex-direction:column;gap:9px;}
@@ -694,7 +701,14 @@
   </div>
   <div class="page-body">
     <div class="field">
-      <label>Question envoyée à ChatGPT (identification d'un vin à partir de sa photo)</label>
+      <label>Assistant IA pour l'identification par photo</label>
+      <div class="assistant-choices" id="assistantChoices">
+        <div class="assistant-choice" data-key="chatgpt">ChatGPT</div>
+        <div class="assistant-choice" data-key="claude">Claude</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
       <textarea id="paramQuestionChatGPT" rows="4"></textarea>
     </div>
     <div class="panel-row">
@@ -711,8 +725,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.9.0";
+const VERSION = "1.9.1";
 const HISTORY = [
+  { version:"1.9.1", date:"2026-08-28", notes:"Ajout dans la page Paramètres d'un choix d'assistant IA (ChatGPT ou Claude) pour l'identification d'un vin par photo, persistant sur GitHub comme les autres réglages. Le bouton « Identifier avec... » et la fenêtre de vérification s'adaptent au choix ; Claude s'ouvre via claude.ai/new avec la question pré-remplie (mécanisme non officiellement documenté par Anthropic, à surveiller s'il cesse de fonctionner un jour)." },
   { version:"1.9.0", date:"2026-08-28", notes:"L'icône bouteille en haut à gauche (inchangée visuellement) ouvre désormais une page Paramètres à part entière, occupant tout l'écran, dans ce même fichier (bouton « ← Retour » pour revenir). Premier réglage disponible : le texte de la question envoyée à ChatGPT pour identifier un vin à partir de sa photo, modifiable et initialisé avec le texte utilisé jusqu'ici. Comme la case « Avec photo », ce réglage est synchronisé sur GitHub (cave-reglages.json) au clic sur Enregistrer." },
   { version:"1.8.5", date:"2026-08-28", notes:"Le bouton « 🤖 Identifier avec ChatGPT » passe désormais par une étape de vérification : après la copie dans le presse-papier, une fenêtre affiche la photo copiée pour confirmation, avec les boutons Annuler ou Ouvrir ChatGPT — ChatGPT ne s'ouvre que si on confirme." },
   { version:"1.8.4", date:"2026-08-28", notes:"Ajout d'un bouton « 🤖 Identifier avec ChatGPT » dans les Détails complémentaires (visible dès qu'une photo existe) : il copie la photo du vin (pleine résolution si disponible) au format PNG dans le presse-papier, et ouvre ChatGPT dans un nouvel onglet avec la question déjà rédigée. Il reste à coller la photo (Cmd+V) dans ChatGPT une fois la page ouverte, aucune méthode web ne permettant de le faire automatiquement." },
@@ -770,6 +785,7 @@ let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
+let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 let photoOverrides = new Map();    // id -> true/false : dérogation manuelle (afficher/masquer) le temps de cette session, prioritaire sur « avecPhoto »
 
 /* ---- Badge de version / statut de synchronisation GitHub ---- */
@@ -1074,7 +1090,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, assistantIA }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1085,7 +1101,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, assistantIA, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -1661,6 +1677,7 @@ document.getElementById("btnIdentifierChatGPT").addEventListener("click", functi
     .then(()=> promesseSource)
     .then(source=>{
       document.getElementById("verifPhotoImg").src = source;
+      document.getElementById("btnOuvrirChatGPT").textContent = assistantIA === "claude" ? "Ouvrir Claude" : "Ouvrir ChatGPT";
       document.getElementById("overlayVerifPhoto").classList.add("show");
     })
     .catch(()=> toast("Impossible de copier la photo dans le presse-papier"));
@@ -1670,7 +1687,10 @@ document.getElementById("btnAnnulerVerifPhoto").addEventListener("click", ()=>do
 document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
   document.getElementById("overlayVerifPhoto").classList.remove("show");
   const question = questionChatGPT || QUESTION_CHATGPT_DEFAUT;
-  window.open("https://chatgpt.com/?q=" + encodeURIComponent(question), "_blank");
+  const url = assistantIA === "claude"
+    ? "https://claude.ai/new?q=" + encodeURIComponent(question)
+    : "https://chatgpt.com/?q=" + encodeURIComponent(question);
+  window.open(url, "_blank");
 });
 
 function compresserImage(file, maxDim, qualite){
@@ -1725,8 +1745,23 @@ document.getElementById("avecPhotoCheckbox").addEventListener("change", function
 });
 
 /* ===================== PAGE PARAMÈTRES ===================== */
+function majLibelleAssistant(){
+  const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
+  const btn = document.getElementById("btnIdentifierChatGPT");
+  if(btn) btn.textContent = "🤖 Identifier avec " + nom;
+}
+function selectionnerAssistant(cle){
+  document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
+    el.classList.toggle("active", el.dataset.key === cle);
+  });
+}
+document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
+  el.addEventListener("click", ()=>selectionnerAssistant(el.dataset.key));
+});
+
 document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  selectionnerAssistant(assistantIA);
   document.getElementById("paramSyncStatus").textContent = "";
   document.getElementById("pageParametres").style.display = "block";
 });
@@ -1737,6 +1772,9 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   const valeur = document.getElementById("paramQuestionChatGPT").value.trim();
   questionChatGPT = valeur || QUESTION_CHATGPT_DEFAUT;
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
+  const choixActif = document.querySelector("#assistantChoices .assistant-choice.active");
+  assistantIA = choixActif ? choixActif.dataset.key : "chatgpt";
+  majLibelleAssistant();
   sauvegarderReglagesLocal();
   const statusEl = document.getElementById("paramSyncStatus");
   statusEl.textContent = "Enregistrement…";
@@ -1750,6 +1788,7 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
     btn.disabled = false;
   });
 });
+
 
 /* ===================== VERSION / HISTORIQUE ===================== */
 majBadgeVersion();
@@ -1990,7 +2029,9 @@ remplirChampsConfig();
 const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
+assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+majLibelleAssistant();
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
@@ -2003,6 +2044,11 @@ recupererReglagesDepuisGitHub().then(distant=>{
   }
   if(distant && typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
     questionChatGPT = distant.questionChatGPT;
+    changement = true;
+  }
+  if(distant && (distant.assistantIA === "claude" || distant.assistantIA === "chatgpt") && distant.assistantIA !== assistantIA){
+    assistantIA = distant.assistantIA;
+    majLibelleAssistant();
     changement = true;
   }
   if(changement){

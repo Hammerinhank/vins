@@ -1224,8 +1224,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.75";
+const VERSION = "1.10.76";
 const HISTORY = [
+  { version:"1.10.76", date:"2026-08-30", notes:"Après une restauration depuis Diagnostic → Lister les versions, une fenêtre propose désormais explicitement d'envoyer immédiatement la version restaurée vers GitHub (au lieu de dépendre uniquement de la couleur du badge, facile à manquer) — la restauration met bien à jour l'état « à sauvegarder » comme les autres modifications locales, mais ce rappel direct évite d'oublier l'étape et de perdre à nouveau ce qui vient d'être récupéré au prochain rechargement." },
   { version:"1.10.75", date:"2026-08-30", notes:"Deux corrections critiques trouvées grâce au Log : (1) le contrôle « une version plus récente existe-t-elle ? » avant chaque envoi utilisait un format d'API tronqué au-delà de 1 Mo — devenu silencieusement inopérant dès que la cave a dépassé cette taille, laissant les envois passer sans aucune vérification ; corrigé en relisant le contenu distant au format « raw », sans cette limite. (2) La vérification au lancement, quand l'origine de la dernière sauvegarde GitHub correspond à cet appareil, ignorait silencieusement le cas où le local avait perdu des vins depuis ce dernier envoi (au lieu de le signaler) — un envoi suivant écrasait alors la sauvegarde GitHub plus complète par une version locale appauvrie. Les deux situations affichent désormais la fenêtre de conflit détaillée avant toute action, au lieu de continuer silencieusement." },
   { version:"1.10.74", date:"2026-08-29", notes:"Le nombre de vins (fiches) apparaît désormais en en-tête, à côté du nombre de bouteilles en cave — en petite indication discrète (« · X vin(s) »), sans ajouter de nouvelle carte ni alourdir visuellement l'ensemble." },
   { version:"1.10.73", date:"2026-08-29", notes:"Corrigé une confusion importante dans la page Diagnostic : « Lister les versions » (5/30 dernières) affichait le nombre de vins (fiches) enregistrés en l'étiquetant à tort « bouteille(s) », alors que le reste de l'app distingue vins (fiches) et bouteilles (quantité physique, champ Quantité en cave). Un décompte de 38 vins pouvait donc sembler être une perte massive de bouteilles par rapport aux « 53 bouteilles en cave » du haut de l'écran, alors que ce n'était pas du tout la même mesure. La liste affiche désormais clairement les deux : « X vin(s) · Y bouteille(s) »." },
@@ -3898,6 +3899,7 @@ async function restaurerVersion(sha, btn){
     "Remplacer la cave actuelle par cette version sauvegardée ? Toute modification locale non envoyée sur GitHub sera perdue.",
     async ()=>{
       btn.disabled = true;
+      logAjouter(`restaurerVersion(${sha}) confirmé — bottles.length (avant)=${bottles.length} · syncDirty (avant)=${syncDirty}`);
       let distantes = cacheVersions[sha];
       if(!distantes){
         const cfg = chargerConfig();
@@ -3912,6 +3914,7 @@ async function restaurerVersion(sha, btn){
           cacheVersions[sha] = distantes;
         }catch(e){
           journalAjouter("ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
+          logAjouter("→ ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
           toast("Échec de la restauration — voir le journal");
           btn.disabled = false;
           return;
@@ -3920,8 +3923,14 @@ async function restaurerVersion(sha, btn){
       bottles = distantes;
       sauvegarderBouteilles();
       rafraichirTout();
+      logAjouter(`→ Restauration appliquée — bottles.length (après)=${bottles.length} · syncDirty (après)=${syncDirty} · badge=${document.getElementById("versionBadge").textContent}`);
       journalAjouter(`Cave restaurée depuis la version ${sha.slice(0,7)} (${distantes.length} vin(s)).`);
-      toast("Cave restaurée à cette version");
+      toast("Cave restaurée sur cet appareil");
+      demanderConfirmation(
+        "Envoyer cette version restaurée ?",
+        "La cave a été restaurée sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer cette version restaurée vers GitHub maintenant ?",
+        ()=>lancerEnvoiVersGitHub()
+      );
       btn.disabled = false;
     }
   );

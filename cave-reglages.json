@@ -17,8 +17,19 @@
     "Rang Bas",
     "Coffret en bois"
   ],
-  "regionsListe": [],
+  "regionsListe": [
+    "Alsace",
+    "Bordeaux",
+    "Bourgogne",
+    "Canada",
+    "Champagne",
+    "Hongrie",
+    "Provence",
+    "Sud-Ouest",
+    "Val de Loire",
+    "Vallée du Rhône"
+  ],
   "groupBy": "aucun",
   "sortKey": "ajout_desc",
-  "maj": "2026-08-30T22:56:23.696Z"
+  "maj": "2026-08-30T23:03:28.861Z"
 }

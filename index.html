@@ -1223,8 +1223,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.68";
+const VERSION = "1.10.69";
 const HISTORY = [
+  { version:"1.10.69", date:"2026-08-29", notes:"L'appui long sur le badge ne recharge plus automatiquement la page — observé peu fiable en pratique (une nouvelle version détectée par la vérification pouvait, l'instant d'après, être suivie d'une navigation retombant sur l'ancienne, les serveurs de GitHub Pages n'étant pas toujours synchronisés entre eux juste après un envoi). Il vérifie désormais seulement si une nouvelle version existe (même scrutin, toutes les 10 s pendant 2 min maximum) et, si oui, affiche une directive claire : fermer complètement l'app puis la rouvrir — méthode manuelle mais fiable pour être sûr de charger la nouvelle version." },
   { version:"1.10.68", date:"2026-08-29", notes:"Pendant le scrutin de l'appui long, le badge s'entoure d'un liseré orange le temps exact de chaque requête réseau vers GitHub (du départ de la vérification à la réponse), en plus du fond bleu qui reste affiché pendant tout le scrutin — de quoi visualiser si les 10 secondes entre deux vérifications sont pertinentes par rapport à la durée réelle de chacune." },
   { version:"1.10.67", date:"2026-08-29", notes:"L'appui long sur le badge de version (rechargement forcé) revérifie désormais toutes les 10 secondes si une nouvelle version est apparue sur GitHub, et abandonne au bout de 2 minutes maximum si ce n'est toujours pas le cas — utile quand le déploiement GitHub Pages met un peu de temps. Dès qu'une version différente est détectée, le rechargement se fait immédiatement ; sinon, l'app reste sur l'ancienne version en le signalant clairement." },
   { version:"1.10.66", date:"2026-08-29", notes:"Retrait ciblé de la partie « hors ligne » de la synchronisation (badge vert « sauvegardé sur ce téléphone », téléchargement automatique d'un fichier de secours, section « Sauvegardes locales » du Diagnostic, retentative automatique à la reconnexion) : devenue confuse en usage réel (proposait un téléchargement de fichier inattendu). Tout le reste du mécanisme de synchronisation reste en place : vérification d'une version distante plus récente avant d'écraser, fenêtre de conflit détaillée (nombre de vins/bouteilles de chaque version, date, recommandation), et l'appui long sur le badge pour forcer un rechargement sans cache — confirmé comme fonctionnant bien, aucune régression sur ce point." },
@@ -3233,10 +3234,11 @@ function demarrerAppuiLongBadge(x, y){
   badgeAppuiLongDepart = { x, y };
   badgeAppuiLongTimer = setTimeout(()=>{
     badgeAppuiLongDeclenche = true;
-    // Sécurité essentielle : un rechargement forcé pendant que des modifications locales n'ont pas
-    // encore été envoyées peut, au chargement suivant, déclencher une proposition d'écraser le local
-    // par une version distante — avec risque de perte définitive de ces modifications. On refuse donc
-    // de recharger tant que le badge affiche « à sauvegarder » ou une erreur d'envoi.
+    // Sécurité essentielle : si l'app devait ensuite être fermée puis rouverte (c'est la directive
+    // donnée quand une nouvelle version est trouvée) pendant que des modifications locales n'ont pas
+    // encore été envoyées, la réouverture peut déclencher une proposition d'écraser le local par une
+    // version distante — avec risque de perte définitive de ces modifications. On refuse donc de
+    // lancer la vérification tant que le badge affiche « à sauvegarder » ou une erreur d'envoi.
     if(syncDirty || syncEnErreur){
       if(navigator.vibrate) navigator.vibrate([15,60,15]);
       toast("Modifications non envoyées — envoie-les d'abord (appui simple) avant de recharger");
@@ -3245,10 +3247,10 @@ function demarrerAppuiLongBadge(x, y){
     if(navigator.vibrate) navigator.vibrate(15);
     const badge = document.getElementById("versionBadge");
     badge.classList.add("appui-long-ok");
-    // Délai volontaire avant de lancer le rechargement, pour laisser le temps de bien voir le badge
-    // passer en bleu — sans cette pause, la navigation peut survenir avant que le navigateur n'ait
-    // eu l'occasion d'afficher le changement de couleur.
-    setTimeout(()=>{ forcerRechargementSansCache(); }, 500);
+    // Délai volontaire avant de lancer la vérification, pour laisser le temps de bien voir le badge
+    // passer en bleu — sans cette pause, la suite peut survenir avant que le navigateur n'ait eu
+    // l'occasion d'afficher le changement de couleur.
+    setTimeout(()=>{ verifierNouvelleVersionDisponible(); }, 500);
   }, DUREE_APPUI_LONG_BADGE);
 }
 function deplacerAppuiLongBadge(x, y){
@@ -3298,30 +3300,24 @@ versionBadgeEl.addEventListener("click", ()=>{
    recharge — sinon, le problème n'est pas un cache du navigateur mais un déploiement GitHub Pages pas
    encore terminé, et on le dit clairement plutôt que de recharger pour rien sur la même vieille version. */
 let rechargementEnCoursId = 0; // incrémenté à chaque nouveau cycle, invalide les scrutins précédents encore en attente
-async function forcerRechargementSansCache(){
+/* Vérifie si une nouvelle version est servie par GitHub Pages — sans jamais recharger automatiquement.
+   Un rechargement automatique déclenché ici s'est révélé peu fiable : juste après un envoi, les
+   différents serveurs de GitHub Pages peuvent mettre un moment à se synchroniser entre eux, si bien
+   que la vérification peut trouver la nouvelle version alors que la navigation qui suit immédiatement
+   retombe sur l'ancienne (chacune peut être servie par un serveur différent). Plutôt que de laisser
+   croire à un rechargement fiable qui ne l'est pas, on se contente de vérifier et d'indiquer clairement
+   la marche à suivre pour charger la nouvelle version à coup sûr. */
+async function verifierNouvelleVersionDisponible(){
   if(!navigator.onLine){
     document.getElementById("versionBadge").classList.remove("appui-long-ok");
     majBadgeVersion();
     toast("Hors ligne — impossible de vérifier une nouvelle version pour l'instant");
     return;
   }
-  try{
-    if(window.caches && caches.keys){
-      const cles = await caches.keys();
-      await Promise.all(cles.map(cle=>caches.delete(cle)));
-    }
-  }catch(e){}
-  try{
-    if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-      const enregistrements = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(enregistrements.map(r=>r.unregister()));
-    }
-  }catch(e){}
 
   // Scrutin périodique : la nouvelle version peut mettre un moment à être servie par GitHub Pages après
   // un envoi. On revérifie toutes les 10 s (requête toujours cache:"no-store", jamais depuis un cache),
-  // et on abandonne au bout de 2 minutes maximum si rien de nouveau n'apparaît — on reste alors sur
-  // l'ancienne version plutôt que d'attendre indéfiniment.
+  // et on abandonne au bout de 2 minutes maximum si rien de nouveau n'apparaît.
   const DELAI_ENTRE_TENTATIVES = 10000;
   const DUREE_MAX = 120000;
   const debut = Date.now();
@@ -3341,7 +3337,13 @@ async function forcerRechargementSansCache(){
       const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
       const versionServeur = correspondance ? correspondance[1] : null;
       if(versionServeur && versionServeur !== VERSION){
-        location.replace(urlFraiche);
+        badge.classList.remove("appui-long-ok");
+        majBadgeVersion();
+        demanderConfirmation(
+          `Version ${versionServeur} disponible`,
+          `Le serveur propose la v${versionServeur} (tu as la v${VERSION}). Pour être sûr de bien la charger : ferme complètement l'app (pas juste cet onglet — quitte vraiment Safari ou retire-la du multitâche), attends quelques secondes, puis rouvre-la. Un simple rechargement dans l'onglet retombe parfois encore sur l'ancienne version, le temps que les serveurs de GitHub se synchronisent entre eux.`,
+          ()=>{}
+        );
         return;
       }
     }catch(e){
@@ -3352,7 +3354,7 @@ async function forcerRechargementSansCache(){
     if(Date.now() - debut >= DUREE_MAX){
       badge.classList.remove("appui-long-ok","verification-en-cours");
       majBadgeVersion();
-      toast(`Toujours la v${VERSION} après 2 minutes — le déploiement GitHub Pages n'a peut-être pas encore abouti, réessaie plus tard`);
+      toast(`Toujours la v${VERSION} après 2 minutes — réessaie plus tard`);
       return;
     }
     toast("Toujours la même version — nouvelle vérification dans 10 s…");

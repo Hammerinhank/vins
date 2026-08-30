@@ -99,6 +99,13 @@
     color:#F5B8A5;
     font-weight:600;
   }
+  .version-badge.appui-long-ok{
+    background:#2F6FED !important;
+    border-color:#2F6FED !important;
+    color:#fff !important;
+    font-weight:600;
+    transition:background .1s ease, border-color .1s ease;
+  }
   .version-badge:disabled{opacity:.7;}
 
   /* ---------- Stats bar ---------- */
@@ -1091,8 +1098,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.48";
+const VERSION = "1.10.49";
 const HISTORY = [
+  { version:"1.10.49", date:"2026-08-29", notes:"L'appui long sur le badge de version passe désormais brièvement le badge en bleu, pour confirmer visuellement que le rechargement forcé (contournement du cache) a bien été pris en compte." },
   { version:"1.10.48", date:"2026-08-29", notes:"Correction : le badge de version distingue maintenant l'appui normal (historique des versions, comportement inchangé depuis toujours — ou envoi si « à sauvegarder ») de l'appui long (~500 ms), qui force le rechargement de l'app en contournant le cache du navigateur." },
   { version:"1.10.47", date:"2026-08-29", notes:"Appuyer sur le badge de version, quand il affiche le numéro de version (donc hors cas « à sauvegarder »), force désormais un rechargement de l'app en contournant le cache du navigateur (vidage des caches éventuels, désinscription d'éventuels service workers, puis rechargement avec un paramètre unique dans l'URL, en conservant ?edition/?apercu s'ils étaient présents) — pour obtenir la dernière version sans manipulation. Cela remplace l'ancien comportement de ce tap, qui ouvrait l'historique des versions." },
   { version:"1.10.46", date:"2026-08-29", notes:"Deux ajouts, sans rien changer à l'existant : (1) nouvel onglet « 📊 Statistiques » (page ouverte par l'icône bouteille) avec vue d'ensemble, répartitions par couleur/région/domaine, classements (meilleures notes chiffrées, meilleur rapport qualité/prix) et rythme de consommation par année ; (2) sécurité supplémentaire avant tout envoi vers GitHub — si une version distante plus récente, faite ailleurs, n'a pas été prise en compte ici, une confirmation est demandée avant d'écraser (comportement inchangé dans le cas normal, sans conflit)." },
@@ -2952,6 +2960,9 @@ function demarrerAppuiLongBadge(x, y){
   badgeAppuiLongTimer = setTimeout(()=>{
     badgeAppuiLongDeclenche = true;
     if(navigator.vibrate) navigator.vibrate(15);
+    const badge = document.getElementById("versionBadge");
+    badge.classList.add("appui-long-ok");
+    setTimeout(()=>badge.classList.remove("appui-long-ok"), 1000);
     forcerRechargementSansCache();
   }, DUREE_APPUI_LONG_BADGE);
 }

@@ -409,6 +409,9 @@
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .field{display:flex;flex-direction:column;gap:3px;}
   .field label{font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+  .field-label-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .field-label-row label{flex:1;min-width:0;}
+  .field-label-row .btn{flex:none;padding:3px 10px;font-size:11.5px;}
   .field input, .field select, .field textarea{
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
     padding:7px 10px;border-radius:8px;font-size:14.5px;
@@ -1082,6 +1085,24 @@
   </div>
 </div>
 
+<!-- Modal aperçu du texte par défaut codé en dur (boutons Init des deux questions IA) -->
+<div class="overlay" id="overlayDefautQuestion">
+  <div class="modal verif-texte-box">
+    <div class="modal-header">
+      <h2>Texte par défaut</h2>
+      <button class="modal-close" id="closeDefautQuestion" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans rien changer.">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="panel-note">Voici le texte par défaut codé en dur dans l'application. Si tu ne fais pas Annuler, il remplacera le texte actuellement présent dans le champ.</p>
+      <textarea id="defautQuestionTexte" readonly rows="10" class="journal-textarea" data-tt-titre="Texte par défaut" data-tt-desc="Texte par défaut codé en dur, tel qu'il sera appliqué au champ si tu confirmes."></textarea>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn btn-ghost" id="btnDefautQuestionAnnuler" type="button" data-tt-titre="Annuler" data-tt-desc="Ferme cette fenêtre sans rien changer au champ.">Annuler</button>
+        <button class="btn btn-gold" id="btnDefautQuestionRevenir" type="button" data-tt-titre="Revenir au texte par défaut" data-tt-desc="Remplace le texte actuellement dans le champ par le texte par défaut affiché ci-dessus.">Revenir au texte par défaut</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Page paramètres / saisie rapide -->
 <div class="page-parametres" id="pageParametres" style="display:none;">
   <div class="page-top-sticky">
@@ -1196,11 +1217,17 @@
       </div>
     </div>
     <div class="field">
-      <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
+      <div class="field-label-row">
+        <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
+        <button class="btn btn-sm btn-ghost" id="btnInitQuestionChatGPT" type="button" data-tt-titre="Init" data-tt-desc="Affiche le texte par défaut codé en dur et propose de l'appliquer à ce champ.">Init</button>
+      </div>
       <textarea id="paramQuestionChatGPT" rows="4" data-tt-titre="Question d'identification" data-tt-desc="Texte envoyé à l'assistant IA avec la photo pour identifier un vin."></textarea>
     </div>
     <div class="field">
-      <label>Deuxième question envoyée à l'assistant (avis sur un vin)</label>
+      <div class="field-label-row">
+        <label>Deuxième question envoyée à l'assistant (avis sur un vin)</label>
+        <button class="btn btn-sm btn-ghost" id="btnInitQuestionAvis" type="button" data-tt-titre="Init" data-tt-desc="Affiche le texte par défaut codé en dur et propose de l'appliquer à ce champ.">Init</button>
+      </div>
       <textarea id="paramQuestionAvis" rows="4" data-tt-titre="Question d'avis" data-tt-desc="Texte envoyé à l'assistant IA pour demander un avis sur un vin."></textarea>
     </div>
     <div class="field">
@@ -1286,8 +1313,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.87";
+const VERSION = "1.10.88";
 const HISTORY = [
+  { version:"1.10.88", date:"2026-08-31", notes:"Nouveau texte par défaut codé en dur pour la question d'identification par photo (demande désormais explicitement Nom/Domaine/Étiquette/Millésime/Région dans un format précis). Ajout d'un bouton « Init » à droite de chacune des deux questions IA (identification et avis) : il ouvre une fenêtre affichant le texte par défaut codé en dur, avec Annuler ou Revenir au texte par défaut — ce dernier remplace le texte actuellement dans le champ correspondant (à Enregistrer ensuite pour le sauvegarder)."},
   { version:"1.10.87", date:"2026-08-31", notes:"La fonction « Identifier avec ChatGPT/Claude » reconnaît désormais aussi le mot-clé « Région : » dans la réponse copiée de l'assistant IA, exactement comme pour Nom/Domaine/Millésime/Étiquette : la valeur trouvée est proposée dans la fenêtre de vérification puis appliquée au champ Région de la fiche (sans écraser une valeur déjà présente en cas de mise à jour d'une fiche existante)."},
   { version:"1.10.86", date:"2026-08-31", notes:"Le regroupement et le tri de la liste (jusqu'ici réinitialisés à chaque rechargement) sont désormais persistés comme les autres réglages : enregistrés localement et synchronisés sur GitHub (cave-reglages.json) à chaque changement, rechargés au lancement. Ajout d'un système d'infobulles « post-it » sur la quasi-totalité des champs et boutons de l'app (en-tête, barre d'outils, fiche détail, toutes les pages de Paramètres, cartes de la grille, historique des versions…) : un nom et une courte description apparaissent après 3 secondes de survol immobile de la souris, et n'apparaissent jamais sur un appareil tactile (iPhone/iPad) — la détection se fait par capacité de survol réel, pas seulement par un masquage visuel."},
   { version:"1.10.85", date:"2026-08-30", notes:"Refonte de la synchronisation au lancement : la vérification GitHub (devenue double par erreur) est unifiée en un seul passage, qui teste maintenant cave.json ET les réglages. GitHub n'est considéré injoignable qu'en cas de vraie panne (réseau/statut d'erreur) — un fichier simplement absent (première utilisation) n'en fait plus partie. Sur vraie panne : message bloquant détaillant la raison + passage en mode consultation, désormais verrouillé pour toute la session (impossible d'y échapper même si GitHub redevient joignable entre-temps, y compris via ?edition) jusqu'à relance complète de l'app, avec une bannière permanente qui le rappelle en plus du badge. Sur succès mais modifications locales non envoyées : ne plus jamais écraser silencieusement — la fenêtre de conflit détaillée (vins/bouteilles des deux côtés, date), déjà utilisée à l'envoi mais orpheline jusqu'ici, s'affiche aussi au lancement pour trancher explicitement ; si GitHub n'a en réalité pas bougé depuis la dernière synchro connue, les modifications locales sont simplement conservées sans question inutile. Corrigé au passage : la restauration d'une version distante appelait une fonction marquerDirty() inexistante, qui interrompait silencieusement la suite (proposition d'envoi immédiat jamais affichée)."},
@@ -1454,7 +1482,7 @@ let numeroFicheCourant = null;   // numéro proposé/en cours pour la fiche ouve
 let marqueFicheCourante = false; // état "marqué" (repère jaune) du vin actuellement ouvert dans la fiche, pour l'affichage du badge N°
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
-const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
+const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : » et ajoute après « étiquette : » tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible . Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins.`;
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par deux lignes séparées, au format exact : « Note : X/5 » (ta note sur 5) et « Prix : Y € » (un prix indicatif au détail).";
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
@@ -3290,6 +3318,31 @@ document.getElementById("btnInitRegions").addEventListener("click", function(){
   construireSelectRegionsParametres();
   construireSelectRegionFiche();
   toast(regionsListe.length ? `${regionsListe.length} région(s) trouvée(s) — touche Enregistrer pour les sauvegarder` : "Aucune région trouvée dans les fiches");
+});
+
+/* ---- Aperçu / restauration du texte par défaut codé en dur, pour chacune des deux questions IA ---- */
+let champCibleDefautQuestion = null;
+let texteCibleDefautQuestion = "";
+function ouvrirApercuDefautQuestion(champId, texteDefaut){
+  champCibleDefautQuestion = champId;
+  texteCibleDefautQuestion = texteDefaut;
+  document.getElementById("defautQuestionTexte").value = texteDefaut;
+  document.getElementById("overlayDefautQuestion").classList.add("show");
+}
+document.getElementById("btnInitQuestionChatGPT").addEventListener("click", ()=>{
+  ouvrirApercuDefautQuestion("paramQuestionChatGPT", QUESTION_CHATGPT_DEFAUT);
+});
+document.getElementById("btnInitQuestionAvis").addEventListener("click", ()=>{
+  ouvrirApercuDefautQuestion("paramQuestionAvis", QUESTION_AVIS_DEFAUT);
+});
+document.getElementById("closeDefautQuestion").addEventListener("click", ()=>document.getElementById("overlayDefautQuestion").classList.remove("show"));
+document.getElementById("btnDefautQuestionAnnuler").addEventListener("click", ()=>document.getElementById("overlayDefautQuestion").classList.remove("show"));
+document.getElementById("btnDefautQuestionRevenir").addEventListener("click", ()=>{
+  if(champCibleDefautQuestion){
+    document.getElementById(champCibleDefautQuestion).value = texteCibleDefautQuestion;
+  }
+  document.getElementById("overlayDefautQuestion").classList.remove("show");
+  toast("Texte par défaut appliqué — touche Enregistrer pour le sauvegarder");
 });
 
 function selectionnerAssistant(cle){

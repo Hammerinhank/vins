@@ -1229,8 +1229,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.80";
+const VERSION = "1.10.82";
 const HISTORY = [
+  { version:"1.10.82", date:"2026-08-30", notes:"Retiré toute logique qui décidait ou orientait une action en fonction du nombre de vins ou de bouteilles (plus ou moins qu'une autre version) — que ce soit pour bloquer un envoi, déclencher une fenêtre d'alerte, ou recommander un choix dans la fenêtre de conflit. Le seul critère retenu, neutre, est désormais : cette sauvegarde distante correspond-elle à la dernière connue de cet appareil ou non — si non, la question est posée avec les faits (dates, décomptes des deux côtés), sans jugement ni suggestion sur laquelle garder. Une version avec moins de vins qu'une précédente est un choix légitime comme un autre." },
+  { version:"1.10.81", date:"2026-08-30", notes:"Corrigé un piège sérieux : après avoir confirmé « Envoyer cette version restaurée » ou « Garder mes modifications locales », l'envoi repassait par la vérification de conflit normale — qui, si la version choisie avait moins de vins que ce qui restait sur GitHub, redemandait une SECONDE confirmation différente, facile à manquer. Résultat possible : l'utilisateur croit avoir envoyé alors que rien n'est parti (repéré via une date de sauvegarde GitHub inchangée après confirmation). Ces deux cas envoient désormais directement, sans repasser par cette vérification redondante — le choix explicite déjà fait par l'utilisateur est respecté sans nouvelle question." },
   { version:"1.10.80", date:"2026-08-30", notes:"Clarifié la logique de vérification de version (appui long), qui mélangeait les deux mécanismes : désormais deux phases bien distinctes. Phase 1, accès rapide (API GitHub) : une seule requête pour savoir si une version différente existe — arrêt immédiat si non, sans scrutin inutile. Phase 2, accès lent (URL publiée) : démarre uniquement si la phase 1 a confirmé une version différente, scrute alors l'URL toutes les 10 s (abandon au bout de 2 min) pour savoir précisément quand cette version devient réellement servie, avant d'inviter à fermer/rouvrir l'app." },
   { version:"1.10.79", date:"2026-08-30", notes:"Le numéro de version de l'app est désormais toujours visible, sans exception : dans le badge, même quand il affiche « à sauvegarder » ou une erreur (auparavant masqué dans ces deux états) ; et en tête de la page Diagnostic, en évidence (« Version de l'app en cours d'exécution : vX.Y.Z »). Objectif : pouvoir vérifier à tout moment, sans ambiguïté, quelle version tourne réellement." },
   { version:"1.10.78", date:"2026-08-30", notes:"« Garder mes modifications locales » (fenêtre de conflit de synchronisation) propose désormais explicitement d'envoyer immédiatement vers GitHub, comme pour la restauration — pour éviter qu'un rechargement ultérieur, avant tout envoi, ne pose à nouveau la même question et ne finisse par écraser accidentellement le bon choix (piège identifié après une double perte du même ensemble de vins restauré)." },
@@ -3559,19 +3561,16 @@ async function lancerEnvoiVersGitHub(){
       logAjouter(`→ Contenu distant actuel : ${donneesDistantes ? (donneesDistantes.bottles||[]).length + " vin(s), maj=" + donneesDistantes.maj + ", origine=" + donneesDistantes.origine : "non décodable"} · sha=${sha}`);
       if(donneesDistantes){
         const connue = lireDerniereMajConnue();
-        const estDifferenteDeNousMemes = donneesDistantes.origine && donneesDistantes.origine !== INSTANCE_ID;
         const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
-        logAjouter(`→ INSTANCE_ID=${INSTANCE_ID} · dernière maj connue=${connue ? connue.maj + " (origine " + connue.origine + ")" : "aucune"} · estDifferenteDeNousMemes=${estDifferenteDeNousMemes} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
-        const distantAPlusDeVins = (donneesDistantes.bottles||[]).length > bottles.length;
-        if((estDifferenteDeNousMemes && estNonPriseEnCompte) || (!estDifferenteDeNousMemes && distantAPlusDeVins)){
+        logAjouter(`→ dernière maj connue=${connue ? connue.maj : "aucune"} · maj distante=${donneesDistantes.maj} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
+        if(estNonPriseEnCompte){
           btn.disabled = false;
-          statusEl.textContent = "Envoi interrompu — version distante plus récente détectée.";
-          logAjouter(`→ ARRÊT : fenêtre de conflit affichée (distantAPlusDeVins=${distantAPlusDeVins}), envoi suspendu en attente de confirmation.`);
+          statusEl.textContent = "Envoi interrompu — version distante non prise en compte détectée.";
+          logAjouter("→ ARRÊT : fenêtre de conflit affichée, envoi suspendu en attente de confirmation.");
+          const dateDistante = donneesDistantes.maj ? new Date(donneesDistantes.maj).toLocaleString("fr-FR") : "date inconnue";
           demanderConfirmation(
-            "Version distante plus récente",
-            estDifferenteDeNousMemes
-              ? "Une version plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale ?"
-              : `La version sur GitHub (envoyée par cet appareil) contient plus de vins (${(donneesDistantes.bottles||[]).length}) que ta version locale actuelle (${bottles.length}) — tes données locales semblent incomplètes par rapport à ce que tu as déjà sauvegardé. Écraser quand même GitHub avec la version locale (moins complète) ?`,
+            "Version distante différente",
+            `Une version différente existe sur GitHub (${(donneesDistantes.bottles||[]).length} vin(s), enregistrée le ${dateDistante}), et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale (${bottles.length} vin(s)) ?`,
             ()=>effectuerEnvoiVersGitHub(cfg, sha)
           );
           return;
@@ -3589,6 +3588,45 @@ async function lancerEnvoiVersGitHub(){
     return;
   }
   logAjouter("→ Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().");
+  effectuerEnvoiVersGitHub(cfg, sha);
+}
+
+/* Envoie directement vers GitHub, SANS repasser par la vérification de conflit de lancerEnvoiVersGitHub().
+   Réservé aux cas où l'utilisateur vient déjà de faire un choix explicite via une fenêtre dédiée
+   (restauration d'une version, ou « Garder mes modifications locales » après un conflit) : redemander
+   confirmation à ce moment-là est redondant et prête à confusion — l'utilisateur peut manquer cette
+   seconde question, laissant croire à tort que l'envoi a eu lieu alors que rien n'est parti (piège
+   réellement rencontré). On récupère seulement le sha courant (nécessaire pour la mise à jour), sans
+   comparaison ni fenêtre supplémentaire. */
+async function envoyerDirectementVersGitHub(){
+  const cfg = lireChampsConfig();
+  const statusEl = document.getElementById("syncStatus");
+  logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}`);
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    logAjouter("→ ARRÊT : configuration GitHub incomplète.");
+    toast("Renseigne utilisateur, dépôt et jeton");
+    marquerErreurSynchro();
+    return;
+  }
+  let sha = null;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+    logAjouter(`→ Lecture du sha courant : statut ${getRes.status}`);
+    if(getRes.status === 200){
+      const info = await getRes.json();
+      sha = info.sha;
+    }else if(getRes.status !== 404){
+      throw new Error("Lecture impossible (" + getRes.status + ")");
+    }
+  }catch(err){
+    logAjouter("→ ERREUR pendant la lecture du sha : " + (err && err.message ? err.message : String(err)));
+    if(statusEl) statusEl.textContent = "Échec de la vérification : " + err.message;
+    toast("Échec de l'envoi vers GitHub");
+    marquerErreurSynchro();
+    return;
+  }
+  logAjouter("→ Envoi direct, sans re-vérification de conflit (choix déjà fait explicitement).");
   effectuerEnvoiVersGitHub(cfg, sha);
 }
 
@@ -3664,15 +3702,14 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
     `${bottles.length} vin(s) enregistré(s) · ${totalLocal} bouteille(s) en cave · <span class="maj">modifications non envoyées</span>`;
   document.getElementById("conflitSyncDetailDistant").innerHTML =
     `${distantes.length} vin(s) enregistré(s) · ${totalDistant} bouteille(s) en cave · sauvegardée le <span class="maj">${escapeHtml(dateDistante)}</span>`;
-  document.getElementById("conflitSyncConseil").textContent = bottles.length >= distantes.length
-    ? "💡 Ta version locale contient autant ou plus de vins que celle sur GitHub : dans la majorité des cas, c'est donc elle qui correspond à tes dernières saisies — mieux vaut la garder, puis l'envoyer ensuite avec le bouton « Envoyer vers GitHub »."
-    : "💡 La version sur GitHub contient plus de vins que ta version locale : vérifie qu'elle ne provient pas d'ajouts récents faits ailleurs avant de l'écraser.";
+  document.getElementById("conflitSyncConseil").textContent =
+    "💡 C'est à toi de choisir laquelle correspond à ce que tu veux garder — le nombre de vins ou de bouteilles ne permet pas de deviner ça à ta place.";
   document.getElementById("btnConflitGarderLocal").onclick = ()=>{
     document.getElementById("overlayConflitSync").classList.remove("show");
     demanderConfirmation(
       "Envoyer tes modifications locales ?",
       "Tes modifications locales sont conservées sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer maintenant, pour que ce choix survive au prochain rechargement ?",
-      ()=>lancerEnvoiVersGitHub()
+      ()=>envoyerDirectementVersGitHub()
     );
   };
   document.getElementById("btnConflitUtiliserDistant").onclick = ()=>{
@@ -3717,17 +3754,16 @@ async function verifierGitHubAuLancement(){
       toast(msg + ` — app v${VERSION}`);
     }
 
-    if(origineDistante === INSTANCE_ID){
-      // Notre propre dernier envoi — SAUF si le local a depuis moins de vins que ce que cet appareil a
-      // lui-même déjà envoyé (données locales endommagées ou perdues entre deux sessions, cas
-      // réellement rencontré) : dans ce cas précis, mieux vaut prévenir que d'ignorer silencieusement,
-      // sous peine d'écraser ensuite cette sauvegarde plus complète lors d'un prochain envoi.
-      if(distantes.length > bottles.length){
-        logAjouter(`⚠️ Le local (${bottles.length} vin(s)) a MOINS de vins que la dernière sauvegarde envoyée par cet appareil (${distantes.length} vin(s)) — fenêtre d'alerte affichée plutôt que de continuer silencieusement.`);
-        afficherConflitSync(distantes, data, ()=>appliquerDistantes("Cave restaurée depuis GitHub (données locales incomplètes détectées)"));
-      }else{
-        logAjouter("→ Origine distante = cet appareil, et le local n'a pas moins de vins : rien à faire.");
-      }
+    // Seul critère retenu, volontairement neutre (jamais basé sur le nombre de vins ni sur qui a fait
+    // l'envoi) : cette sauvegarde distante correspond-elle à la dernière que cet appareil sait déjà
+    // avoir prise en compte (envoyée ou récupérée) ? Si oui, rien à faire. Si non — qu'elle vienne d'un
+    // autre appareil ou de cet appareil-ci à un autre moment —, il y a un doute réel, donc on pose la
+    // question plutôt que de décider (ou d'ignorer) à la place de l'utilisateur.
+    const connue = lireDerniereMajConnue();
+    const estNonPriseEnCompte = data.maj && (!connue || connue.maj !== data.maj);
+    logAjouter(`→ dernière maj connue=${connue ? connue.maj : "aucune"} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
+    if(!estNonPriseEnCompte){
+      logAjouter("→ Cette sauvegarde est déjà connue de cet appareil : rien à faire.");
       return;
     }
 
@@ -3997,7 +4033,7 @@ async function restaurerVersion(sha, btn){
       demanderConfirmation(
         "Envoyer cette version restaurée ?",
         "La cave a été restaurée sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer cette version restaurée vers GitHub maintenant ?",
-        ()=>lancerEnvoiVersGitHub()
+        ()=>envoyerDirectementVersGitHub()
       );
       btn.disabled = false;
     }

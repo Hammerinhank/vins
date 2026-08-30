@@ -447,7 +447,7 @@
     font-family:'IBM Plex Mono',monospace;
   }
   .quantite-row{display:flex;align-items:center;gap:8px;}
-  .quantite-row input{flex:1;min-width:0;text-align:center;}
+  .quantite-row input{flex:none;width:52px;min-width:0;text-align:center;padding-left:4px;padding-right:4px;}
   .qty-btn-fiche{
     flex:none;width:34px;height:34px;
     border:1px solid var(--line);background:var(--bg-panel-2);color:var(--text);
@@ -1098,8 +1098,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.50";
+const VERSION = "1.10.51";
 const HISTORY = [
+  { version:"1.10.51", date:"2026-08-29", notes:"Le champ « Quantité en cave » est réduit à une largeur fixe adaptée à 2 chiffres (au lieu de s'étirer sur toute la largeur disponible), ce qui rapproche aussi le bouton « + » au lieu de le laisser trop à droite." },
   { version:"1.10.50", date:"2026-08-29", notes:"Corrigé : le passage en bleu du badge lors de l'appui long n'était pas perceptible car le rechargement pouvait survenir avant que le navigateur n'ait eu l'occasion d'afficher le changement de couleur. Un court délai (0,5 s) est désormais intercalé entre l'affichage du bleu et le déclenchement effectif du rechargement." },
   { version:"1.10.49", date:"2026-08-29", notes:"L'appui long sur le badge de version passe désormais brièvement le badge en bleu, pour confirmer visuellement que le rechargement forcé (contournement du cache) a bien été pris en compte." },
   { version:"1.10.48", date:"2026-08-29", notes:"Correction : le badge de version distingue maintenant l'appui normal (historique des versions, comportement inchangé depuis toujours — ou envoi si « à sauvegarder ») de l'appui long (~500 ms), qui force le rechargement de l'app en contournant le cache du navigateur." },

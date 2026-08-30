@@ -912,7 +912,7 @@
       "nom": "Riesling Grand Cru Kaefferkopf (Alsace Grand Cru)",
       "domaine": "Henri Ehrhart",
       "appellation": "",
-      "region": "",
+      "region": "Alsace",
       "pays": "France",
       "couleur": "rouge",
       "millesime": "",
@@ -964,6 +964,6 @@
       "marque": true
     }
   ],
-  "maj": "2026-08-30T14:31:42.963Z",
+  "maj": "2026-08-30T14:58:59.002Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

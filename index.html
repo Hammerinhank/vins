@@ -1223,8 +1223,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.69";
+const VERSION = "1.10.70";
 const HISTORY = [
+  { version:"1.10.70", date:"2026-08-29", notes:"L'appui long interroge maintenant directement l'API GitHub (accès « rapide », qui reflète le dernier commit en moins d'une seconde) plutôt que l'URL publiée de la page (accès « lent », soumis à la mise à disposition de GitHub Pages qui peut prendre 30 à 40 secondes) — d'où la disparition du scrutin toutes les 10 secondes, devenu inutile puisque la réponse rapide est immédiate et fiable. Si une version plus récente existe sur le dépôt, l'app le dit clairement et invite à attendre un peu avant de fermer/rouvrir, plutôt que de chercher en boucle une URL pas encore à jour." },
   { version:"1.10.69", date:"2026-08-29", notes:"L'appui long sur le badge ne recharge plus automatiquement la page — observé peu fiable en pratique (une nouvelle version détectée par la vérification pouvait, l'instant d'après, être suivie d'une navigation retombant sur l'ancienne, les serveurs de GitHub Pages n'étant pas toujours synchronisés entre eux juste après un envoi). Il vérifie désormais seulement si une nouvelle version existe (même scrutin, toutes les 10 s pendant 2 min maximum) et, si oui, affiche une directive claire : fermer complètement l'app puis la rouvrir — méthode manuelle mais fiable pour être sûr de charger la nouvelle version." },
   { version:"1.10.68", date:"2026-08-29", notes:"Pendant le scrutin de l'appui long, le badge s'entoure d'un liseré orange le temps exact de chaque requête réseau vers GitHub (du départ de la vérification à la réponse), en plus du fond bleu qui reste affiché pendant tout le scrutin — de quoi visualiser si les 10 secondes entre deux vérifications sont pertinentes par rapport à la durée réelle de chacune." },
   { version:"1.10.67", date:"2026-08-29", notes:"L'appui long sur le badge de version (rechargement forcé) revérifie désormais toutes les 10 secondes si une nouvelle version est apparue sur GitHub, et abandonne au bout de 2 minutes maximum si ce n'est toujours pas le cas — utile quand le déploiement GitHub Pages met un peu de temps. Dès qu'une version différente est détectée, le rechargement se fait immédiatement ; sinon, l'app reste sur l'ancienne version en le signalant clairement." },
@@ -3292,21 +3293,12 @@ versionBadgeEl.addEventListener("click", ()=>{
   `).join("");
   document.getElementById("overlayHistory").classList.add("show");
 });
-/* Force le rechargement de l'app en contournant le cache du navigateur (Safari/Chrome gardent parfois
-   une ancienne version en cache sur cette page hébergée sur GitHub Pages) : vide les éventuels caches
-   (Cache API), désinscrit d'éventuels service workers, PUIS vérifie par une requête réseau explicite
-   (cache:"no-store", donc jamais servie depuis un cache local) si le fichier réellement présent sur le
-   serveur affiche une version différente de celle en cours d'exécution. Ce n'est que dans ce cas qu'on
-   recharge — sinon, le problème n'est pas un cache du navigateur mais un déploiement GitHub Pages pas
-   encore terminé, et on le dit clairement plutôt que de recharger pour rien sur la même vieille version. */
-let rechargementEnCoursId = 0; // incrémenté à chaque nouveau cycle, invalide les scrutins précédents encore en attente
-/* Vérifie si une nouvelle version est servie par GitHub Pages — sans jamais recharger automatiquement.
-   Un rechargement automatique déclenché ici s'est révélé peu fiable : juste après un envoi, les
-   différents serveurs de GitHub Pages peuvent mettre un moment à se synchroniser entre eux, si bien
-   que la vérification peut trouver la nouvelle version alors que la navigation qui suit immédiatement
-   retombe sur l'ancienne (chacune peut être servie par un serveur différent). Plutôt que de laisser
-   croire à un rechargement fiable qui ne l'est pas, on se contente de vérifier et d'indiquer clairement
-   la marche à suivre pour charger la nouvelle version à coup sûr. */
+/* Vérifie si une nouvelle version a été enregistrée sur GitHub — en interrogeant directement l'API
+   GitHub (accès « rapide », qui reflète le dernier commit en moins d'une seconde), et non l'URL publiée
+   de la page (accès « lent », qui passe par la mise à disposition de GitHub Pages et peut prendre 30 à
+   40 secondes après un envoi). On sait donc immédiatement et de façon fiable si une version plus
+   récente existe — la seule incertitude qui subsiste ensuite est le délai avant qu'elle soit servie par
+   l'URL habituelle, d'où la directive donnée à l'utilisateur plutôt qu'un rechargement automatique. */
 async function verifierNouvelleVersionDisponible(){
   if(!navigator.onLine){
     document.getElementById("versionBadge").classList.remove("appui-long-ok");
@@ -3314,55 +3306,39 @@ async function verifierNouvelleVersionDisponible(){
     toast("Hors ligne — impossible de vérifier une nouvelle version pour l'instant");
     return;
   }
+  const badge = document.getElementById("versionBadge");
+  // Convention GitHub Pages pour une page utilisateur : le dépôt s'appelle exactement <utilisateur>.github.io,
+  // servi à la racine — on peut donc déduire propriétaire/dépôt/chemin du fichier directement de l'URL en
+  // cours, sans dépendre de la configuration de synchronisation (utile même si elle n'est pas renseignée).
+  const proprietaire = location.hostname.split(".")[0];
+  const depot = location.hostname;
+  const cheminFichier = decodeURIComponent(location.pathname.replace(/^\//, "")) || "index.html";
 
-  // Scrutin périodique : la nouvelle version peut mettre un moment à être servie par GitHub Pages après
-  // un envoi. On revérifie toutes les 10 s (requête toujours cache:"no-store", jamais depuis un cache),
-  // et on abandonne au bout de 2 minutes maximum si rien de nouveau n'apparaît.
-  const DELAI_ENTRE_TENTATIVES = 10000;
-  const DUREE_MAX = 120000;
-  const debut = Date.now();
-  const monId = ++rechargementEnCoursId;
-
-  async function tenter(){
-    if(monId !== rechargementEnCoursId) return; // un nouvel appui long a pris le relais entre-temps
-    const badge = document.getElementById("versionBadge");
-    const parametresUrl = new URLSearchParams(location.search);
-    parametresUrl.set("_", Date.now());
-    const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
-    badge.classList.add("verification-en-cours"); // liseré orange le temps de la requête réseau elle-même
-    try{
-      const reponse = await fetch(urlFraiche, { cache: "no-store" });
-      const texte = await reponse.text();
-      badge.classList.remove("verification-en-cours");
-      const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
-      const versionServeur = correspondance ? correspondance[1] : null;
-      if(versionServeur && versionServeur !== VERSION){
-        badge.classList.remove("appui-long-ok");
-        majBadgeVersion();
-        demanderConfirmation(
-          `Version ${versionServeur} disponible`,
-          `Le serveur propose la v${versionServeur} (tu as la v${VERSION}). Pour être sûr de bien la charger : ferme complètement l'app (pas juste cet onglet — quitte vraiment Safari ou retire-la du multitâche), attends quelques secondes, puis rouvre-la. Un simple rechargement dans l'onglet retombe parfois encore sur l'ancienne version, le temps que les serveurs de GitHub se synchronisent entre eux.`,
-          ()=>{}
-        );
-        return;
-      }
-    }catch(e){
-      badge.classList.remove("verification-en-cours");
-      // Échec réseau ponctuel : on continue les tentatives suivantes plutôt que d'abandonner tout de suite.
+  toast("Vérification directe auprès de GitHub (accès rapide)…");
+  badge.classList.add("verification-en-cours");
+  try{
+    const url = `https://api.github.com/repos/${proprietaire}/${depot}/contents/${encodeURIComponent(cheminFichier)}`;
+    const res = await fetch(url, { headers: { "Accept": "application/vnd.github.raw+json" }, cache: "no-store" });
+    badge.classList.remove("verification-en-cours","appui-long-ok");
+    majBadgeVersion();
+    if(!res.ok) throw new Error("Statut HTTP " + res.status);
+    const texte = await res.text();
+    const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
+    const versionDepot = correspondance ? correspondance[1] : null;
+    if(versionDepot && versionDepot !== VERSION){
+      demanderConfirmation(
+        `Version ${versionDepot} disponible`,
+        `Le dépôt GitHub contient déjà la v${versionDepot} (tu utilises la v${VERSION}) — elle est bien enregistrée, mais peut mettre 30 à 40 secondes à être servie par l'URL habituelle. Attends un peu, puis ferme complètement l'app (pas juste cet onglet — quitte vraiment Safari ou retire-la du multitâche) et rouvre-la pour être sûr de la charger.`,
+        ()=>{}
+      );
+    }else{
+      toast(`Tu es déjà sur la dernière version enregistrée (v${VERSION})`);
     }
-    if(monId !== rechargementEnCoursId) return;
-    if(Date.now() - debut >= DUREE_MAX){
-      badge.classList.remove("appui-long-ok","verification-en-cours");
-      majBadgeVersion();
-      toast(`Toujours la v${VERSION} après 2 minutes — réessaie plus tard`);
-      return;
-    }
-    toast("Toujours la même version — nouvelle vérification dans 10 s…");
-    setTimeout(tenter, DELAI_ENTRE_TENTATIVES);
+  }catch(err){
+    badge.classList.remove("verification-en-cours","appui-long-ok");
+    majBadgeVersion();
+    toast("Échec de la vérification directe auprès de GitHub — réessaie plus tard");
   }
-
-  toast("Vérification de la dernière version…");
-  tenter();
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 

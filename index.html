@@ -1225,7 +1225,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-(function(){
+// CHATGPT (function(){
+(async function(){    // CHATGPT
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
@@ -2973,6 +2974,42 @@ function majLibelleAssistant(){
 /* Recalcule MODE_EDITION à partir de l'URL et de la limitation, puis (dés)applique le verrouillage de la
    fiche et l'affichage des boutons/panneaux d'édition. Réversible : peut être rappelée à tout moment
    (changement du réglage, retour de la synchro GitHub) sans laisser l'interface dans un état incohérent. */
+
+
+function passerEnModeConsultationHorsLigne(){  //CHATGPT
+  MODE_EDITION = false;
+  document.body.classList.add("mode-consultation");
+  document.body.classList.remove("mode-edition");
+
+  appliquerModeEdition();
+
+  const badge = document.getElementById("versionBadge");
+  if(badge){
+    badge.classList.add("error");
+    badge.title = "Mode consultation : données locales utilisées";
+  }
+}
+
+
+function informerModeHorsLigne(){  //CHATGPT
+  const nbVins = bottles.length;
+  const nbBouteilles = bottles.reduce(
+    (total, b) => total + (Number(b.quantite) || 0),
+    0
+  );
+
+  alert(
+    "Connexion à GitHub impossible.\n\n" +
+    "L'application fonctionne avec les données enregistrées localement sur cet appareil.\n\n" +
+    "Ces données peuvent ne pas être aussi récentes que celles enregistrées sur GitHub.\n\n" +
+    "La modification des données est donc désactivée et l'application est placée en mode consultation.\n\n" +
+    "Données locales disponibles : " +
+    nbVins + " vin(s), " +
+    nbBouteilles + " bouteille(s)."
+  );
+}
+
+
 function appliquerModeEdition(){
   const parametresUrl = new URLSearchParams(location.search);
   if(parametresUrl.has("apercu")){
@@ -3721,6 +3758,205 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
 document.getElementById("closeConflitSync").addEventListener("click", ()=>document.getElementById("overlayConflitSync").classList.remove("show"));
 
 async function verifierGitHubAuLancement(){
+
+  const cfg = chargerConfig();
+
+  /* -------------------------------------------------------
+     GitHub non configuré
+     ------------------------------------------------------- */
+
+  if(!cfg.user || !cfg.repo || !cfg.token){
+
+    logAjouter(
+      "Synchronisation au lancement impossible : " +
+      "configuration GitHub incomplète."
+    );
+
+    informerModeHorsLigne();
+    passerEnModeConsultationHorsLigne();
+
+    return false;
+  }
+
+
+  try{
+
+    const chemin = cfg.chemin || "cave.json";
+    const branche = cfg.branche || "main";
+
+    const base =
+      `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/` +
+      `${encodeURIComponent(chemin)}`;
+
+    const url =
+      base +
+      "?ref=" + encodeURIComponent(branche) +
+      "&_=" + Date.now();
+
+
+    logAjouter(
+      "Synchronisation automatique au lancement : " +
+      "tentative de récupération GitHub."
+    );
+
+
+    const res = await githubAPI(
+      url,
+      cfg,
+      {
+        headers: {
+          "Accept": "application/vnd.github.raw+json"
+        }
+      }
+    );
+
+
+    /* -------------------------------------------------------
+       GitHub répond mais avec une erreur
+       ------------------------------------------------------- */
+
+    if(!res.ok){
+
+      throw new Error(
+        "GitHub a répondu avec le statut " + res.status
+      );
+    }
+
+
+    /* -------------------------------------------------------
+       Lecture des données GitHub
+       ------------------------------------------------------- */
+
+    const texte = await res.text();
+
+    const data = JSON.parse(texte);
+
+    const distantes = Array.isArray(data.bottles)
+      ? data.bottles
+      : [];
+
+
+    logAjouter(
+      `Synchronisation réussie : ${distantes.length} vin(s) ` +
+      `chargé(s) depuis GitHub.`
+    );
+
+
+    /* -------------------------------------------------------
+       GitHub devient la référence au lancement
+       ------------------------------------------------------- */
+
+    bottles = distantes;
+
+
+    /* -------------------------------------------------------
+       Mise à jour immédiate du localStorage
+       ------------------------------------------------------- */
+
+    sauvegarderBouteilles();
+
+
+    /* -------------------------------------------------------
+       Enregistrement de la version connue
+       ------------------------------------------------------- */
+
+    ecrireDerniereMajConnue(
+      data.maj || null,
+      data.origine || null
+    );
+
+
+    /* -------------------------------------------------------
+       Marquer la synchronisation comme propre
+       ------------------------------------------------------- */
+
+    marquerSynchronise();
+
+
+    /* -------------------------------------------------------
+       Mise à jour interface
+       ------------------------------------------------------- */
+
+    rafraichirTout();
+
+
+    /* -------------------------------------------------------
+       Enregistrer la date de synchronisation
+       ------------------------------------------------------- */
+
+    const cfgSauv = chargerConfig();
+
+    cfgSauv.derniereSync =
+      new Date().toLocaleString("fr-FR");
+
+    sauvegarderConfig(cfgSauv);
+
+
+    const statusEl =
+      document.getElementById("syncStatus");
+
+    if(statusEl){
+
+      statusEl.textContent =
+        "Chargé automatiquement depuis GitHub le " +
+        cfgSauv.derniereSync;
+    }
+
+
+    logAjouter(
+      "Données GitHub appliquées et localStorage mis à jour."
+    );
+
+
+    return true;
+
+
+  }catch(e){
+
+    /* -------------------------------------------------------
+       ÉCHEC RÉSEAU OU GITHUB
+       ------------------------------------------------------- */
+
+    logAjouter(
+      "Synchronisation automatique impossible : " +
+      (
+        e && e.message
+          ? e.message
+          : String(e)
+      )
+    );
+
+
+    const statusEl =
+      document.getElementById("syncStatus");
+
+    if(statusEl){
+
+      statusEl.textContent =
+        "GitHub inaccessible — utilisation des données locales en consultation.";
+    }
+
+
+    /* -------------------------------------------------------
+       Information utilisateur
+       ------------------------------------------------------- */
+
+    informerModeHorsLigne();
+
+
+    /* -------------------------------------------------------
+       Passage forcé en consultation
+       ------------------------------------------------------- */
+
+    passerEnModeConsultationHorsLigne();
+
+
+    return false;
+  }
+}
+
+
+async function verifierGitHubAuLancement_OBSOLETE (){   //CHATGPT
   const cfg = chargerConfig();
   if(!cfg.user || !cfg.repo || !cfg.token){
     logAjouter("verifierGitHubAuLancement() : configuration GitHub incomplète, arrêt.");
@@ -4223,6 +4459,9 @@ majBoutonDernierEmplacement();
 construireSelectRegionFiche();
 construireSelectChampImport();
 majLibelleImportChamp();
+
+await verifierGitHubAuLancement(); // CHATGPT
+
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
@@ -4275,7 +4514,8 @@ recupererReglagesDepuisGitHub().then(distant=>{
   }
 });
 
-verifierGitHubAuLancement();
+// CHATGPT verifierGitHubAuLancement();
+await verifierGitHubAuLancement(); // CHATGPT
 
 })();
 </script>

@@ -29,7 +29,7 @@
     "Val de Loire",
     "Vallée du Rhône"
   ],
-  "groupBy": "aucun",
+  "groupBy": "region",
   "sortKey": "ajout_desc",
-  "maj": "2026-08-30T23:03:28.861Z"
+  "maj": "2026-08-30T23:05:28.841Z"
 }

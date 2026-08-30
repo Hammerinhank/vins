@@ -348,6 +348,20 @@
     font-family:'IBM Plex Mono',monospace !important;font-size:11.5px !important;
     white-space:pre;color:var(--text-muted);min-height:180px;
   }
+  .versions-liste{
+    max-height:380px;overflow-y:auto;
+    border:1px solid var(--line-soft);border-radius:var(--radius);
+    background:var(--bg-panel);
+    -webkit-overflow-scrolling:touch;
+  }
+  .version-item{
+    padding:9px 14px;border-bottom:1px solid var(--line-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .version-item:last-child{border-bottom:none;}
+  .version-item .v-date{color:var(--text);}
+  .version-item .v-count{color:var(--gold-soft);font-weight:600;flex:none;white-space:nowrap;}
   .emplacement-row{display:flex;gap:6px;align-items:stretch;}
   .emplacement-row input, .emplacement-row textarea{flex:1;min-width:0;}
   .emplacement-select{
@@ -391,6 +405,16 @@
     padding:8px 0;border-radius:8px;font-size:14px;text-align:center;
     font-family:'IBM Plex Mono',monospace;
   }
+  .quantite-row{display:flex;align-items:center;gap:8px;}
+  .quantite-row input{flex:1;min-width:0;text-align:center;}
+  .qty-btn-fiche{
+    flex:none;width:34px;height:34px;
+    border:1px solid var(--line);background:var(--bg-panel-2);color:var(--text);
+    border-radius:8px;font-size:17px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .qty-btn-fiche:active{transform:scale(.94);}
+  .qty-btn-fiche:disabled{opacity:.35;}
   .photo-section{display:flex;flex-direction:column;gap:9px;}
   .photo-img{
     width:100%;max-height:240px;object-fit:cover;
@@ -668,7 +692,11 @@
         <div class="field-row">
           <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM"></textarea></div>
           <div class="field"><label>Quantité en cave</label>
-            <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off">
+            <div class="quantite-row">
+              <button type="button" class="qty-btn-fiche" id="btnQuantiteMoins" aria-label="Diminuer la quantité">−</button>
+              <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off">
+              <button type="button" class="qty-btn-fiche" id="btnQuantitePlus" aria-label="Augmenter la quantité">+</button>
+            </div>
             <datalist id="fQuantiteListe">
               <option value="0"></option>
               <option value="1"></option>
@@ -1008,6 +1036,11 @@
       <label>Contenu JSON brut récupéré</label>
       <textarea id="journalJson" readonly rows="10" class="journal-textarea" placeholder="Apparaîtra ici une fois le fichier récupéré."></textarea>
     </div>
+    <p class="panel-note">Liste les versions successives du fichier de sauvegarde sur GitHub (jusqu'aux 30 dernières), avec le nombre de bouteilles enregistrées et la date de chacune.</p>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnListerVersions" type="button">🕘 Lister les versions sauvegardées</button>
+    </div>
+    <div class="versions-liste" id="versionsListe"></div>
   </div>
 </div>
 
@@ -1018,8 +1051,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.41";
+const VERSION = "1.10.43";
 const HISTORY = [
+  { version:"1.10.43", date:"2026-08-29", notes:"Nouveau bouton « 🕘 Lister les versions sauvegardées » sur la page Journal / Diagnostic : parcourt l'historique GitHub du fichier de sauvegarde (jusqu'aux 30 dernières versions) et affiche, pour chacune, le nombre de bouteilles enregistrées et la date/heure de la sauvegarde, dans une liste limitée à 10 lignes visibles avec défilement pour voir le reste." },
+  { version:"1.10.42", date:"2026-08-29", notes:"Le champ « Quantité en cave » de la fiche est encadré de deux boutons +/- pour incrémenter/décrémenter facilement le nombre de bouteilles, tout en gardant la saisie directe d'une valeur possible dans le champ." },
   { version:"1.10.41", date:"2026-08-29", notes:"Corrigé : le défilement automatique vers « Détails complémentaires » remontait un peu trop haut et cachait partiellement le bandeau sous l'en-tête sticky de la fiche. Le décalage est maintenant calculé précisément pour que le bandeau s'arrête juste sous l'en-tête, toujours entièrement visible." },
   { version:"1.10.40", date:"2026-08-29", notes:"Quand on déplie « Détails complémentaires » dans la fiche, celle-ci défile automatiquement pour amener ce titre en haut de la zone visible, au lieu de laisser le contenu déplié s'ouvrir hors champ." },
   { version:"1.10.39", date:"2026-08-29", notes:"Le titre « Détails complémentaires » de la fiche est maintenant en blanc et gras, sur un bandeau horizontal plein toute largeur, pour être bien visible." },
@@ -1940,6 +1975,15 @@ function ouvrirFiche(id){
 }
 
 document.getElementById("btnAjouter").addEventListener("click", ouvrirAjout);
+/* Boutons +/- de la « Quantité en cave » : la saisie directe dans le champ reste toujours possible. */
+document.getElementById("btnQuantiteMoins").addEventListener("click", function(){
+  const input = document.getElementById("fQuantite");
+  input.value = Math.max(0, (parseInt(input.value,10)||0) - 1);
+});
+document.getElementById("btnQuantitePlus").addEventListener("click", function(){
+  const input = document.getElementById("fQuantite");
+  input.value = Math.max(0, (parseInt(input.value,10)||0) + 1);
+});
 /* Quand « Détails complémentaires » se déplie, fait remonter son titre juste sous l'en-tête de la fiche
    (qui reste collé en haut grâce à position:sticky) — un simple scrollIntoView irait trop haut et
    cacherait le bandeau derrière cet en-tête, d'où un calcul manuel du décalage exact. */
@@ -2487,7 +2531,7 @@ function appliquerModeEdition(){
   }
   document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique","fNoteIncertaine"]
+   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique","fNoteIncertaine","btnQuantiteMoins","btnQuantitePlus"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
   ["couleurChoices","starPicker"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";
@@ -2999,6 +3043,70 @@ document.getElementById("btnLancerDiagnostic").addEventListener("click", async f
     journalAjouter("ERREUR : " + (err && err.message ? err.message : String(err)));
     journalAjouter("=== Diagnostic terminé avec échec ===");
     toast("Le diagnostic a rencontré une erreur — voir le journal");
+  }
+  btn.disabled = false;
+});
+
+/* Liste les versions successives (commits) du fichier de sauvegarde sur GitHub : pour chacune,
+   récupère le contenu à ce commit précis pour compter le nombre de bouteilles enregistrées, et
+   affiche la date de la sauvegarde. Limité aux 30 dernières versions pour rester raisonnable. */
+document.getElementById("btnListerVersions").addEventListener("click", async function(){
+  const btn = this;
+  const conteneur = document.getElementById("versionsListe");
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    toast("Configuration GitHub incomplète");
+    journalAjouter("ARRÊT (liste des versions) : configuration GitHub incomplète (utilisateur, dépôt ou jeton manquant).");
+    return;
+  }
+  btn.disabled = true;
+  conteneur.innerHTML = `<div class="version-item">Récupération de l'historique…</div>`;
+  const chemin = cfg.chemin || "cave.json";
+  const branche = cfg.branche || "main";
+  journalAjouter("=== Liste des versions sauvegardées de " + chemin + " ===");
+  try{
+    const urlCommits = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/commits?path=${encodeURIComponent(chemin)}&sha=${encodeURIComponent(branche)}&per_page=30`;
+    const resCommits = await githubAPI(urlCommits, cfg);
+    journalAjouter("Statut HTTP (historique des versions) : " + resCommits.status);
+    if(!resCommits.ok){
+      const texteErreur = await resCommits.text().catch(()=>"(impossible de lire le corps de la réponse)");
+      journalAjouter("Corps de la réponse d'erreur : " + texteErreur);
+      throw new Error("Échec HTTP " + resCommits.status);
+    }
+    const commits = await resCommits.json();
+    journalAjouter("Nombre de versions trouvées : " + commits.length);
+    if(!commits.length){
+      conteneur.innerHTML = `<div class="version-item">Aucune version trouvée.</div>`;
+      btn.disabled = false;
+      return;
+    }
+    const resultats = [];
+    for(let i=0; i<commits.length; i++){
+      conteneur.innerHTML = `<div class="version-item">Lecture des versions… (${i+1}/${commits.length})</div>`;
+      const commit = commits[i];
+      let nbBouteilles = "?";
+      try{
+        const urlFichier = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${commit.sha}`;
+        const resFichier = await githubAPI(urlFichier, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
+        if(resFichier.ok){
+          const texteFichier = await resFichier.text();
+          const dataFichier = JSON.parse(texteFichier);
+          nbBouteilles = Array.isArray(dataFichier.bottles) ? dataFichier.bottles.length : "?";
+        }
+      }catch(e){ /* cette version reste marquée "?" mais n'interrompt pas la liste */ }
+      const dateISO = commit.commit && commit.commit.author ? commit.commit.author.date : null;
+      resultats.push({ date: dateISO ? new Date(dateISO) : null, nbBouteilles });
+    }
+    journalAjouter("=== Liste des versions terminée ===");
+    conteneur.innerHTML = resultats.map(r=>{
+      const dateTexte = r.date ? r.date.toLocaleString("fr-FR") : "Date inconnue";
+      return `<div class="version-item"><span class="v-date">${escapeHtml(dateTexte)}</span><span class="v-count">${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span></div>`;
+    }).join("");
+    toast("Liste des versions récupérée");
+  }catch(err){
+    journalAjouter("ERREUR (liste des versions) : " + (err && err.message ? err.message : String(err)));
+    conteneur.innerHTML = `<div class="version-item">Échec de la récupération — voir le journal.</div>`;
+    toast("Échec de la récupération des versions — voir le journal");
   }
   btn.disabled = false;
 });

@@ -124,6 +124,7 @@
   }
   .stat-card .val{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--gold-soft);}
   .stat-card .lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+  .stat-vins-sub{text-transform:none;letter-spacing:normal;color:var(--text-faint);}
   .stat-repartition{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
   .stat-repartition .chip{
     display:flex;align-items:center;gap:5px;
@@ -1223,8 +1224,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.71";
+const VERSION = "1.10.74";
 const HISTORY = [
+  { version:"1.10.74", date:"2026-08-29", notes:"Le nombre de vins (fiches) apparaît désormais en en-tête, à côté du nombre de bouteilles en cave — en petite indication discrète (« · X vin(s) »), sans ajouter de nouvelle carte ni alourdir visuellement l'ensemble." },
+  { version:"1.10.73", date:"2026-08-29", notes:"Corrigé une confusion importante dans la page Diagnostic : « Lister les versions » (5/30 dernières) affichait le nombre de vins (fiches) enregistrés en l'étiquetant à tort « bouteille(s) », alors que le reste de l'app distingue vins (fiches) et bouteilles (quantité physique, champ Quantité en cave). Un décompte de 38 vins pouvait donc sembler être une perte massive de bouteilles par rapport aux « 53 bouteilles en cave » du haut de l'écran, alors que ce n'était pas du tout la même mesure. La liste affiche désormais clairement les deux : « X vin(s) · Y bouteille(s) »." },
+  { version:"1.10.72", date:"2026-08-29", notes:"Instrumentation détaillée (onglet Log) de tout le flux de synchronisation GitHub : envoi (« Envoyer vers GitHub »), vérification automatique au lancement, et récupération manuelle — pour comprendre précisément un cas où le nombre de vins réellement enregistrés sur GitHub ne correspondait pas à ce qui était affiché dans l'app. Chaque étape (config utilisée, contenu distant lu, décision prise, résultat de l'envoi) est désormais tracée." },
   { version:"1.10.71", date:"2026-08-29", notes:"Correction de la vérification rapide (v1.10.70) : elle devinait le propriétaire/dépôt GitHub à partir de l'URL (fragile, en cause dans l'échec observé), elle réutilise désormais le compte/dépôt/jeton déjà configurés dans Paramètres → Synchronisation GitHub — les seuls dont on soit sûr, avec la même authentification que le reste de l'app. Gère aussi le cas d'une page de projet (utilisateur.github.io/dépôt/…). En cas d'échec, le message donne maintenant le détail exact (statut HTTP, extrait de la réponse) au lieu d'un message générique incompréhensible, et l'onglet Log garde une trace complète de chaque étape." },
   { version:"1.10.70", date:"2026-08-29", notes:"L'appui long interroge maintenant directement l'API GitHub (accès « rapide », qui reflète le dernier commit en moins d'une seconde) plutôt que l'URL publiée de la page (accès « lent », soumis à la mise à disposition de GitHub Pages qui peut prendre 30 à 40 secondes) — d'où la disparition du scrutin toutes les 10 secondes, devenu inutile puisque la réponse rapide est immédiate et fiable. Si une version plus récente existe sur le dépôt, l'app le dit clairement et invite à attendre un peu avant de fermer/rouvrir, plutôt que de chercher en boucle une URL pas encore à jour." },
   { version:"1.10.69", date:"2026-08-29", notes:"L'appui long sur le badge ne recharge plus automatiquement la page — observé peu fiable en pratique (une nouvelle version détectée par la vérification pouvait, l'instant d'après, être suivie d'une navigation retombant sur l'ancienne, les serveurs de GitHub Pages n'étant pas toujours synchronisés entre eux juste après un envoi). Il vérifie désormais seulement si une nouvelle version existe (même scrutin, toutes les 10 s pendant 2 min maximum) et, si oui, affiche une directive claire : fermer complètement l'app puis la rouvrir — méthode manuelle mais fiable pour être sûr de charger la nouvelle version." },
@@ -1754,7 +1758,7 @@ function renderStats(){
   document.getElementById("statsBar").innerHTML = `
     <div class="stat-card">
       <div class="val">${totalBouteilles}</div>
-      <div class="lbl">Bouteilles en cave</div>
+      <div class="lbl">Bouteilles en cave <span class="stat-vins-sub">· ${enCave.length} vin(s)</span></div>
       <div class="stat-repartition">${chips}</div>
     </div>
     <div class="stat-card">
@@ -3458,7 +3462,9 @@ async function lancerEnvoiVersGitHub(){
   const cfg = lireChampsConfig();
   const btn = document.getElementById("btnPush");
   const statusEl = document.getElementById("syncStatus");
+  logAjouter(`lancerEnvoiVersGitHub() appelé — user="${cfg.user}" · repo="${cfg.repo}" · branche="${cfg.branche}" · chemin="${cfg.chemin}" · jeton présent=${cfg.token ? "oui" : "non"} · bottles.length=${bottles.length}`);
   if(!cfg.user || !cfg.repo || !cfg.token){
+    logAjouter("→ ARRÊT : configuration GitHub incomplète.");
     toast("Renseigne utilisateur, dépôt et jeton");
     marquerErreurSynchro();
     return;
@@ -3469,18 +3475,22 @@ async function lancerEnvoiVersGitHub(){
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+    logAjouter(`→ Lecture distante (avant envoi) : statut ${getRes.status}`);
     if(getRes.status === 200){
       const info = await getRes.json();
       sha = info.sha;
       let donneesDistantes = null;
       try{ donneesDistantes = JSON.parse(decoderContenuBase64Utf8(info.content)); }catch(e){ donneesDistantes = null; }
+      logAjouter(`→ Contenu distant actuel : ${donneesDistantes ? (donneesDistantes.bottles||[]).length + " vin(s), maj=" + donneesDistantes.maj + ", origine=" + donneesDistantes.origine : "non décodable"} · sha=${sha}`);
       if(donneesDistantes){
         const connue = lireDerniereMajConnue();
         const estDifferenteDeNousMemes = donneesDistantes.origine && donneesDistantes.origine !== INSTANCE_ID;
         const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
+        logAjouter(`→ INSTANCE_ID=${INSTANCE_ID} · dernière maj connue=${connue ? connue.maj + " (origine " + connue.origine + ")" : "aucune"} · estDifferenteDeNousMemes=${estDifferenteDeNousMemes} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
         if(estDifferenteDeNousMemes && estNonPriseEnCompte){
           btn.disabled = false;
           statusEl.textContent = "Envoi interrompu — version distante plus récente détectée.";
+          logAjouter("→ ARRÊT : fenêtre de conflit affichée, envoi suspendu en attente de confirmation.");
           demanderConfirmation(
             "Version distante plus récente",
             "Une version plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale ?",
@@ -3493,18 +3503,21 @@ async function lancerEnvoiVersGitHub(){
       throw new Error("Lecture impossible (" + getRes.status + ")");
     }
   }catch(err){
+    logAjouter("→ ERREUR pendant la vérification préalable : " + (err && err.message ? err.message : String(err)));
     statusEl.textContent = "Échec de la vérification : " + err.message;
     toast("Échec de l'envoi vers GitHub");
     marquerErreurSynchro();
     btn.disabled = false;
     return;
   }
+  logAjouter("→ Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().");
   effectuerEnvoiVersGitHub(cfg, sha);
 }
 
 async function effectuerEnvoiVersGitHub(cfg, sha){
   const btn = document.getElementById("btnPush");
   const statusEl = document.getElementById("syncStatus");
+  logAjouter(`effectuerEnvoiVersGitHub() appelé — sha=${sha} · bottles.length=${bottles.length}`);
   btn.disabled = true;
   syncEnCours = true;
   majBadgeVersion();
@@ -3513,6 +3526,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     const resPhotos = await televerserPhotosEnAttente(cfg, (fait, total)=>{
       statusEl.textContent = `Envoi des photos… (${fait}/${total})`;
     });
+    logAjouter(`→ Photos en attente traitées : ${resPhotos.succes}/${resPhotos.total} envoyée(s), ${resPhotos.echecs} échec(s)`);
     rafraichirTout();
 
     statusEl.textContent = "Envoi des données…";
@@ -3520,7 +3534,9 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     // Le fichier de données ne contient jamais de photo en pleine résolution : seulement les métadonnées,
     // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
     const nouvelleMaj = new Date().toISOString();
-    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: nouvelleMaj, origine: INSTANCE_ID }, null, 2);
+    const bouteillesAEnvoyer = bouteillesPourExportGitHub();
+    const contenu = JSON.stringify({ bottles: bouteillesAEnvoyer, maj: nouvelleMaj, origine: INSTANCE_ID }, null, 2);
+    logAjouter(`→ Préparation du contenu à envoyer : ${bouteillesAEnvoyer.length} vin(s), maj=${nouvelleMaj}, ${contenu.length} caractère(s)`);
     const body = {
       message: "Mise à jour de la cave à vin",
       content: btoa(unescape(encodeURIComponent(contenu))),
@@ -3528,6 +3544,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
+    logAjouter(`→ Réponse de l'envoi (PUT) : statut ${putRes.status}`);
     if(!putRes.ok){
       const err = await putRes.json().catch(()=>({}));
       throw new Error(err.message || ("Erreur " + putRes.status));
@@ -3540,8 +3557,10 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
       + (resPhotos.total ? ` — photos : ${resPhotos.succes} envoyée(s)${resPhotos.echecs ? ", " + resPhotos.echecs + " échouée(s)" : ""}` : "");
     feedbackBouton(btn, "✓ Envoyé");
     toast(resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub");
+    logAjouter(`→ SUCCÈS : ${bouteillesAEnvoyer.length} vin(s) envoyé(s) et confirmés sur GitHub.`);
     marquerSynchronise();
   }catch(err){
+    logAjouter("→ ERREUR pendant l'envoi effectif : " + (err && err.message ? err.message : String(err)));
     statusEl.textContent = "Échec de l'envoi : " + err.message;
     toast("Échec de l'envoi vers GitHub");
     marquerErreurSynchro();
@@ -3584,20 +3603,29 @@ document.getElementById("closeConflitSync").addEventListener("click", ()=>docume
 
 async function verifierGitHubAuLancement(){
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token) return;
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    logAjouter("verifierGitHubAuLancement() : configuration GitHub incomplète, arrêt.");
+    return;
+  }
   try{
     const chemin = cfg.chemin || "cave.json";
     const branche = cfg.branche || "main";
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
     const res = await githubAPI(base + "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now(), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
+    logAjouter(`verifierGitHubAuLancement() : statut ${res.status} · syncDirty (avant)=${syncDirty} · bottles.length (local, avant)=${bottles.length}`);
     if(!res.ok) return;
     const texte = await res.text();
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
     const origineDistante = data.origine || null;
-    if(origineDistante === INSTANCE_ID) return; // c'est notre propre dernier envoi : rien à faire
+    logAjouter(`→ Distant : ${distantes.length} vin(s), maj=${data.maj}, origine=${origineDistante} · INSTANCE_ID local=${INSTANCE_ID}`);
+    if(origineDistante === INSTANCE_ID){
+      logAjouter("→ Origine distante = cet appareil, on considère que c'est notre propre dernier envoi : rien à faire.");
+      return;
+    }
 
     function appliquerDistantes(msg){
+      logAjouter(`→ APPLICATION DES DONNÉES DISTANTES : le local (${bottles.length} vin(s)) va être remplacé par les ${distantes.length} vin(s) distant(s).`);
       bottles = distantes;
       sauvegarderBouteilles();
       marquerSynchronise();
@@ -3612,11 +3640,14 @@ async function verifierGitHubAuLancement(){
     }
 
     if(!syncDirty){
+      logAjouter("→ syncDirty=false localement : application AUTOMATIQUE et SILENCIEUSE des données distantes (aucune confirmation demandée).");
       appliquerDistantes("Cave mise à jour depuis GitHub (modifiée ailleurs)");
     }else{
+      logAjouter("→ syncDirty=true localement : affichage de la fenêtre de conflit avant toute application.");
       afficherConflitSync(distantes, data, ()=>appliquerDistantes("Cave remplacée par la version GitHub"));
     }
   }catch(e){
+    logAjouter("verifierGitHubAuLancement() : ERREUR — " + (e && e.message ? e.message : String(e)));
     // Échec silencieux (hors ligne, dépôt pas encore créé, etc.) : la cave locale reste utilisable, synchro manuelle toujours possible.
   }
 }
@@ -3796,6 +3827,7 @@ async function listerVersionsSauvegardees(limite, btn){
     for(let i=0; i<commits.length; i++){
       conteneur.innerHTML = `<div class="version-item">Lecture des versions… (${i+1}/${commits.length})</div>`;
       const commit = commits[i];
+      let nbVins = "?";
       let nbBouteilles = "?";
       try{
         const urlFichier = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${commit.sha}`;
@@ -3804,19 +3836,20 @@ async function listerVersionsSauvegardees(limite, btn){
           const texteFichier = await resFichier.text();
           const dataFichier = JSON.parse(texteFichier);
           const bouteillesVersion = Array.isArray(dataFichier.bottles) ? dataFichier.bottles : [];
-          nbBouteilles = bouteillesVersion.length;
+          nbVins = bouteillesVersion.length;
+          nbBouteilles = bouteillesVersion.reduce((s,b)=>s+(Number(b.quantite)||0),0);
           cacheVersions[commit.sha] = bouteillesVersion;
         }
       }catch(e){ /* cette version reste marquée "?" mais n'interrompt pas la liste */ }
       const dateISO = commit.commit && commit.commit.author ? commit.commit.author.date : null;
-      resultats.push({ sha: commit.sha, date: dateISO ? new Date(dateISO) : null, nbBouteilles });
+      resultats.push({ sha: commit.sha, date: dateISO ? new Date(dateISO) : null, nbVins, nbBouteilles });
     }
     journalAjouter("=== Liste des versions terminée ===");
     conteneur.innerHTML = resultats.map(r=>{
       const dateTexte = r.date ? r.date.toLocaleString("fr-FR") : "Date inconnue";
       return `<div class="version-item">
         <span class="v-date">${escapeHtml(dateTexte)}</span>
-        <span class="v-count">${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span>
+        <span class="v-count">${escapeHtml(String(r.nbVins))} vin(s) · ${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span>
         <button type="button" class="btn btn-sm btn-ghost version-restaurer-btn" data-sha="${r.sha}">Restaurer</button>
       </div>`;
     }).join("");
@@ -3864,7 +3897,7 @@ async function restaurerVersion(sha, btn){
       bottles = distantes;
       sauvegarderBouteilles();
       rafraichirTout();
-      journalAjouter(`Cave restaurée depuis la version ${sha.slice(0,7)} (${distantes.length} bouteille(s)).`);
+      journalAjouter(`Cave restaurée depuis la version ${sha.slice(0,7)} (${distantes.length} vin(s)).`);
       toast("Cave restaurée à cette version");
       btn.disabled = false;
     }

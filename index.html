@@ -173,6 +173,12 @@
   .btn-gold{background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#1c1710;border:none;font-weight:600;}
   .btn-danger{background:rgba(180,71,47,.9);border:1px solid var(--danger);color:#fff;font-weight:600;}
   .btn-ghost{background:transparent;}
+  .btn.suggestion-verte{
+    background:linear-gradient(180deg,#8FD9A8,#5FBF7D) !important;
+    border-color:#4CAF6B !important;
+    color:#0F2A16 !important;
+    font-weight:600;
+  }
   .btn-sm{padding:5px 9px;font-size:12px;border-radius:6px;}
   .chip-toggle{
     border:1px solid var(--line);
@@ -1185,8 +1191,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.59";
+const VERSION = "1.10.60";
 const HISTORY = [
+  { version:"1.10.60", date:"2026-08-29", notes:"Le défilement automatique vers « Détails complémentaires » vise maintenant la rangée Annuler/Enregistrer juste au-dessus, pour que le bouton Enregistrer reste visible en plus du bandeau. Par ailleurs, après avoir ouvert ChatGPT/Claude pour identifier un vin, le bouton « Appliquer la réponse à ce vin » passe en vert pour indiquer clairement la prochaine étape à faire au retour, et reprend son apparence normale dès qu'il est utilisé (ou qu'une autre fiche est ouverte)." },
   { version:"1.10.59", date:"2026-08-29", notes:"Les quatre boutons liés à la photo sont réorganisés en deux lignes : « Afficher la photo existante » et « Retirer la photo » sur la première (actions sur la photo elle-même), « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » sur la seconde (actions liées à l'analyse par l'IA)." },
   { version:"1.10.58", date:"2026-08-29", notes:"Les quatre boutons liés à la photo (Afficher, Identifier, Appliquer la réponse, Retirer) sont désormais environ deux fois plus hauts, pour réduire le risque de toucher le mauvais bouton voisin par erreur." },
   { version:"1.10.57", date:"2026-08-29", notes:"Cause réelle trouvée grâce au Log : « Retirer la photo » se déclenchait par mauvais clic à la place de « Appliquer la réponse à ce vin », sans aucune confirmation. Deux corrections : (1) « Retirer la photo » demande désormais une confirmation avant d'agir, comme les autres actions destructrices de l'app ; (2) réordonnancement des boutons de la fiche pour éloigner « Retirer la photo » des boutons Identifier/Appliquer, utilisés à la suite l'un de l'autre." },
@@ -1990,6 +1997,7 @@ function viderFormulaire(){
   document.getElementById("btnChargerPhoto").style.display = "none";
   document.getElementById("btnIdentifierChatGPT").style.display = "none";
   document.getElementById("btnAppliquerReponseFiche").style.display = "none";
+  document.getElementById("btnAppliquerReponseFiche").classList.remove("suggestion-verte");
   majBoutonChoisirPhoto();
 }
 
@@ -2027,6 +2035,7 @@ function ouvrirFiche(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
   logAjouter(`ouvrirFiche(${id}) appelé — nom="${b.nom}" · numero=${b.numero} · photo: miniature=${b.photoMiniature?"oui":"non"} pendante=${b.photoPendingBase64?"oui":"non"} fichier=${b.photoFichier||"non"}`);
+  document.getElementById("btnAppliquerReponseFiche").classList.remove("suggestion-verte");
   ficheEnCours = id;
   numeroFicheCourant = b.numero || prochainNumero();
   afficherNumeroFiche();
@@ -2137,19 +2146,20 @@ document.getElementById("btnQuantitePlus").addEventListener("click", function(){
   const input = document.getElementById("fQuantite");
   input.value = Math.max(0, (parseInt(input.value,10)||0) + 1);
 });
-/* Quand « Détails complémentaires » se déplie, fait remonter son titre juste sous l'en-tête de la fiche
-   (qui reste collé en haut grâce à position:sticky) — un simple scrollIntoView irait trop haut et
-   cacherait le bandeau derrière cet en-tête, d'où un calcul manuel du décalage exact. */
+/* Quand « Détails complémentaires » se déplie, fait remonter la rangée de boutons Annuler/Enregistrer
+   juste sous l'en-tête de la fiche (qui reste collé en haut grâce à position:sticky) — ainsi le bouton
+   « Enregistrer » reste visible en plus du bandeau, qui le suit immédiatement. Un simple scrollIntoView
+   irait trop haut et cacherait tout ça derrière cet en-tête, d'où un calcul manuel du décalage exact. */
 document.getElementById("ficheSectionBasse").addEventListener("toggle", function(){
   if(this.open){
     const section = this;
     requestAnimationFrame(()=>{
       const modal = section.closest(".modal");
       const entete = modal ? modal.querySelector(".modal-header") : null;
-      const bandeau = section.querySelector("summary");
-      if(!modal || !entete || !bandeau) return;
+      const cible = (modal ? modal.querySelector(".fiche-separateur") : null) || section.querySelector("summary");
+      if(!modal || !entete || !cible) return;
       const margeSousEntete = 6;
-      const decalage = bandeau.getBoundingClientRect().top - entete.getBoundingClientRect().bottom - margeSousEntete;
+      const decalage = cible.getBoundingClientRect().top - entete.getBoundingClientRect().bottom - margeSousEntete;
       modal.scrollBy({ top: decalage, behavior:"smooth" });
     });
   }
@@ -2382,6 +2392,9 @@ document.getElementById("btnOuvrirChatGPT").addEventListener("click", ()=>{
     ? "https://claude.ai/new?q=" + encodeURIComponent(question)
     : "https://chatgpt.com/?q=" + encodeURIComponent(question);
   window.open(url, "_blank");
+  // Signale visuellement la prochaine étape à faire au retour : coller la réponse, puis toucher ce bouton.
+  const btnAppliquer = document.getElementById("btnAppliquerReponseFiche");
+  if(btnAppliquer && btnAppliquer.style.display !== "none") btnAppliquer.classList.add("suggestion-verte");
 });
 
 /* ===================== PAGE SAISIE RAPIDE ===================== */
@@ -2473,6 +2486,7 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
 });
 document.getElementById("btnAppliquerReponseFiche").addEventListener("click", async function(){
   logAjouter(`Clic « Appliquer la réponse à ce vin » — ficheEnCours=${ficheEnCours} · verifTexteModeMiseAJour (avant)=${verifTexteModeMiseAJour} · ${etatPhotoPourLog()}`);
+  this.classList.remove("suggestion-verte");
   if(!navigator.clipboard || !navigator.clipboard.readText){
     logAjouter("→ navigator.clipboard.readText indisponible sur ce navigateur, arrêt.");
     toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");

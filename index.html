@@ -1004,6 +1004,7 @@
       <button class="page-tab-btn" data-page="stats" type="button" title="Statistiques">📊</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
       <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🪲</button>
+      <button class="page-tab-btn" data-page="log" type="button" title="Log">📜</button>
     </div>
   </div>
 
@@ -1157,6 +1158,18 @@
     </div>
     <div class="versions-liste" id="versionsListe"></div>
   </div>
+
+  <div class="page-body" id="pageCorpsLog" style="display:none;">
+    <p class="panel-note">Journal détaillé, étape par étape, de ce qui se passe quand tu utilises « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » (lecture du presse-papier, extraction des champs, application à la fiche). Utilise « Copier » pour me transmettre ce contenu.</p>
+    <div class="panel-row">
+      <button class="btn" id="btnViderLog" type="button">🗑 Vider</button>
+      <button class="btn btn-gold" id="btnCopierLog" type="button">📎 Copier</button>
+    </div>
+    <div class="field">
+      <label>Log</label>
+      <textarea id="logTexte" readonly rows="18" class="journal-textarea" placeholder="Utilise « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » pour voir apparaître les étapes ici…"></textarea>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1166,8 +1179,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.55";
+const VERSION = "1.10.56";
 const HISTORY = [
+  { version:"1.10.56", date:"2026-08-29", notes:"Nouvel onglet « 📜 Log » à côté de Journal / Diagnostic : zone de texte qui trace étape par étape ce qui se passe lors de « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » (lecture du presse-papier, extraction des champs, branche empruntée, état de la photo avant/après), avec boutons « Vider » et « Copier » pour transmettre ce journal en cas de problème." },
   { version:"1.10.55", date:"2026-08-29", notes:"Correction du flux « Appliquer la réponse à ce vin » : si rien n'a pu être extrait du presse-papier (réponse pas encore copiée, mauvais format…), l'app le signale clairement et n'ouvre plus la fenêtre de vérification — jusqu'ici, celle-ci s'ouvrait quand même avec des champs vides, et les confirmer effaçait le Nom/Domaine/Étiquette déjà présents sur la fiche avec du vide. Désormais, dans cette fenêtre, un champ resté vide ne modifie plus jamais un champ déjà rempli sur la fiche : seuls les champs pour lesquels quelque chose a été extrait sont appliqués." },
   { version:"1.10.54", date:"2026-08-29", notes:"Le rechargement forcé (appui long sur le badge) vérifie maintenant, par une requête réseau explicite qui ne peut pas être servie depuis un cache (cache:\"no-store\"), si le fichier réellement présent sur le serveur affiche une version différente avant de recharger. S'il affiche encore la même version, l'app le signale clairement (déploiement GitHub Pages probablement pas terminé) au lieu de recharger pour rien sur la même ancienne version — ce qui, jusqu'ici, pouvait donner l'impression trompeuse que le vidage de cache ne fonctionnait pas alors que le souci venait du serveur." },
   { version:"1.10.53", date:"2026-08-29", notes:"Le bouton « Ajouter une photo » (partie haute de la fiche) affiche désormais une fenêtre avec la photo choisie et trois boutons sur la même ligne : « Annuler » (ignore la photo, retour à la fiche telle quelle), « Vin avec n° temporaire » (nomme le vin « N° X » avec son numéro déjà attribué, enregistre avec la photo et referme la fiche pour revenir à la liste) et « OK » (applique la photo à la fiche en cours, sans l'enregistrer ni la fermer — comme avant)." },
@@ -1949,6 +1963,7 @@ function majBoutonChoisirPhoto(){
 }
 
 function viderFormulaire(){
+  logAjouter("viderFormulaire() appelé — tous les champs vont être remis à vide/défaut, photo comprise. Pile d'appel : " + (new Error().stack || "(non disponible)").split("\n").slice(1,4).join(" | "));
   ["fNom","fDomaine","fAppellation","fRegion","fMillesime","fCepages","fDateAchat","fLieuAchat","fEmplacement","fBoireDe","fBoireA","fEtiquette","fCommentaire","fNoteNumerique","fNoteIncertaine"]
     .forEach(id=>document.getElementById(id).value="");
   document.getElementById("fPays").value = "France";
@@ -1970,6 +1985,7 @@ function viderFormulaire(){
 }
 
 function ouvrirAjout(){
+  logAjouter("ouvrirAjout() appelé — ficheEnCours va passer à null, titre → « Ajouter un vin ».");
   ficheEnCours = null;
   viderFormulaire();
   numeroFicheCourant = prochainNumero();
@@ -2001,6 +2017,7 @@ function afficherPhotoFiche(){
 function ouvrirFiche(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
+  logAjouter(`ouvrirFiche(${id}) appelé — nom="${b.nom}" · numero=${b.numero} · photo: miniature=${b.photoMiniature?"oui":"non"} pendante=${b.photoPendingBase64?"oui":"non"} fichier=${b.photoFichier||"non"}`);
   ficheEnCours = id;
   numeroFicheCourant = b.numero || prochainNumero();
   afficherNumeroFiche();
@@ -2147,7 +2164,8 @@ document.getElementById("btnAnnulerFiche").addEventListener("click", ()=>documen
    true si l'enregistrement a eu lieu (false si le nom est manquant). */
 function enregistrerFiche(){
   const nom = document.getElementById("fNom").value.trim();
-  if(!nom){ toast("Le nom du vin est requis"); return false; }
+  logAjouter(`enregistrerFiche() appelé — ficheEnCours=${ficheEnCours} · nom="${nom}" · ${etatPhotoPourLog()}`);
+  if(!nom){ logAjouter("→ Nom vide, enregistrement refusé."); toast("Le nom du vin est requis"); return false; }
   const data = {
     nom,
     domaine: document.getElementById("fDomaine").value.trim(),
@@ -2179,6 +2197,7 @@ function enregistrerFiche(){
     Object.assign(b, data);
     b.numero = numeroFicheCourant;
     delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
+    logAjouter(`→ Vin existant mis à jour (id=${ficheEnCours}) — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
   }else{
     bottles.push(Object.assign({
       id: uuid(),
@@ -2187,6 +2206,7 @@ function enregistrerFiche(){
       quantiteBue: 0,
       dateDerniereDegustation: ""
     }, data));
+    logAjouter(`→ Nouveau vin créé — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
   }
   sauvegarderBouteilles();
   if(data.emplacement){
@@ -2266,6 +2286,7 @@ document.getElementById("btnChargerPhoto").addEventListener("click", function(){
   this.style.display = "none";
 });
 document.getElementById("btnRetirerPhoto").addEventListener("click", ()=>{
+  logAjouter(`Clic « Retirer la photo » — ficheEnCours=${ficheEnCours} · ${etatPhotoPourLog()}`);
   photoEnCoursPendante = "";
   photoEnCoursMiniature = "";
   photoEnCoursFichier = "";
@@ -2332,7 +2353,9 @@ function lancerIdentificationIA(promesseSource){
   }
 }
 document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
+  logAjouter(`Clic « Identifier avec ${assistantIA} » — ficheEnCours=${ficheEnCours} · ${etatPhotoPourLog()}`);
   if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
+    logAjouter("→ Aucune photo disponible, arrêt.");
     toast("Aucune photo à envoyer pour ce vin");
     return;
   }
@@ -2437,26 +2460,33 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   document.getElementById("overlayVerifTexte").classList.add("show");
 });
 document.getElementById("btnAppliquerReponseFiche").addEventListener("click", async function(){
+  logAjouter(`Clic « Appliquer la réponse à ce vin » — ficheEnCours=${ficheEnCours} · verifTexteModeMiseAJour (avant)=${verifTexteModeMiseAJour} · ${etatPhotoPourLog()}`);
   if(!navigator.clipboard || !navigator.clipboard.readText){
+    logAjouter("→ navigator.clipboard.readText indisponible sur ce navigateur, arrêt.");
     toast("Ce navigateur ne permet pas de lire automatiquement le presse-papier");
     return;
   }
   let texte = "";
   try{
     texte = await navigator.clipboard.readText();
+    logAjouter(`Presse-papier lu : ${texte.length} caractère(s). Début : "${texte.slice(0,120).replace(/\n/g," / ")}${texte.length>120?"…":""}"`);
   }catch(e){
+    logAjouter("→ Échec de la lecture du presse-papier : " + (e && e.message ? e.message : String(e)));
     toast("Impossible de lire le presse-papier (autorise l'accès si demandé)");
     return;
   }
   const sections = extraireSectionsReponseIA(texte);
+  logAjouter(`Extraction — nom="${sections.nom}" (${sections.nom.length}c) · domaine="${sections.domaine}" (${sections.domaine.length}c) · millesime="${sections.millesime}" · etiquette=${sections.etiquette.length}c`);
   if(!sections.nom && !sections.domaine && !sections.etiquette){
     // Rien d'exploitable trouvé (réponse pas encore copiée, mauvais format…) : on s'arrête ici plutôt
     // que d'ouvrir une fenêtre de vérification vide qui, une fois confirmée, effacerait les champs
     // existants de la fiche avec des valeurs blanches.
+    logAjouter("→ Rien d'exploitable extrait, la fenêtre de vérification n'est PAS ouverte.");
     toast("Réponse non reconnue dans le presse-papier — vérifie que tu as bien copié la réponse de l'IA (attendu : Nom : / Domaine : / Étiquette :)");
     return;
   }
   verifTexteModeMiseAJour = true;
+  logAjouter("→ verifTexteModeMiseAJour mis à true, ouverture de la fenêtre de vérification en mode « mise à jour ».");
   document.getElementById("verifTexteTitre").textContent = "Vérifier avant de mettre à jour ce vin";
   document.getElementById("verifTexteNote").textContent = "Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche de ce vin (rien n'est encore enregistré). Un champ resté vide ci-dessous ne modifiera pas la valeur déjà présente sur la fiche.";
   document.getElementById("btnConfirmerVerifTexte").textContent = "Mettre à jour ce vin";
@@ -2473,6 +2503,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
   const domaine = document.getElementById("verifTexteDomaine").value.trim();
   const millesime = document.getElementById("verifTexteMillesime").value.trim();
   const etiquette = document.getElementById("verifTexteEtiquette").value.trim();
+  logAjouter(`Clic « ${document.getElementById("btnConfirmerVerifTexte").textContent} » — verifTexteModeMiseAJour=${verifTexteModeMiseAJour} · ficheEnCours=${ficheEnCours} · nom="${nom}" · domaine="${domaine}" · millesime="${millesime}" · etiquette=${etiquette.length}c · ${etatPhotoPourLog()}`);
   document.getElementById("overlayVerifTexte").classList.remove("show");
 
   if(verifTexteModeMiseAJour){
@@ -2480,15 +2511,18 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
     // ne crée rien de nouveau, ne ferme ni ne rouvre la fiche. Un champ resté vide dans la vérification
     // (rien d'extrait pour lui) ne touche pas à la valeur déjà présente sur la fiche — jamais d'écrasement
     // par du vide.
+    logAjouter("→ Branche MISE À JOUR (fiche déjà ouverte conservée).");
     if(nom) document.getElementById("fNom").value = nom;
     if(domaine) document.getElementById("fDomaine").value = domaine;
     if(millesime) document.getElementById("fMillesime").value = millesime;
     if(etiquette) document.getElementById("fEtiquette").value = etiquette;
     if(etiquette) document.getElementById("ficheSectionBasse").open = true;
+    logAjouter(`→ Après application — fNom="${document.getElementById("fNom").value}" · fDomaine="${document.getElementById("fDomaine").value}" · ${etatPhotoPourLog()}`);
     toast("Champs mis à jour — vérifie puis Enregistre");
     return;
   }
 
+  logAjouter("⚠️ Branche CRÉATION atteinte (ouvrirAjout() va être appelé) — ce n'est PAS le comportement attendu depuis « Appliquer la réponse à ce vin ».");
   document.getElementById("pageParametres").style.display = "none";
   ouvrirAjout();
 
@@ -2911,8 +2945,9 @@ function afficherPageOnglet(cle){
   document.getElementById("pageCorpsStats").style.display = cle === "stats" ? "flex" : "none";
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
   document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
+  document.getElementById("pageCorpsLog").style.display = cle === "log" ? "flex" : "none";
   document.getElementById("pageTitre").textContent =
-    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "stats" ? "Statistiques" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
+    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "stats" ? "Statistiques" : cle === "journal" ? "Journal / Diagnostic" : cle === "log" ? "Log" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
   if(cle === "stats") construireStatistiques();
 }
@@ -3480,6 +3515,39 @@ document.getElementById("btnPull").addEventListener("click", async function(){
     toast("Échec de la récupération depuis GitHub");
   }
   btn.disabled = false;
+});
+
+/* ===================== PAGE LOG ===================== */
+/* Journal détaillé pour diagnostiquer le flux « Identifier avec ChatGPT/Claude » et « Appliquer la
+   réponse à ce vin » : chaque étape appelle logAjouter() pour qu'un problème silencieux (variable
+   modifiée de façon inattendue, branche imprévue…) devienne visible et transmissible pour analyse. */
+function logAjouter(ligne){
+  const zone = document.getElementById("logTexte");
+  if(!zone) return;
+  const heure = new Date().toLocaleTimeString("fr-FR");
+  zone.value += `[${heure}] ${ligne}\n`;
+  zone.scrollTop = zone.scrollHeight;
+}
+function etatPhotoPourLog(){
+  return `pendante:${photoEnCoursPendante ? photoEnCoursPendante.length+"o" : "vide"} · miniature:${photoEnCoursMiniature ? photoEnCoursMiniature.length+"o" : "vide"} · fichier:${photoEnCoursFichier || "vide"}`;
+}
+document.getElementById("btnViderLog").addEventListener("click", ()=>{
+  document.getElementById("logTexte").value = "";
+});
+document.getElementById("btnCopierLog").addEventListener("click", async function(){
+  const texte = document.getElementById("logTexte").value;
+  if(!texte){ toast("Rien à copier"); return; }
+  if(!navigator.clipboard || !navigator.clipboard.writeText){
+    toast("Ce navigateur ne permet pas la copie automatique — sélectionne et copie manuellement");
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(texte);
+    feedbackBouton(this, "✓ Copié");
+    toast("Log copié dans le presse-papier");
+  }catch(e){
+    toast("Échec de la copie — sélectionne et copie manuellement");
+  }
 });
 
 /* ===================== PAGE JOURNAL / DIAGNOSTIC ===================== */

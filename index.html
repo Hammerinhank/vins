@@ -463,6 +463,7 @@
     display:block;
   }
   .photo-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .photo-actions .btn{padding:16px 9px;}
   .modal-actions{
     display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
     padding-top:6px;border-top:1px solid var(--line-soft);
@@ -1179,8 +1180,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.57";
+const VERSION = "1.10.58";
 const HISTORY = [
+  { version:"1.10.58", date:"2026-08-29", notes:"Les quatre boutons liés à la photo (Afficher, Identifier, Appliquer la réponse, Retirer) sont désormais environ deux fois plus hauts, pour réduire le risque de toucher le mauvais bouton voisin par erreur." },
   { version:"1.10.57", date:"2026-08-29", notes:"Cause réelle trouvée grâce au Log : « Retirer la photo » se déclenchait par mauvais clic à la place de « Appliquer la réponse à ce vin », sans aucune confirmation. Deux corrections : (1) « Retirer la photo » demande désormais une confirmation avant d'agir, comme les autres actions destructrices de l'app ; (2) réordonnancement des boutons de la fiche pour éloigner « Retirer la photo » des boutons Identifier/Appliquer, utilisés à la suite l'un de l'autre." },
   { version:"1.10.56", date:"2026-08-29", notes:"Nouvel onglet « 📜 Log » à côté de Journal / Diagnostic : zone de texte qui trace étape par étape ce qui se passe lors de « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » (lecture du presse-papier, extraction des champs, branche empruntée, état de la photo avant/après), avec boutons « Vider » et « Copier » pour transmettre ce journal en cas de problème." },
   { version:"1.10.55", date:"2026-08-29", notes:"Correction du flux « Appliquer la réponse à ce vin » : si rien n'a pu être extrait du presse-papier (réponse pas encore copiée, mauvais format…), l'app le signale clairement et n'ouvre plus la fenêtre de vérification — jusqu'ici, celle-ci s'ouvrait quand même avec des champs vides, et les confirmer effaçait le Nom/Domaine/Étiquette déjà présents sur la fiche avec du vide. Désormais, dans cette fenêtre, un champ resté vide ne modifie plus jamais un champ déjà rempli sur la fiche : seuls les champs pour lesquels quelque chose a été extrait sont appliqués." },

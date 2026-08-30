@@ -588,6 +588,13 @@
   .verif-texte-box{max-width:460px;border-radius:16px;}
   .verif-texte-box .modal-body{text-align:left;}
   .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
+  .bandeau-orange{
+    background:rgba(217,130,43,.22);
+    border:1px solid var(--orange);
+    color:#F0C48A;
+    font-size:13px;font-weight:600;line-height:1.4;
+    padding:10px 12px;border-radius:8px;margin:0 0 12px 0;
+  }
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
   /* photo choisie (décision après sélection dans la fiche) */
@@ -1035,6 +1042,7 @@
       <button class="modal-close" id="closeVerifPhoto" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
+      <p class="bandeau-orange" id="bandeauCollerImage">⚠️ N'oublie pas de coller l'image dans la requête ChatGPT !</p>
       <p class="verif-photo-note">Voici la photo qui vient d'être copiée dans le presse-papier — vérifie qu'elle correspond bien avant d'ouvrir ChatGPT (colle-la avec Cmd+V une fois là-bas).</p>
       <img id="verifPhotoImg" class="verif-photo-img" alt="Photo copiée dans le presse-papier">
       <div class="modal-actions" style="justify-content:center;">
@@ -1319,8 +1327,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.91";
+const VERSION = "1.10.92";
 const HISTORY = [
+  { version:"1.10.92", date:"2026-08-31", notes:"Ajout d'un bandeau orange bien visible dans la fenêtre intermédiaire « Photo copiée » (affichée par « Identifier avec l'assistant IA ») rappelant de ne pas oublier de coller l'image dans la requête — avec le nom de l'assistant réellement sélectionné (Claude ou ChatGPT)."},
   { version:"1.10.91", date:"2026-08-31", notes:"Corrigé : le filtre « Filtrer par marquage » (et les autres critères de sélection de la barre d'outils — filtre couleur, chips En cave/Historique/Toutes, À boire maintenant) ne survivaient pas à un rechargement, contrairement au regroupement et au tri déjà persistés. Les quatre sont maintenant enregistrés localement et synchronisés sur GitHub à chaque changement, exactement comme le regroupement et le tri. Seul le texte de recherche reste volontairement non conservé, pour éviter qu'une ancienne recherche ne fasse croire à tort que des vins ont disparu au prochain lancement."},
   { version:"1.10.90", date:"2026-08-31", notes:"Corrigé un problème de lisibilité dans la fenêtre d'aperçu du texte par défaut (boutons Init) : la zone de texte n'était pas enveloppée comme les autres champs et affichait donc du texte clair sur fond blanc (au lieu du fond sombre habituel) — illisible. Elle a maintenant le même fond que les autres champs de l'application."},
   { version:"1.10.89", date:"2026-08-31", notes:"Corrigé l'affichage du texte par défaut dans la fenêtre d'aperçu (boutons Init) : il s'affichait sur une seule ligne avec défilement horizontal ; il revient maintenant à la ligne normalement pour se lire sans avoir à faire défiler latéralement."},
@@ -2634,7 +2643,9 @@ function lancerIdentificationIA(promesseSource){
   promesseSource.then(source=>{
     if(!source){ toast("Aucune photo disponible"); return; }
     document.getElementById("verifPhotoImg").src = source;
-    document.getElementById("btnOuvrirChatGPT").textContent = assistantIA === "claude" ? "Ouvrir Claude" : "Ouvrir ChatGPT";
+    const nomAssistant = assistantIA === "claude" ? "Claude" : "ChatGPT";
+    document.getElementById("btnOuvrirChatGPT").textContent = "Ouvrir " + nomAssistant;
+    document.getElementById("bandeauCollerImage").textContent = `⚠️ N'oublie pas de coller l'image dans la requête ${nomAssistant} !`;
     document.getElementById("overlayVerifPhoto").classList.add("show");
   }).catch(()=> toast("Impossible de préparer la photo"));
 

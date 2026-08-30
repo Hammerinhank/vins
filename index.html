@@ -1223,8 +1223,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.70";
+const VERSION = "1.10.71";
 const HISTORY = [
+  { version:"1.10.71", date:"2026-08-29", notes:"Correction de la vérification rapide (v1.10.70) : elle devinait le propriétaire/dépôt GitHub à partir de l'URL (fragile, en cause dans l'échec observé), elle réutilise désormais le compte/dépôt/jeton déjà configurés dans Paramètres → Synchronisation GitHub — les seuls dont on soit sûr, avec la même authentification que le reste de l'app. Gère aussi le cas d'une page de projet (utilisateur.github.io/dépôt/…). En cas d'échec, le message donne maintenant le détail exact (statut HTTP, extrait de la réponse) au lieu d'un message générique incompréhensible, et l'onglet Log garde une trace complète de chaque étape." },
   { version:"1.10.70", date:"2026-08-29", notes:"L'appui long interroge maintenant directement l'API GitHub (accès « rapide », qui reflète le dernier commit en moins d'une seconde) plutôt que l'URL publiée de la page (accès « lent », soumis à la mise à disposition de GitHub Pages qui peut prendre 30 à 40 secondes) — d'où la disparition du scrutin toutes les 10 secondes, devenu inutile puisque la réponse rapide est immédiate et fiable. Si une version plus récente existe sur le dépôt, l'app le dit clairement et invite à attendre un peu avant de fermer/rouvrir, plutôt que de chercher en boucle une URL pas encore à jour." },
   { version:"1.10.69", date:"2026-08-29", notes:"L'appui long sur le badge ne recharge plus automatiquement la page — observé peu fiable en pratique (une nouvelle version détectée par la vérification pouvait, l'instant d'après, être suivie d'une navigation retombant sur l'ancienne, les serveurs de GitHub Pages n'étant pas toujours synchronisés entre eux juste après un envoi). Il vérifie désormais seulement si une nouvelle version existe (même scrutin, toutes les 10 s pendant 2 min maximum) et, si oui, affiche une directive claire : fermer complètement l'app puis la rouvrir — méthode manuelle mais fiable pour être sûr de charger la nouvelle version." },
   { version:"1.10.68", date:"2026-08-29", notes:"Pendant le scrutin de l'appui long, le badge s'entoure d'un liseré orange le temps exact de chaque requête réseau vers GitHub (du départ de la vérification à la réponse), en plus du fond bleu qui reste affiché pendant tout le scrutin — de quoi visualiser si les 10 secondes entre deux vérifications sont pertinentes par rapport à la durée réelle de chacune." },
@@ -3298,7 +3299,9 @@ versionBadgeEl.addEventListener("click", ()=>{
    de la page (accès « lent », qui passe par la mise à disposition de GitHub Pages et peut prendre 30 à
    40 secondes après un envoi). On sait donc immédiatement et de façon fiable si une version plus
    récente existe — la seule incertitude qui subsiste ensuite est le délai avant qu'elle soit servie par
-   l'URL habituelle, d'où la directive donnée à l'utilisateur plutôt qu'un rechargement automatique. */
+   l'URL habituelle, d'où la directive donnée à l'utilisateur plutôt qu'un rechargement automatique.
+   Utilise le compte/dépôt déjà configurés dans Paramètres (Synchronisation GitHub) — ce sont les seuls
+   dont on soit sûr, plutôt que de les deviner depuis l'URL (source de l'échec précédent). */
 async function verifierNouvelleVersionDisponible(){
   if(!navigator.onLine){
     document.getElementById("versionBadge").classList.remove("appui-long-ok");
@@ -3307,24 +3310,39 @@ async function verifierNouvelleVersionDisponible(){
     return;
   }
   const badge = document.getElementById("versionBadge");
-  // Convention GitHub Pages pour une page utilisateur : le dépôt s'appelle exactement <utilisateur>.github.io,
-  // servi à la racine — on peut donc déduire propriétaire/dépôt/chemin du fichier directement de l'URL en
-  // cours, sans dépendre de la configuration de synchronisation (utile même si elle n'est pas renseignée).
-  const proprietaire = location.hostname.split(".")[0];
-  const depot = location.hostname;
-  const cheminFichier = decodeURIComponent(location.pathname.replace(/^\//, "")) || "index.html";
+  const cfg = chargerConfig();
+  if(!cfg.user || !cfg.repo || !cfg.token){
+    badge.classList.remove("appui-long-ok");
+    majBadgeVersion();
+    toast("Configure d'abord la synchronisation GitHub (Paramètres) pour utiliser cette vérification");
+    return;
+  }
+  // Chemin du fichier de l'app dans le dépôt : l'URL en cours moins, le cas échéant, le préfixe du nom
+  // du dépôt (cas d'une page de projet du type utilisateur.github.io/depot/…, absent pour une page
+  // utilisateur où le dépôt s'appelle utilisateur.github.io et est servi directement à la racine).
+  let cheminFichier = decodeURIComponent(location.pathname.replace(/^\//, ""));
+  if(cheminFichier.startsWith(cfg.repo + "/")){
+    cheminFichier = cheminFichier.slice(cfg.repo.length + 1);
+  }
+  if(!cheminFichier) cheminFichier = "index.html";
 
+  logAjouter(`Vérification rapide GitHub — repos/${cfg.user}/${cfg.repo}/contents/${cheminFichier}`);
   toast("Vérification directe auprès de GitHub (accès rapide)…");
   badge.classList.add("verification-en-cours");
   try{
-    const url = `https://api.github.com/repos/${proprietaire}/${depot}/contents/${encodeURIComponent(cheminFichier)}`;
-    const res = await fetch(url, { headers: { "Accept": "application/vnd.github.raw+json" }, cache: "no-store" });
+    const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cheminFichier)}`;
+    const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     badge.classList.remove("verification-en-cours","appui-long-ok");
     majBadgeVersion();
-    if(!res.ok) throw new Error("Statut HTTP " + res.status);
+    logAjouter(`→ Statut HTTP ${res.status}`);
+    if(!res.ok){
+      const detail = await res.text().catch(()=>"");
+      throw new Error(`${res.status} sur ${cheminFichier}` + (detail ? " — " + detail.slice(0,150) : ""));
+    }
     const texte = await res.text();
     const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
     const versionDepot = correspondance ? correspondance[1] : null;
+    logAjouter(`→ Version trouvée sur le dépôt : ${versionDepot || "(non détectée dans le fichier)"}`);
     if(versionDepot && versionDepot !== VERSION){
       demanderConfirmation(
         `Version ${versionDepot} disponible`,
@@ -3337,7 +3355,9 @@ async function verifierNouvelleVersionDisponible(){
   }catch(err){
     badge.classList.remove("verification-en-cours","appui-long-ok");
     majBadgeVersion();
-    toast("Échec de la vérification directe auprès de GitHub — réessaie plus tard");
+    const detail = err && err.message ? err.message : "erreur inconnue";
+    logAjouter("→ ERREUR : " + detail);
+    toast("Échec de la vérification GitHub (" + detail + ") — va dans Journal/Log pour le détail");
   }
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));

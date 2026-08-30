@@ -3997,7 +3997,7 @@ document.getElementById("btnListerVersions5").addEventListener("click", function
 
 /* Restaure la cave locale à une version passée (identifiée par le sha du commit GitHub), après
    confirmation — utilise le cache rempli pendant le listing, ou récupère à nouveau si besoin. */
-async function restaurerVersion(sha, btn){
+async function restaurerVersion_OBSOLETE (sha, btn){
   demanderConfirmation(
     "Restaurer cette version",
     "Remplacer la cave actuelle par cette version sauvegardée ? Toute modification locale non envoyée sur GitHub sera perdue.",
@@ -4039,6 +4039,69 @@ async function restaurerVersion(sha, btn){
     }
   );
 }
+
+
+/* Restaurer une version passée (identifiée par le sha du commit GitHub), après confirmation — utilise le cache rempli pendant le listing, ou récupère à nouveau si besoin. */
+async function restaurerVersion(sha, btn){
+  demanderConfirmation(
+    "Restaurer cette version",
+    "Remplacer la cave actuelle par cette version sauvegardée ? Toute modification locale non envoyée sur GitHub sera perdue.",
+    async ()=>{
+      btn.disabled = true;
+      logAjouter(`restaurerVersion(${sha}) confirmé — bottles.length (avant)=${bottles.length} · syncDirty (avant)=${syncDirty}`);
+      let distantes = cacheVersions[sha];
+      if(!distantes){
+        const cfg = chargerConfig();
+        const chemin = cfg.chemin || "cave.json";
+        try{
+          const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${sha}`;
+          const res = await githubAPI(url, cfg, {
+            headers: { "Accept": "application/vnd.github.raw+json" }
+          });
+          if(!res.ok) throw new Error("Échec HTTP " + res.status);
+          const texte = await res.text();
+          const data = JSON.parse(texte);
+          distantes = Array.isArray(data.bottles) ? data.bottles : [];
+          cacheVersions[sha] = distantes;
+        }catch(e){
+          journalAjouter("ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
+          toast("Impossible de charger la version à restaurer — voir le journal");
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      // 1. Remplacer les bouteilles locales
+      bottles = distantes;
+      sauvegarderBouteilles();
+
+      // 2. Marquer l'état local comme modifié ("à sauvegarder")
+      marquerDirty();
+
+      // 3. FIX CRITIQUE : Générer un nouvel horodatage du moment présent
+      // pour que verifierGitHubAuLancement() ne considère plus le fichier GitHub comme "plus récent".
+      const nouvelleMajRestauration = new Date().toISOString();
+      ecrireDerniereMajConnue(nouvelleMajRestauration, INSTANCE_ID);
+
+      // 4. Mettre à jour l'interface
+      rafraichirTout();
+      toast(`Version restaurée (${bottles.length} vin(s)) — à sauvegarder vers GitHub`);
+      journalAjouter(`Version ${sha.slice(0,7)} restaurée avec succès (${bottles.length} vin(s)). Horodatage mis à jour.`);
+      logAjouter(`→ RESTAURATION EFFECTUÉE : ${bottles.length} vin(s) restauré(s), marqueur de maj fixé à ${nouvelleMajRestauration}`);
+      btn.disabled = false;
+
+      // 5. Proposer immédiatement de pousser vers GitHub
+      demanderConfirmation(
+        "Envoyer la version restaurée ?",
+        `La version (${bottles.length} vin(s)) a été restaurée sur cet appareil. Voulez-vous l'envoyer immédiatement vers GitHub pour qu'elle devienne la version officielle sur tous vos appareils ?`,
+        ()=>{
+          envoyerDirectementVersGitHub();
+        }
+      );
+    }
+  );
+}
+
 
 /* ===================== AGRANDISSEMENT DES CHAMPS TEXTE À L'APPUI LONG ===================== */
 /* Tout champ texte (input ou textarea, hors cases à cocher/menus) peut être agrandi par un appui long

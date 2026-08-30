@@ -236,6 +236,10 @@
   .stars .empty{color:var(--line);}
   .prix-carte{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
   .note-numerique-carte{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gold-soft);}
+  .select-champ-import{
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    padding:9px 12px;border-radius:8px;font-size:13.5px;
+  }
   .champ-manquant{border-color:var(--danger) !important;}
   .bottle-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
   .tag{
@@ -938,8 +942,9 @@
     </div>
     <div class="panel-row">
       <button class="btn" id="btnImporterNotes" type="button">📥 Importer les notes</button>
+      <select id="selectChampImport" class="select-champ-import"></select>
     </div>
-    <p class="panel-note">Lit la zone de texte ci-dessus : chaque ligne contenant « : » est interprétée comme « N° du vin : note », la note pouvant se terminer par un « ? » (incertitude) — et applique cette note chiffrée au vin correspondant, sans toucher à sa note en étoiles.</p>
+    <p class="panel-note">Lit la zone de texte ci-dessus : chaque ligne contenant « : » est interprétée comme « N° du vin : valeur », et applique cette valeur au champ sélectionné du vin correspondant. Pour le champ Note, la valeur peut se terminer par un « ? » (incertitude), séparé du chiffre — et la note en étoiles n'est jamais modifiée.</p>
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
@@ -1008,8 +1013,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.32";
+const VERSION = "1.10.33";
 const HISTORY = [
+  { version:"1.10.33", date:"2026-08-29", notes:"Généralisation de l'import : une combobox à droite du bouton (onglet Liste) permet de choisir n'importe quel champ importable de la fiche détaillée (Note, Nom, Domaine, Appellation, Région, Pays, Millésime, Cépages, Prix, Quantité, Emplacement, Lieu d'achat, Boire à partir de/avant, Étiquette, Commentaire) ; le bouton affiche « Import des <champ> » et applique la partie droite de chaque ligne « N° : valeur » au champ sélectionné (le cas du « ? » d'incertitude reste réservé au champ Note)." },
   { version:"1.10.32", date:"2026-08-29", notes:"Sur chaque carte de la liste principale des vins, la note chiffrée s'affiche désormais entre les étoiles et le prix, entre parenthèses et accompagnée du « ? » d'incertitude s'il est renseigné (ex. « (89?) »). Purement informatif, non modifiable à cet endroit." },
   { version:"1.10.31", date:"2026-08-29", notes:"Nouveau bouton « 📥 Importer les notes » sur l'onglet Liste : lit la zone de texte et, pour chaque ligne au format « N° du vin : note », applique cette note chiffrée au vin correspondant (la note en étoiles n'est jamais modifiée). Un tout petit champ « ? » a été ajouté à droite du champ de note chiffrée dans la fiche, pour signaler une note incertaine sans mélanger ce symbole à la valeur numérique elle-même." },
   { version:"1.10.30", date:"2026-08-29", notes:"Fiche descriptive resserrée : hauteur réduite de tous les champs texte (padding, interligne) et des espacements entre les blocs, pour que l'ensemble tienne dans la partie visible sans avoir besoin de faire défiler — le défilement ne redevient nécessaire que si « Détails complémentaires » est déplié, ou qu'un champ est agrandi par appui long." },
@@ -2342,11 +2348,41 @@ document.getElementById("btnCopierListe").addEventListener("click", async functi
 });
 
 /* Lit la zone de texte de la page Liste : chaque ligne contenant « : » est interprétée comme
-   « N° du vin : note » — la note peut se terminer par un « ? » (incertitude), séparé du chiffre et
-   stocké à part. La note en étoiles (b.note) n'est jamais modifiée par cet import. */
+   « N° du vin : valeur » — pour le champ Note, la valeur peut se terminer par un « ? » (incertitude),
+   séparé du chiffre et stocké à part ; la note en étoiles (b.note) n'est jamais modifiée par cet import. */
+const CHAMPS_IMPORTABLES = [
+  { value:"noteNumerique", label:"Note", type:"note" },
+  { value:"nom", label:"Nom / cuvée", type:"text" },
+  { value:"domaine", label:"Domaine / producteur", type:"text" },
+  { value:"appellation", label:"Appellation", type:"text" },
+  { value:"region", label:"Région", type:"text" },
+  { value:"pays", label:"Pays", type:"text" },
+  { value:"millesime", label:"Millésime", type:"text" },
+  { value:"cepages", label:"Cépage(s)", type:"text" },
+  { value:"prixUnitaire", label:"Prix unitaire (€)", type:"number" },
+  { value:"quantite", label:"Quantité en cave", type:"number" },
+  { value:"emplacement", label:"Emplacement", type:"text" },
+  { value:"lieuAchat", label:"Lieu d'achat", type:"text" },
+  { value:"boireDe", label:"Boire à partir de (année)", type:"number" },
+  { value:"boireA", label:"Boire avant (année)", type:"number" },
+  { value:"etiquette", label:"Étiquette", type:"text" },
+  { value:"commentaire", label:"Commentaire", type:"text" }
+];
+function construireSelectChampImport(){
+  const sel = document.getElementById("selectChampImport");
+  sel.innerHTML = CHAMPS_IMPORTABLES.map(c=>`<option value="${c.value}">${escapeHtml(c.label)}</option>`).join("");
+}
+function majLibelleImportChamp(){
+  const sel = document.getElementById("selectChampImport");
+  const champ = CHAMPS_IMPORTABLES.find(c=>c.value===sel.value) || CHAMPS_IMPORTABLES[0];
+  document.getElementById("btnImporterNotes").textContent = "📥 Import des " + champ.label;
+}
+document.getElementById("selectChampImport").addEventListener("change", majLibelleImportChamp);
 document.getElementById("btnImporterNotes").addEventListener("click", function(){
   const texte = document.getElementById("listeTexte").value;
   if(!texte.trim()){ toast("La zone de texte est vide"); return; }
+  const sel = document.getElementById("selectChampImport");
+  const champ = CHAMPS_IMPORTABLES.find(c=>c.value===sel.value) || CHAMPS_IMPORTABLES[0];
   let importees = 0, ignorees = 0;
   texte.split("\n").forEach(ligneBrute=>{
     const ligne = ligneBrute.trim();
@@ -2357,22 +2393,31 @@ document.getElementById("btnImporterNotes").addEventListener("click", function()
     const correspondanceNumero = gauche.match(/\d+/);
     const numero = correspondanceNumero ? parseInt(correspondanceNumero[0], 10) : NaN;
     if(!Number.isInteger(numero)){ ignorees++; return; }
-    let incertaine = "";
-    if(droite.endsWith("?")){
-      incertaine = "?";
-      droite = droite.slice(0, -1).trim();
-    }
-    const valeur = parseFloat(droite.replace(",", "."));
-    if(isNaN(valeur)){ ignorees++; return; }
     const b = bottles.find(x=>x.numero===numero);
     if(!b){ ignorees++; return; }
-    b.noteNumerique = valeur;
-    b.noteIncertaine = incertaine;
+    if(champ.type === "note"){
+      let incertaine = "";
+      if(droite.endsWith("?")){
+        incertaine = "?";
+        droite = droite.slice(0, -1).trim();
+      }
+      const valeur = parseFloat(droite.replace(",", "."));
+      if(isNaN(valeur)){ ignorees++; return; }
+      b.noteNumerique = valeur;
+      b.noteIncertaine = incertaine;
+    }else if(champ.type === "number"){
+      const valeur = parseFloat(droite.replace(",", "."));
+      if(isNaN(valeur)){ ignorees++; return; }
+      b[champ.value] = valeur;
+    }else{
+      if(!droite){ ignorees++; return; }
+      b[champ.value] = droite;
+    }
     importees++;
   });
   if(importees){ sauvegarderBouteilles(); rafraichirTout(); }
   const suffixe = ignorees ? ` — ${ignorees} ligne(s) ignorée(s)` : "";
-  toast(importees ? `${importees} note(s) importée(s)${suffixe}` : "Aucune note importée" + suffixe);
+  toast(importees ? `${importees} ${champ.label.toLowerCase()} importé(e)(s)${suffixe}` : "Aucune valeur importée" + suffixe);
 });
 
 /* ===================== PAGE PARAMÈTRES ===================== */
@@ -3030,6 +3075,8 @@ majLibelleAssistant();
 appliquerModeEdition();
 construireSelectsEmplacement();
 majBoutonDernierEmplacement();
+construireSelectChampImport();
+majLibelleImportChamp();
 rafraichirTout();
 
 // Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).

@@ -353,6 +353,10 @@
   }
   .panel-row{display:flex;gap:8px;flex-wrap:wrap;}
   .panel-note{font-size:12px;color:var(--text-faint);line-height:1.5;}
+  .diag-version-app{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;
+    color:var(--gold-soft) !important;
+  }
   .sync-status{font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
 
   /* ---------- Modal ---------- */
@@ -1183,6 +1187,7 @@
   </div>
 
   <div class="page-body" id="pageCorpsJournal" style="display:none;">
+    <p class="panel-note diag-version-app" id="diagVersionApp"></p>
     <p class="panel-note">Aide au diagnostic d'un problème de synchronisation GitHub : relance une récupération en détaillant chaque étape (sans jamais modifier la cave locale), et affiche le contenu brut du fichier récupéré pour que tu puisses me le transmettre.</p>
     <div class="panel-row">
       <button class="btn btn-gold" id="btnLancerDiagnostic" type="button">🔍 Lancer le diagnostic</button>
@@ -1224,8 +1229,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.78";
+const VERSION = "1.10.79";
 const HISTORY = [
+  { version:"1.10.79", date:"2026-08-30", notes:"Le numéro de version de l'app est désormais toujours visible, sans exception : dans le badge, même quand il affiche « à sauvegarder » ou une erreur (auparavant masqué dans ces deux états) ; et en tête de la page Diagnostic, en évidence (« Version de l'app en cours d'exécution : vX.Y.Z »). Objectif : pouvoir vérifier à tout moment, sans ambiguïté, quelle version tourne réellement." },
   { version:"1.10.78", date:"2026-08-30", notes:"« Garder mes modifications locales » (fenêtre de conflit de synchronisation) propose désormais explicitement d'envoyer immédiatement vers GitHub, comme pour la restauration — pour éviter qu'un rechargement ultérieur, avant tout envoi, ne pose à nouveau la même question et ne finisse par écraser accidentellement le bon choix (piège identifié après une double perte du même ensemble de vins restauré)." },
   { version:"1.10.77", date:"2026-08-30", notes:"Le numéro de version de l'app apparaît désormais dans les messages de confirmation de sauvegarde (envoi vers GitHub, récupération, restauration) — pour être toujours certain de quelle version a effectué l'action, plutôt que de devoir le déduire." },
   { version:"1.10.76", date:"2026-08-30", notes:"Après une restauration depuis Diagnostic → Lister les versions, une fenêtre propose désormais explicitement d'envoyer immédiatement la version restaurée vers GitHub (au lieu de dépendre uniquement de la couleur du badge, facile à manquer) — la restauration met bien à jour l'état « à sauvegarder » comme les autres modifications locales, mais ce rappel direct évite d'oublier l'étape et de perdre à nouveau ce qui vient d'être récupéré au prochain rechargement." },
@@ -1399,14 +1405,14 @@ function majBadgeVersion(){
   const btn = document.getElementById("versionBadge");
   btn.classList.remove("dirty","error");
   if(syncEnCours){
-    btn.textContent = "Sauvegarde…";
+    btn.textContent = `v${VERSION} · Sauvegarde…`;
     btn.disabled = true;
   }else if(syncEnErreur){
-    btn.textContent = "⚠ Échec — appuyer pour réessayer";
+    btn.textContent = `v${VERSION} · ⚠ Échec — réessayer`;
     btn.classList.add("error");
     btn.disabled = false;
   }else if(syncDirty){
-    btn.textContent = "● À sauvegarder";
+    btn.textContent = `v${VERSION} · ● À sauvegarder`;
     btn.classList.add("dirty");
     btn.disabled = false;
   }else{
@@ -3231,6 +3237,7 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
 
 /* ===================== VERSION / HISTORIQUE ===================== */
 majBadgeVersion();
+document.getElementById("diagVersionApp").textContent = `Version de l'app en cours d'exécution : v${VERSION}`;
 /* Appui long (~500 ms sans bouger) sur le badge de version : force le rechargement de l'app en
    contournant le cache du navigateur. L'appui normal garde son fonctionnement habituel et inchangé
    (historique des versions, ou envoi immédiat si le badge affiche « à sauvegarder »). */

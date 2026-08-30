@@ -462,7 +462,8 @@
     border-radius:var(--radius);border:1px solid var(--line);
     display:block;
   }
-  .photo-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .photo-actions{display:flex;flex-direction:column;gap:8px;}
+  .photo-actions-row{display:flex;gap:8px;flex-wrap:wrap;}
   .photo-actions .btn{padding:16px 9px;}
   .modal-actions{
     display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
@@ -807,10 +808,14 @@
           <div class="photo-section">
             <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette du vin">
             <div class="photo-actions">
-              <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
-              <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;">🤖 Identifier avec ChatGPT</button>
-              <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;">📥 Appliquer la réponse à ce vin</button>
-              <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+              <div class="photo-actions-row">
+                <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
+                <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+              </div>
+              <div class="photo-actions-row">
+                <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;">🤖 Identifier avec ChatGPT</button>
+                <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;">📥 Appliquer la réponse à ce vin</button>
+              </div>
             </div>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
           </div>
@@ -1180,8 +1185,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.58";
+const VERSION = "1.10.59";
 const HISTORY = [
+  { version:"1.10.59", date:"2026-08-29", notes:"Les quatre boutons liés à la photo sont réorganisés en deux lignes : « Afficher la photo existante » et « Retirer la photo » sur la première (actions sur la photo elle-même), « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » sur la seconde (actions liées à l'analyse par l'IA)." },
   { version:"1.10.58", date:"2026-08-29", notes:"Les quatre boutons liés à la photo (Afficher, Identifier, Appliquer la réponse, Retirer) sont désormais environ deux fois plus hauts, pour réduire le risque de toucher le mauvais bouton voisin par erreur." },
   { version:"1.10.57", date:"2026-08-29", notes:"Cause réelle trouvée grâce au Log : « Retirer la photo » se déclenchait par mauvais clic à la place de « Appliquer la réponse à ce vin », sans aucune confirmation. Deux corrections : (1) « Retirer la photo » demande désormais une confirmation avant d'agir, comme les autres actions destructrices de l'app ; (2) réordonnancement des boutons de la fiche pour éloigner « Retirer la photo » des boutons Identifier/Appliquer, utilisés à la suite l'un de l'autre." },
   { version:"1.10.56", date:"2026-08-29", notes:"Nouvel onglet « 📜 Log » à côté de Journal / Diagnostic : zone de texte qui trace étape par étape ce qui se passe lors de « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » (lecture du presse-papier, extraction des champs, branche empruntée, état de la photo avant/après), avec boutons « Vider » et « Copier » pour transmettre ce journal en cas de problème." },

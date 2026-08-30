@@ -1,5 +1,5 @@
 {
-  "avecPhoto": false,
+  "avecPhoto": true,
   "questionChatGPT": "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : » et ajoute après « étiquette : » tout ce que tu auras pu extraire de l’étiquette en l’organisant de façon à ce que cela soit bien compréhensible . Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l’étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l’étiquette.",
   "questionAvisChatGPT": "Que penses-tu de ce vin ? Pourras-tu compléter ta réponse par deux champs présentés comme suit : \nnote : xxx \nPrix : yyy euros",
   "assistantIA": "chatgpt",
@@ -18,5 +18,5 @@
     "Coffret en bois"
   ],
   "regionsListe": [],
-  "maj": "2026-08-30T17:49:04.502Z"
+  "maj": "2026-08-30T17:51:40.901Z"
 }

@@ -1224,8 +1224,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.76";
+const VERSION = "1.10.78";
 const HISTORY = [
+  { version:"1.10.78", date:"2026-08-30", notes:"« Garder mes modifications locales » (fenêtre de conflit de synchronisation) propose désormais explicitement d'envoyer immédiatement vers GitHub, comme pour la restauration — pour éviter qu'un rechargement ultérieur, avant tout envoi, ne pose à nouveau la même question et ne finisse par écraser accidentellement le bon choix (piège identifié après une double perte du même ensemble de vins restauré)." },
+  { version:"1.10.77", date:"2026-08-30", notes:"Le numéro de version de l'app apparaît désormais dans les messages de confirmation de sauvegarde (envoi vers GitHub, récupération, restauration) — pour être toujours certain de quelle version a effectué l'action, plutôt que de devoir le déduire." },
   { version:"1.10.76", date:"2026-08-30", notes:"Après une restauration depuis Diagnostic → Lister les versions, une fenêtre propose désormais explicitement d'envoyer immédiatement la version restaurée vers GitHub (au lieu de dépendre uniquement de la couleur du badge, facile à manquer) — la restauration met bien à jour l'état « à sauvegarder » comme les autres modifications locales, mais ce rappel direct évite d'oublier l'étape et de perdre à nouveau ce qui vient d'être récupéré au prochain rechargement." },
   { version:"1.10.75", date:"2026-08-30", notes:"Deux corrections critiques trouvées grâce au Log : (1) le contrôle « une version plus récente existe-t-elle ? » avant chaque envoi utilisait un format d'API tronqué au-delà de 1 Mo — devenu silencieusement inopérant dès que la cave a dépassé cette taille, laissant les envois passer sans aucune vérification ; corrigé en relisant le contenu distant au format « raw », sans cette limite. (2) La vérification au lancement, quand l'origine de la dernière sauvegarde GitHub correspond à cet appareil, ignorait silencieusement le cas où le local avait perdu des vins depuis ce dernier envoi (au lieu de le signaler) — un envoi suivant écrasait alors la sauvegarde GitHub plus complète par une version locale appauvrie. Les deux situations affichent désormais la fenêtre de conflit détaillée avant toute action, au lieu de continuer silencieusement." },
   { version:"1.10.74", date:"2026-08-29", notes:"Le nombre de vins (fiches) apparaît désormais en en-tête, à côté du nombre de bouteilles en cave — en petite indication discrète (« · X vin(s) »), sans ajouter de nouvelle carte ni alourdir visuellement l'ensemble." },
@@ -3567,11 +3569,11 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     const cfgSauv = lireChampsConfig();
     cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
     sauvegarderConfig(cfgSauv);
-    statusEl.textContent = "Envoyé le " + cfgSauv.derniereSync
+    statusEl.textContent = `Envoyé le ${cfgSauv.derniereSync} (app v${VERSION})`
       + (resPhotos.total ? ` — photos : ${resPhotos.succes} envoyée(s)${resPhotos.echecs ? ", " + resPhotos.echecs + " échouée(s)" : ""}` : "");
     feedbackBouton(btn, "✓ Envoyé");
-    toast(resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub");
-    logAjouter(`→ SUCCÈS : ${bouteillesAEnvoyer.length} vin(s) envoyé(s) et confirmés sur GitHub.`);
+    toast((resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub") + ` — app v${VERSION}`);
+    logAjouter(`→ SUCCÈS : ${bouteillesAEnvoyer.length} vin(s) envoyé(s) et confirmés sur GitHub (app v${VERSION}).`);
     marquerSynchronise();
   }catch(err){
     logAjouter("→ ERREUR pendant l'envoi effectif : " + (err && err.message ? err.message : String(err)));
@@ -3605,7 +3607,11 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
     : "💡 La version sur GitHub contient plus de vins que ta version locale : vérifie qu'elle ne provient pas d'ajouts récents faits ailleurs avant de l'écraser.";
   document.getElementById("btnConflitGarderLocal").onclick = ()=>{
     document.getElementById("overlayConflitSync").classList.remove("show");
-    toast("Modifications locales conservées — pense à les envoyer");
+    demanderConfirmation(
+      "Envoyer tes modifications locales ?",
+      "Tes modifications locales sont conservées sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer maintenant, pour que ce choix survive au prochain rechargement ?",
+      ()=>lancerEnvoiVersGitHub()
+    );
   };
   document.getElementById("btnConflitUtiliserDistant").onclick = ()=>{
     document.getElementById("overlayConflitSync").classList.remove("show");
@@ -3646,7 +3652,7 @@ async function verifierGitHubAuLancement(){
       sauvegarderConfig(cfgSauv);
       const statusEl = document.getElementById("syncStatus");
       if(statusEl) statusEl.textContent = "Récupéré automatiquement le " + cfgSauv.derniereSync;
-      toast(msg);
+      toast(msg + ` — app v${VERSION}`);
     }
 
     if(origineDistante === INSTANCE_ID){
@@ -3705,8 +3711,8 @@ document.getElementById("btnPull").addEventListener("click", async function(){
       const cfgSauv = lireChampsConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
       sauvegarderConfig(cfgSauv);
-      statusEl.textContent = "Récupéré le " + cfgSauv.derniereSync;
-      toast("Cave mise à jour depuis GitHub");
+      statusEl.textContent = `Récupéré le ${cfgSauv.derniereSync} (app v${VERSION})`;
+      toast(`Cave mise à jour depuis GitHub — app v${VERSION}`);
     });
     feedbackBouton(btn, "✓ Reçu");
   }catch(err){
@@ -3925,7 +3931,7 @@ async function restaurerVersion(sha, btn){
       rafraichirTout();
       logAjouter(`→ Restauration appliquée — bottles.length (après)=${bottles.length} · syncDirty (après)=${syncDirty} · badge=${document.getElementById("versionBadge").textContent}`);
       journalAjouter(`Cave restaurée depuis la version ${sha.slice(0,7)} (${distantes.length} vin(s)).`);
-      toast("Cave restaurée sur cet appareil");
+      toast(`Cave restaurée sur cet appareil — app v${VERSION}`);
       demanderConfirmation(
         "Envoyer cette version restaurée ?",
         "La cave a été restaurée sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer cette version restaurée vers GitHub maintenant ?",

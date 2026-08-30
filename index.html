@@ -242,6 +242,9 @@
     background:var(--bg-panel-2);border:1px solid var(--line);
     color:var(--gold-soft);padding:2px 7px;border-radius:6px;margin-top:2px;
   }
+  .numero-badge.numero-badge-marque{
+    background:#F5D90A;border-color:#C9A227;color:#1c1710;font-weight:600;
+  }
   .bottle-sub{font-size:12px;color:var(--text-muted);}
   .bottle-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;}
   .bottle-meta-row .millesime{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--gold-soft);}
@@ -484,6 +487,11 @@
     background:var(--bg-panel-2);border:1px solid var(--gold);
     border-radius:10px;padding:6px 12px;
   }
+  .numero-fiche-badge.marque{
+    background:#F5D90A;border-color:#C9A227;
+  }
+  .numero-fiche-badge.marque .numero-fiche-valeur{color:#1c1710;border-bottom-color:#1c1710;}
+  .numero-fiche-badge.marque .numero-fiche-note{color:#3a2e00;}
   .numero-fiche-valeur{
     font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--gold-soft);
     cursor:pointer;border-bottom:1px dashed var(--gold);
@@ -665,6 +673,11 @@
     <option value="cidre">Cidre</option>
     <option value="liquoreux">Liquoreux</option>
     <option value="autre">Autre</option>
+  </select>
+  <select id="filtreMarqueSel">
+    <option value="tous" selected>Tous les vins</option>
+    <option value="marques">Vins marqués seulement</option>
+    <option value="non_marques">Vins non marqués seulement</option>
   </select>
   <select id="groupBySel">
     <option value="aucun">Ne pas regrouper</option>
@@ -1191,8 +1204,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.60";
+const VERSION = "1.10.61";
 const HISTORY = [
+  { version:"1.10.61", date:"2026-08-29", notes:"Possibilité de marquer/démarquer un vin en touchant son N° dans la liste (fond jaune quand marqué, aussi visible sur le badge N° de la fiche détaillée) — sauvegardé immédiatement comme les autres actions directes de la liste. Ajout d'un filtre à trois positions (Tous les vins / Vins marqués seulement / Vins non marqués seulement), combinable avec les autres filtres et regroupements existants." },
   { version:"1.10.60", date:"2026-08-29", notes:"Le défilement automatique vers « Détails complémentaires » vise maintenant la rangée Annuler/Enregistrer juste au-dessus, pour que le bouton Enregistrer reste visible en plus du bandeau. Par ailleurs, après avoir ouvert ChatGPT/Claude pour identifier un vin, le bouton « Appliquer la réponse à ce vin » passe en vert pour indiquer clairement la prochaine étape à faire au retour, et reprend son apparence normale dès qu'il est utilisé (ou qu'une autre fiche est ouverte)." },
   { version:"1.10.59", date:"2026-08-29", notes:"Les quatre boutons liés à la photo sont réorganisés en deux lignes : « Afficher la photo existante » et « Retirer la photo » sur la première (actions sur la photo elle-même), « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » sur la seconde (actions liées à l'analyse par l'IA)." },
   { version:"1.10.58", date:"2026-08-29", notes:"Les quatre boutons liés à la photo (Afficher, Identifier, Appliquer la réponse, Retirer) sont désormais environ deux fois plus hauts, pour réduire le risque de toucher le mauvais bouton voisin par erreur." },
@@ -1311,6 +1325,7 @@ let MODE_EDITION = new URLSearchParams(location.search).has("edition");
 let bottles = [];
 let filtreStatut = "cave";
 let filtreCouleur = "toutes";
+let filtreMarque = "tous"; // "tous" | "marques" | "non_marques"
 let filtreApogeeOnly = false;
 let recherche = "";
 let groupBy = "couleur";
@@ -1323,6 +1338,7 @@ let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dé
 let photoSupprimee = false;
 let noteChoisie = 0;
 let numeroFicheCourant = null;   // numéro proposé/en cours pour la fiche ouverte (ajout ou édition), appliqué seulement à l'enregistrement
+let marqueFicheCourante = false; // état "marqué" (repère jaune) du vin actuellement ouvert dans la fiche, pour l'affichage du badge N°
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 const QUESTION_CHATGPT_DEFAUT = "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin.";
@@ -1479,6 +1495,7 @@ function validerNumero(n){
 function afficherNumeroFiche(){
   document.getElementById("numeroFicheValeur").textContent = "N° " + numeroFicheCourant;
   document.getElementById("numeroFicheValeur").style.display = "";
+  document.getElementById("numeroFicheBadge").classList.toggle("marque", marqueFicheCourante);
   const input = document.getElementById("numeroFicheInput");
   input.style.display = "none";
   input.classList.remove("conflit");
@@ -1728,6 +1745,8 @@ function bouteillesFiltrees(){
   if(filtreStatut === "cave") list = list.filter(b=>(Number(b.quantite)||0) > 0);
   else if(filtreStatut === "bue") list = list.filter(b=>(Number(b.quantiteBue)||0) > 0);
   if(filtreCouleur !== "toutes") list = list.filter(b=>b.couleur===filtreCouleur);
+  if(filtreMarque === "marques") list = list.filter(b=>!!b.marque);
+  else if(filtreMarque === "non_marques") list = list.filter(b=>!b.marque);
   if(filtreApogeeOnly) list = list.filter(b=>statutApogee(b)==="now");
   if(recherche.trim()){
     const brut = recherche.trim();
@@ -1829,7 +1848,7 @@ function carteBouteille(b){
       <div data-action="ouvrir">
         <div class="bottle-title-row">
           <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
-          ${b.numero ? `<span class="numero-badge">N°${b.numero}</span>` : ""}
+          ${b.numero ? `<span class="numero-badge${b.marque?' numero-badge-marque':''}" data-action="toggleMarque" title="Toucher pour marquer/démarquer">N°${b.numero}</span>` : ""}
         </div>
         ${sousTitre ? `<div class="bottle-sub">${escapeHtml(sousTitre)}</div>` : ""}
         <div class="bottle-meta-row">
@@ -1902,6 +1921,8 @@ function renderGrille(){
     }
     const btnAvisCard = card.querySelector('[data-action="voirAvis"]');
     if(btnAvisCard) btnAvisCard.addEventListener("click", e=>{ e.stopPropagation(); ouvrirAvisPourVin(id); });
+    const btnMarque = card.querySelector('[data-action="toggleMarque"]');
+    if(btnMarque) btnMarque.addEventListener("click", e=>{ e.stopPropagation(); basculerMarque(id); });
   });
 }
 
@@ -1935,6 +1956,17 @@ function annulerBue(id){
   sauvegarderBouteilles();
   rafraichirTout();
   toast("Annulé — bouteille remise en cave");
+}
+/* Marque/démarque un vin (repère personnel affiché en jaune sur son N°, dans la liste et dans la fiche).
+   Persisté immédiatement comme les autres actions directes depuis la liste (marquer une bouteille comme
+   bue, etc.) : sauvegardé localement tout de suite, et envoyé sur GitHub au prochain « Envoyer ». */
+function basculerMarque(id){
+  const b = bottles.find(x=>x.id===id);
+  if(!b) return;
+  b.marque = !b.marque;
+  sauvegarderBouteilles();
+  rafraichirTout();
+  toast(b.marque ? "Vin marqué" : "Vin démarqué");
 }
 
 /* ===================== FICHE (AJOUT / ÉDITION) ===================== */
@@ -2004,6 +2036,7 @@ function viderFormulaire(){
 function ouvrirAjout(){
   logAjouter("ouvrirAjout() appelé — ficheEnCours va passer à null, titre → « Ajouter un vin ».");
   ficheEnCours = null;
+  marqueFicheCourante = false;
   viderFormulaire();
   numeroFicheCourant = prochainNumero();
   afficherNumeroFiche();
@@ -2037,6 +2070,7 @@ function ouvrirFiche(id){
   logAjouter(`ouvrirFiche(${id}) appelé — nom="${b.nom}" · numero=${b.numero} · photo: miniature=${b.photoMiniature?"oui":"non"} pendante=${b.photoPendingBase64?"oui":"non"} fichier=${b.photoFichier||"non"}`);
   document.getElementById("btnAppliquerReponseFiche").classList.remove("suggestion-verte");
   ficheEnCours = id;
+  marqueFicheCourante = !!b.marque;
   numeroFicheCourant = b.numero || prochainNumero();
   afficherNumeroFiche();
   document.getElementById("ficheSectionBasse").open = false;
@@ -2600,6 +2634,7 @@ function compresserImage(file, maxDim, qualite){
 /* ===================== TOOLBAR ===================== */
 document.getElementById("rechercheInput").addEventListener("input", e=>{ recherche = e.target.value; renderGrille(); });
 document.getElementById("filtreCouleurSel").addEventListener("change", e=>{ filtreCouleur = e.target.value; renderGrille(); });
+document.getElementById("filtreMarqueSel").addEventListener("change", e=>{ filtreMarque = e.target.value; renderGrille(); });
 document.getElementById("groupBySel").addEventListener("change", e=>{ groupBy = e.target.value; renderGrille(); });
 document.getElementById("sortSel").addEventListener("change", e=>{ sortKey = e.target.value; renderGrille(); });
 

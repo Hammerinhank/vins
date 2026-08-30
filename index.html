@@ -1224,8 +1224,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.74";
+const VERSION = "1.10.75";
 const HISTORY = [
+  { version:"1.10.75", date:"2026-08-30", notes:"Deux corrections critiques trouvées grâce au Log : (1) le contrôle « une version plus récente existe-t-elle ? » avant chaque envoi utilisait un format d'API tronqué au-delà de 1 Mo — devenu silencieusement inopérant dès que la cave a dépassé cette taille, laissant les envois passer sans aucune vérification ; corrigé en relisant le contenu distant au format « raw », sans cette limite. (2) La vérification au lancement, quand l'origine de la dernière sauvegarde GitHub correspond à cet appareil, ignorait silencieusement le cas où le local avait perdu des vins depuis ce dernier envoi (au lieu de le signaler) — un envoi suivant écrasait alors la sauvegarde GitHub plus complète par une version locale appauvrie. Les deux situations affichent désormais la fenêtre de conflit détaillée avant toute action, au lieu de continuer silencieusement." },
   { version:"1.10.74", date:"2026-08-29", notes:"Le nombre de vins (fiches) apparaît désormais en en-tête, à côté du nombre de bouteilles en cave — en petite indication discrète (« · X vin(s) »), sans ajouter de nouvelle carte ni alourdir visuellement l'ensemble." },
   { version:"1.10.73", date:"2026-08-29", notes:"Corrigé une confusion importante dans la page Diagnostic : « Lister les versions » (5/30 dernières) affichait le nombre de vins (fiches) enregistrés en l'étiquetant à tort « bouteille(s) », alors que le reste de l'app distingue vins (fiches) et bouteilles (quantité physique, champ Quantité en cave). Un décompte de 38 vins pouvait donc sembler être une perte massive de bouteilles par rapport aux « 53 bouteilles en cave » du haut de l'écran, alors que ce n'était pas du tout la même mesure. La liste affiche désormais clairement les deux : « X vin(s) · Y bouteille(s) »." },
   { version:"1.10.72", date:"2026-08-29", notes:"Instrumentation détaillée (onglet Log) de tout le flux de synchronisation GitHub : envoi (« Envoyer vers GitHub »), vérification automatique au lancement, et récupération manuelle — pour comprendre précisément un cas où le nombre de vins réellement enregistrés sur GitHub ne correspondait pas à ce qui était affiché dans l'app. Chaque étape (config utilisée, contenu distant lu, décision prise, résultat de l'envoi) est désormais tracée." },
@@ -3479,21 +3480,33 @@ async function lancerEnvoiVersGitHub(){
     if(getRes.status === 200){
       const info = await getRes.json();
       sha = info.sha;
+      // Le format JSON standard tronque/omet le contenu au-delà de 1 Mo (limite connue de l'API GitHub,
+      // déjà rencontrée ailleurs dans l'app) — on relit donc le contenu séparément au format « raw »,
+      // qui n'a pas cette limite, pour que la comparaison fonctionne quelle que soit la taille du fichier.
       let donneesDistantes = null;
-      try{ donneesDistantes = JSON.parse(decoderContenuBase64Utf8(info.content)); }catch(e){ donneesDistantes = null; }
+      try{
+        const getRawRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
+        if(getRawRes.ok){
+          const texteRaw = await getRawRes.text();
+          donneesDistantes = JSON.parse(texteRaw);
+        }
+      }catch(e){ donneesDistantes = null; }
       logAjouter(`→ Contenu distant actuel : ${donneesDistantes ? (donneesDistantes.bottles||[]).length + " vin(s), maj=" + donneesDistantes.maj + ", origine=" + donneesDistantes.origine : "non décodable"} · sha=${sha}`);
       if(donneesDistantes){
         const connue = lireDerniereMajConnue();
         const estDifferenteDeNousMemes = donneesDistantes.origine && donneesDistantes.origine !== INSTANCE_ID;
         const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
         logAjouter(`→ INSTANCE_ID=${INSTANCE_ID} · dernière maj connue=${connue ? connue.maj + " (origine " + connue.origine + ")" : "aucune"} · estDifferenteDeNousMemes=${estDifferenteDeNousMemes} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
-        if(estDifferenteDeNousMemes && estNonPriseEnCompte){
+        const distantAPlusDeVins = (donneesDistantes.bottles||[]).length > bottles.length;
+        if((estDifferenteDeNousMemes && estNonPriseEnCompte) || (!estDifferenteDeNousMemes && distantAPlusDeVins)){
           btn.disabled = false;
           statusEl.textContent = "Envoi interrompu — version distante plus récente détectée.";
-          logAjouter("→ ARRÊT : fenêtre de conflit affichée, envoi suspendu en attente de confirmation.");
+          logAjouter(`→ ARRÊT : fenêtre de conflit affichée (distantAPlusDeVins=${distantAPlusDeVins}), envoi suspendu en attente de confirmation.`);
           demanderConfirmation(
             "Version distante plus récente",
-            "Une version plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale ?",
+            estDifferenteDeNousMemes
+              ? "Une version plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale ?"
+              : `La version sur GitHub (envoyée par cet appareil) contient plus de vins (${(donneesDistantes.bottles||[]).length}) que ta version locale actuelle (${bottles.length}) — tes données locales semblent incomplètes par rapport à ce que tu as déjà sauvegardé. Écraser quand même GitHub avec la version locale (moins complète) ?`,
             ()=>effectuerEnvoiVersGitHub(cfg, sha)
           );
           return;
@@ -3619,10 +3632,6 @@ async function verifierGitHubAuLancement(){
     const distantes = data.bottles || [];
     const origineDistante = data.origine || null;
     logAjouter(`→ Distant : ${distantes.length} vin(s), maj=${data.maj}, origine=${origineDistante} · INSTANCE_ID local=${INSTANCE_ID}`);
-    if(origineDistante === INSTANCE_ID){
-      logAjouter("→ Origine distante = cet appareil, on considère que c'est notre propre dernier envoi : rien à faire.");
-      return;
-    }
 
     function appliquerDistantes(msg){
       logAjouter(`→ APPLICATION DES DONNÉES DISTANTES : le local (${bottles.length} vin(s)) va être remplacé par les ${distantes.length} vin(s) distant(s).`);
@@ -3637,6 +3646,20 @@ async function verifierGitHubAuLancement(){
       const statusEl = document.getElementById("syncStatus");
       if(statusEl) statusEl.textContent = "Récupéré automatiquement le " + cfgSauv.derniereSync;
       toast(msg);
+    }
+
+    if(origineDistante === INSTANCE_ID){
+      // Notre propre dernier envoi — SAUF si le local a depuis moins de vins que ce que cet appareil a
+      // lui-même déjà envoyé (données locales endommagées ou perdues entre deux sessions, cas
+      // réellement rencontré) : dans ce cas précis, mieux vaut prévenir que d'ignorer silencieusement,
+      // sous peine d'écraser ensuite cette sauvegarde plus complète lors d'un prochain envoi.
+      if(distantes.length > bottles.length){
+        logAjouter(`⚠️ Le local (${bottles.length} vin(s)) a MOINS de vins que la dernière sauvegarde envoyée par cet appareil (${distantes.length} vin(s)) — fenêtre d'alerte affichée plutôt que de continuer silencieusement.`);
+        afficherConflitSync(distantes, data, ()=>appliquerDistantes("Cave restaurée depuis GitHub (données locales incomplètes détectées)"));
+      }else{
+        logAjouter("→ Origine distante = cet appareil, et le local n'a pas moins de vins : rien à faire.");
+      }
+      return;
     }
 
     if(!syncDirty){

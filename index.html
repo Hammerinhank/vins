@@ -1098,8 +1098,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.49";
+const VERSION = "1.10.50";
 const HISTORY = [
+  { version:"1.10.50", date:"2026-08-29", notes:"Corrigé : le passage en bleu du badge lors de l'appui long n'était pas perceptible car le rechargement pouvait survenir avant que le navigateur n'ait eu l'occasion d'afficher le changement de couleur. Un court délai (0,5 s) est désormais intercalé entre l'affichage du bleu et le déclenchement effectif du rechargement." },
   { version:"1.10.49", date:"2026-08-29", notes:"L'appui long sur le badge de version passe désormais brièvement le badge en bleu, pour confirmer visuellement que le rechargement forcé (contournement du cache) a bien été pris en compte." },
   { version:"1.10.48", date:"2026-08-29", notes:"Correction : le badge de version distingue maintenant l'appui normal (historique des versions, comportement inchangé depuis toujours — ou envoi si « à sauvegarder ») de l'appui long (~500 ms), qui force le rechargement de l'app en contournant le cache du navigateur." },
   { version:"1.10.47", date:"2026-08-29", notes:"Appuyer sur le badge de version, quand il affiche le numéro de version (donc hors cas « à sauvegarder »), force désormais un rechargement de l'app en contournant le cache du navigateur (vidage des caches éventuels, désinscription d'éventuels service workers, puis rechargement avec un paramètre unique dans l'URL, en conservant ?edition/?apercu s'ils étaient présents) — pour obtenir la dernière version sans manipulation. Cela remplace l'ancien comportement de ce tap, qui ouvrait l'historique des versions." },
@@ -2962,8 +2963,10 @@ function demarrerAppuiLongBadge(x, y){
     if(navigator.vibrate) navigator.vibrate(15);
     const badge = document.getElementById("versionBadge");
     badge.classList.add("appui-long-ok");
-    setTimeout(()=>badge.classList.remove("appui-long-ok"), 1000);
-    forcerRechargementSansCache();
+    // Délai volontaire avant de lancer le rechargement, pour laisser le temps de bien voir le badge
+    // passer en bleu — sans cette pause, la navigation peut survenir avant que le navigateur n'ait
+    // eu l'occasion d'afficher le changement de couleur.
+    setTimeout(()=>{ forcerRechargementSansCache(); }, 500);
   }, DUREE_APPUI_LONG_BADGE);
 }
 function deplacerAppuiLongBadge(x, y){

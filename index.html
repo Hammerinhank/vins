@@ -1229,8 +1229,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.79";
+const VERSION = "1.10.80";
 const HISTORY = [
+  { version:"1.10.80", date:"2026-08-30", notes:"Clarifié la logique de vérification de version (appui long), qui mélangeait les deux mécanismes : désormais deux phases bien distinctes. Phase 1, accès rapide (API GitHub) : une seule requête pour savoir si une version différente existe — arrêt immédiat si non, sans scrutin inutile. Phase 2, accès lent (URL publiée) : démarre uniquement si la phase 1 a confirmé une version différente, scrute alors l'URL toutes les 10 s (abandon au bout de 2 min) pour savoir précisément quand cette version devient réellement servie, avant d'inviter à fermer/rouvrir l'app." },
   { version:"1.10.79", date:"2026-08-30", notes:"Le numéro de version de l'app est désormais toujours visible, sans exception : dans le badge, même quand il affiche « à sauvegarder » ou une erreur (auparavant masqué dans ces deux états) ; et en tête de la page Diagnostic, en évidence (« Version de l'app en cours d'exécution : vX.Y.Z »). Objectif : pouvoir vérifier à tout moment, sans ambiguïté, quelle version tourne réellement." },
   { version:"1.10.78", date:"2026-08-30", notes:"« Garder mes modifications locales » (fenêtre de conflit de synchronisation) propose désormais explicitement d'envoyer immédiatement vers GitHub, comme pour la restauration — pour éviter qu'un rechargement ultérieur, avant tout envoi, ne pose à nouveau la même question et ne finisse par écraser accidentellement le bon choix (piège identifié après une double perte du même ensemble de vins restauré)." },
   { version:"1.10.77", date:"2026-08-30", notes:"Le numéro de version de l'app apparaît désormais dans les messages de confirmation de sauvegarde (envoi vers GitHub, récupération, restauration) — pour être toujours certain de quelle version a effectué l'action, plutôt que de devoir le déduire." },
@@ -3309,14 +3310,18 @@ versionBadgeEl.addEventListener("click", ()=>{
   `).join("");
   document.getElementById("overlayHistory").classList.add("show");
 });
-/* Vérifie si une nouvelle version a été enregistrée sur GitHub — en interrogeant directement l'API
-   GitHub (accès « rapide », qui reflète le dernier commit en moins d'une seconde), et non l'URL publiée
-   de la page (accès « lent », qui passe par la mise à disposition de GitHub Pages et peut prendre 30 à
-   40 secondes après un envoi). On sait donc immédiatement et de façon fiable si une version plus
-   récente existe — la seule incertitude qui subsiste ensuite est le délai avant qu'elle soit servie par
-   l'URL habituelle, d'où la directive donnée à l'utilisateur plutôt qu'un rechargement automatique.
-   Utilise le compte/dépôt déjà configurés dans Paramètres (Synchronisation GitHub) — ce sont les seuls
-   dont on soit sûr, plutôt que de les deviner depuis l'URL (source de l'échec précédent). */
+/* Vérifie s'il faut recharger l'app, en deux phases bien distinctes qui ne doivent jamais être
+   mélangées :
+   PHASE 1 — accès RAPIDE (API GitHub, reflète le dernier commit en moins d'une seconde) : sert
+   uniquement à savoir si une nouvelle version EXISTE sur le dépôt. Une seule requête, jamais de
+   scrutin ici — si la réponse dit « même version », on s'arrête tout de suite, il n'y a rien à
+   attendre.
+   PHASE 2 — accès LENT (l'URL publiée elle-même) : ne démarre QUE si la phase 1 a confirmé qu'une
+   version différente existe sur le dépôt. Sert à savoir quand cette version devient réellement
+   disponible via l'URL (peut prendre 30 à 40 s après un envoi, le temps que GitHub Pages la mette à
+   disposition) — d'où le scrutin toutes les 10 s, abandonné au bout de 2 min si la version enregistrée
+   (phase 1) ne devient jamais visible via l'URL (phase 2). */
+let rechargementEnCoursId = 0; // incrémenté à chaque nouveau cycle, invalide les scrutins précédents encore en attente
 async function verifierNouvelleVersionDisponible(){
   if(!navigator.onLine){
     document.getElementById("versionBadge").classList.remove("appui-long-ok");
@@ -3341,39 +3346,89 @@ async function verifierNouvelleVersionDisponible(){
   }
   if(!cheminFichier) cheminFichier = "index.html";
 
-  logAjouter(`Vérification rapide GitHub — repos/${cfg.user}/${cfg.repo}/contents/${cheminFichier}`);
+  // ---------- PHASE 1 : accès rapide (API GitHub) — une seule requête ----------
+  logAjouter(`[Phase 1 — rapide] Vérification API GitHub — repos/${cfg.user}/${cfg.repo}/contents/${cheminFichier}`);
   toast("Vérification directe auprès de GitHub (accès rapide)…");
   badge.classList.add("verification-en-cours");
+  let versionDepot = null;
   try{
     const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cheminFichier)}`;
     const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
-    badge.classList.remove("verification-en-cours","appui-long-ok");
-    majBadgeVersion();
-    logAjouter(`→ Statut HTTP ${res.status}`);
+    badge.classList.remove("verification-en-cours");
+    logAjouter(`[Phase 1] → Statut HTTP ${res.status}`);
     if(!res.ok){
       const detail = await res.text().catch(()=>"");
       throw new Error(`${res.status} sur ${cheminFichier}` + (detail ? " — " + detail.slice(0,150) : ""));
     }
     const texte = await res.text();
     const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
-    const versionDepot = correspondance ? correspondance[1] : null;
-    logAjouter(`→ Version trouvée sur le dépôt : ${versionDepot || "(non détectée dans le fichier)"}`);
-    if(versionDepot && versionDepot !== VERSION){
-      demanderConfirmation(
-        `Version ${versionDepot} disponible`,
-        `Le dépôt GitHub contient déjà la v${versionDepot} (tu utilises la v${VERSION}) — elle est bien enregistrée, mais peut mettre 30 à 40 secondes à être servie par l'URL habituelle. Attends un peu, puis ferme complètement l'app (pas juste cet onglet — quitte vraiment Safari ou retire-la du multitâche) et rouvre-la pour être sûr de la charger.`,
-        ()=>{}
-      );
-    }else{
-      toast(`Tu es déjà sur la dernière version enregistrée (v${VERSION})`);
-    }
+    versionDepot = correspondance ? correspondance[1] : null;
+    logAjouter(`[Phase 1] → Version enregistrée sur le dépôt : ${versionDepot || "(non détectée dans le fichier)"}`);
   }catch(err){
     badge.classList.remove("verification-en-cours","appui-long-ok");
     majBadgeVersion();
     const detail = err && err.message ? err.message : "erreur inconnue";
-    logAjouter("→ ERREUR : " + detail);
+    logAjouter("[Phase 1] → ERREUR : " + detail);
     toast("Échec de la vérification GitHub (" + detail + ") — va dans Journal/Log pour le détail");
+    return;
   }
+
+  if(!versionDepot || versionDepot === VERSION){
+    badge.classList.remove("appui-long-ok");
+    majBadgeVersion();
+    logAjouter("[Phase 1] → Aucune version différente sur le dépôt, arrêt immédiat (pas de phase 2).");
+    toast(`Tu es déjà sur la dernière version enregistrée (v${VERSION})`);
+    return;
+  }
+
+  // ---------- PHASE 2 : accès lent (URL publiée) — uniquement parce que la phase 1 a confirmé
+  // qu'une version différente existe. Scrutin toutes les 10 s, abandon au bout de 2 min. ----------
+  logAjouter(`[Phase 2 — lente] Une v${versionDepot} existe sur le dépôt (tu as la v${VERSION}) — scrutin de l'URL publiée pour savoir quand elle devient disponible.`);
+  const DELAI_ENTRE_TENTATIVES = 10000;
+  const DUREE_MAX = 120000;
+  const debut = Date.now();
+  const monId = ++rechargementEnCoursId;
+
+  async function tenter(){
+    if(monId !== rechargementEnCoursId) return; // un nouvel appui long a pris le relais entre-temps
+    const parametresUrl = new URLSearchParams(location.search);
+    parametresUrl.set("_", Date.now());
+    const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
+    badge.classList.add("verification-en-cours"); // liseré orange le temps de la requête réseau elle-même
+    try{
+      const reponse = await fetch(urlFraiche, { cache: "no-store" });
+      const texte = await reponse.text();
+      badge.classList.remove("verification-en-cours");
+      const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
+      const versionServeur = correspondance ? correspondance[1] : null;
+      logAjouter(`[Phase 2] → URL publiée sert actuellement : ${versionServeur || "(non détectée)"}`);
+      if(versionServeur && versionServeur !== VERSION){
+        badge.classList.remove("appui-long-ok");
+        majBadgeVersion();
+        logAjouter(`[Phase 2] → La v${versionServeur} est maintenant disponible via l'URL.`);
+        demanderConfirmation(
+          `Version ${versionServeur} disponible`,
+          `La v${versionServeur} est maintenant servie par l'URL habituelle (elle était déjà enregistrée sur GitHub, elle vient d'être mise à disposition). Ferme complètement l'app (pas juste cet onglet — quitte vraiment Safari ou retire-la du multitâche) et rouvre-la pour la charger.`,
+          ()=>{}
+        );
+        return;
+      }
+    }catch(e){
+      badge.classList.remove("verification-en-cours");
+      logAjouter("[Phase 2] → Échec réseau ponctuel, on continue les tentatives suivantes.");
+    }
+    if(monId !== rechargementEnCoursId) return;
+    if(Date.now() - debut >= DUREE_MAX){
+      badge.classList.remove("appui-long-ok","verification-en-cours");
+      majBadgeVersion();
+      logAjouter(`[Phase 2] → Abandon après 2 min : la v${versionDepot} est sur GitHub mais toujours pas servie par l'URL.`);
+      toast(`La v${versionDepot} est enregistrée sur GitHub mais pas encore servie par l'URL après 2 min — réessaie plus tard`);
+      return;
+    }
+    toast("Enregistrée sur GitHub, pas encore servie par l'URL — nouvelle vérification dans 10 s…");
+    setTimeout(tenter, DELAI_ENTRE_TENTATIVES);
+  }
+  tenter();
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 

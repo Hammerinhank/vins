@@ -546,6 +546,15 @@
   .verif-photo-note{font-size:13px;color:var(--text-muted);line-height:1.5;margin:0 0 12px 0;}
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
+  /* photo choisie (décision après sélection dans la fiche) */
+  .photo-choisie-box{max-width:440px;border-radius:16px;}
+  .photo-choisie-box .photo-img{max-height:320px;}
+  .photo-choisie-actions{display:flex;gap:8px;margin-top:14px;}
+  .photo-choisie-actions .btn{
+    flex:1;min-width:0;justify-content:center;text-align:center;
+    white-space:normal;font-size:12px;line-height:1.25;padding:9px 6px;
+  }
+
   /* page paramètres / saisie rapide (page entière) */
   .page-parametres{
     position:fixed;inset:0;background:var(--bg);z-index:90;overflow-y:auto;
@@ -846,6 +855,24 @@
   </div>
 </div>
 
+<!-- Modal après sélection d'une photo dans la fiche : décider quoi en faire -->
+<div class="overlay" id="overlayPhotoChoisie">
+  <div class="modal photo-choisie-box">
+    <div class="modal-header">
+      <h2>Photo sélectionnée</h2>
+      <button class="modal-close" id="closePhotoChoisie" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <img id="photoChoisieApercu" class="photo-img" alt="Photo sélectionnée">
+      <div class="photo-choisie-actions">
+        <button class="btn btn-ghost" id="btnPhotoChoisieAnnuler" type="button">Annuler</button>
+        <button class="btn" id="btnPhotoChoisieNroTemp" type="button">Vin avec n° temporaire</button>
+        <button class="btn btn-gold" id="btnPhotoChoisieOk" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal historique versions -->
 <div class="overlay" id="overlayHistory">
   <div class="modal">
@@ -1139,8 +1166,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.52";
+const VERSION = "1.10.53";
 const HISTORY = [
+  { version:"1.10.53", date:"2026-08-29", notes:"Le bouton « Ajouter une photo » (partie haute de la fiche) affiche désormais une fenêtre avec la photo choisie et trois boutons sur la même ligne : « Annuler » (ignore la photo, retour à la fiche telle quelle), « Vin avec n° temporaire » (nomme le vin « N° X » avec son numéro déjà attribué, enregistre avec la photo et referme la fiche pour revenir à la liste) et « OK » (applique la photo à la fiche en cours, sans l'enregistrer ni la fermer — comme avant)." },
   { version:"1.10.52", date:"2026-08-29", notes:"Correction critique : l'appui long sur le badge (rechargement forcé) refuse désormais de partir tant que des modifications locales ne sont pas envoyées (badge « à sauvegarder » ou en erreur) — c'était la cause d'une perte de données possible, un rechargement pouvant faire apparaître ensuite une proposition d'écraser le local par une version distante. Cette proposition, à l'ouverture de l'app, passe par une nouvelle fenêtre détaillée indiquant le nombre de vins et de bouteilles en cave de chaque version (locale et GitHub), la date de la version distante, et une recommandation explicite vers l'option la plus probablement la plus récente — au lieu d'un simple message générique. Le message précise aussi qu'une version « faite ailleurs » peut venir d'une session précédente, pas forcément d'un envoi concurrent. La confirmation du pull manuel (« Récupérer depuis GitHub ») affiche elle aussi désormais le nombre de bouteilles en cave de chaque côté, en plus du nombre de vins." },
   { version:"1.10.51", date:"2026-08-29", notes:"Le champ « Quantité en cave » est réduit à une largeur fixe adaptée à 2 chiffres (au lieu de s'étirer sur toute la largeur disponible), ce qui rapproche aussi le bouton « + » au lieu de le laisser trop à droite." },
   { version:"1.10.50", date:"2026-08-29", notes:"Corrigé : le passage en bleu du badge lors de l'appui long n'était pas perceptible car le rechargement pouvait survenir avant que le navigateur n'ait eu l'occasion d'afficher le changement de couleur. Un court délai (0,5 s) est désormais intercalé entre l'affichage du bleu et le déclenchement effectif du rechargement." },
@@ -2112,9 +2140,12 @@ document.getElementById("numeroFicheInput").addEventListener("keydown", e=>{
 document.getElementById("closeFiche").addEventListener("click", ()=>document.getElementById("overlayFiche").classList.remove("show"));
 document.getElementById("btnAnnulerFiche").addEventListener("click", ()=>document.getElementById("overlayFiche").classList.remove("show"));
 
-document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
+/* Enregistre la fiche courante (ajout ou édition) avec l'état actuel du formulaire — factorisé pour
+   être appelé aussi bien par le bouton « Enregistrer » que par « Vin avec n° temporaire ». Retourne
+   true si l'enregistrement a eu lieu (false si le nom est manquant). */
+function enregistrerFiche(){
   const nom = document.getElementById("fNom").value.trim();
-  if(!nom){ toast("Le nom du vin est requis"); return; }
+  if(!nom){ toast("Le nom du vin est requis"); return false; }
   const data = {
     nom,
     domaine: document.getElementById("fDomaine").value.trim(),
@@ -2164,10 +2195,17 @@ document.getElementById("btnSauverFiche").addEventListener("click", ()=>{
   document.getElementById("overlayFiche").classList.remove("show");
   rafraichirTout();
   toast("Vin enregistré");
-});
+  return true;
+}
+document.getElementById("btnSauverFiche").addEventListener("click", enregistrerFiche);
 
-/* ---- Photo : sélection + compression (pleine résolution pour GitHub + petite miniature pour le stockage local) ---- */
+/* ---- Photo : sélection + compression (pleine résolution pour GitHub + petite miniature pour le stockage local) ----
+   Une fois la photo choisie et compressée, une fenêtre de décision s'affiche (photo + Annuler / Vin avec
+   n° temporaire / OK) avant de l'appliquer réellement à la fiche — rien n'est modifié tant qu'elle n'a
+   pas été validée. */
 document.getElementById("btnChoisirPhoto").addEventListener("click", ()=>document.getElementById("photoInput").click());
+let photoChoisiePleine = "";
+let photoChoisieMiniature = "";
 document.getElementById("photoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -2175,18 +2213,51 @@ document.getElementById("photoInput").addEventListener("change", function(e){
     compresserImage(file, 1600, 0.82),
     compresserImage(file, 480, 0.65)
   ]).then(([pleine, miniature])=>{
-    photoEnCoursPendante = pleine;
-    photoEnCoursMiniature = miniature;
-    photoSupprimee = false;
-    document.getElementById("photoPreview").src = pleine;
-    document.getElementById("photoPreview").style.display = "block";
-    document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
-    document.getElementById("btnChargerPhoto").style.display = "none";
-    document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
-    document.getElementById("btnAppliquerReponseFiche").style.display = "inline-flex";
-    document.getElementById("ficheSectionBasse").open = true;
-    majBoutonChoisirPhoto();
+    photoChoisiePleine = pleine;
+    photoChoisieMiniature = miniature;
+    document.getElementById("photoChoisieApercu").src = pleine;
+    document.getElementById("overlayPhotoChoisie").classList.add("show");
   }).catch(()=>toast("Impossible de charger cette image"));
+});
+function fermerPhotoChoisie(){
+  document.getElementById("overlayPhotoChoisie").classList.remove("show");
+  document.getElementById("photoInput").value = "";
+  photoChoisiePleine = "";
+  photoChoisieMiniature = "";
+}
+function appliquerPhotoChoisieALaFiche(){
+  photoEnCoursPendante = photoChoisiePleine;
+  photoEnCoursMiniature = photoChoisieMiniature;
+  photoSupprimee = false;
+  document.getElementById("photoPreview").src = photoChoisiePleine;
+  document.getElementById("photoPreview").style.display = "block";
+  document.getElementById("btnRetirerPhoto").style.display = "inline-flex";
+  document.getElementById("btnChargerPhoto").style.display = "none";
+  document.getElementById("btnIdentifierChatGPT").style.display = "inline-flex";
+  document.getElementById("btnAppliquerReponseFiche").style.display = "inline-flex";
+  document.getElementById("ficheSectionBasse").open = true;
+  majBoutonChoisirPhoto();
+}
+document.getElementById("closePhotoChoisie").addEventListener("click", fermerPhotoChoisie);
+document.getElementById("btnPhotoChoisieAnnuler").addEventListener("click", fermerPhotoChoisie);
+document.getElementById("btnPhotoChoisieOk").addEventListener("click", ()=>{
+  appliquerPhotoChoisieALaFiche();
+  document.getElementById("overlayPhotoChoisie").classList.remove("show");
+  photoChoisiePleine = "";
+  photoChoisieMiniature = "";
+  document.getElementById("photoInput").value = "";
+});
+document.getElementById("btnPhotoChoisieNroTemp").addEventListener("click", ()=>{
+  // Le numéro de la fiche (numeroFicheCourant) est toujours déjà attribué à ce stade : ouvrirAjout()
+  // et ouvrirFiche() lui donnent systématiquement une valeur (via prochainNumero()) dès l'ouverture
+  // de la fiche, bien avant que la photo ne soit choisie.
+  appliquerPhotoChoisieALaFiche();
+  document.getElementById("overlayPhotoChoisie").classList.remove("show");
+  photoChoisiePleine = "";
+  photoChoisieMiniature = "";
+  document.getElementById("photoInput").value = "";
+  document.getElementById("fNom").value = "N° " + numeroFicheCourant;
+  enregistrerFiche();
 });
 document.getElementById("btnChargerPhoto").addEventListener("click", function(){
   afficherPhotoFiche();

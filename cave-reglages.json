@@ -31,5 +31,9 @@
   ],
   "groupBy": "region",
   "sortKey": "ajout_desc",
-  "maj": "2026-08-30T23:05:28.841Z"
+  "filtreStatut": "cave",
+  "filtreCouleur": "toutes",
+  "filtreMarque": "marques",
+  "filtreApogeeOnly": false,
+  "maj": "2026-08-30T23:07:51.786Z"
 }

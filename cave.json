@@ -822,7 +822,7 @@
       "nom": "Crémant d'Alsace Brut",
       "domaine": "Cattin Frères",
       "appellation": "",
-      "region": "",
+      "region": "Alsace",
       "pays": "France",
       "couleur": "rouge",
       "millesime": "",
@@ -852,7 +852,7 @@
       "nom": "Champagne Brut",
       "domaine": "Canard-Duchêne",
       "appellation": "",
-      "region": "",
+      "region": "Champagne",
       "pays": "France",
       "couleur": "rouge",
       "millesime": "",
@@ -964,6 +964,6 @@
       "marque": true
     }
   ],
-  "maj": "2026-08-30T14:27:03.762Z",
+  "maj": "2026-08-30T14:31:42.963Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

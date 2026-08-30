@@ -240,6 +240,39 @@
     background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
     padding:9px 12px;border-radius:8px;font-size:13.5px;
   }
+  .stats-section{margin-bottom:26px;}
+  .stats-section h3{font-size:16px;margin-bottom:10px;}
+  .stats-overview{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;
+    margin-bottom:26px;
+  }
+  .stats-barres{display:flex;flex-direction:column;gap:9px;}
+  .stats-barre-ligne{display:grid;grid-template-columns:100px 1fr 46px;align-items:center;gap:8px;}
+  .stats-barre-label{
+    font-size:12px;color:var(--text-muted);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .stats-barre-piste{background:var(--bg-panel-2);border-radius:6px;height:10px;overflow:hidden;}
+  .stats-barre-remplissage{background:linear-gradient(90deg,var(--gold),var(--gold-soft));height:100%;border-radius:6px;}
+  .stats-barre-valeur{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text);
+    text-align:right;white-space:nowrap;
+  }
+  .classement-liste{
+    border:1px solid var(--line-soft);border-radius:var(--radius);overflow:hidden;
+  }
+  .classement-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 13px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
+  }
+  .classement-item:last-child{border-bottom:none;}
+  .classement-item .c-nom{
+    color:var(--text);flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .classement-item .c-valeur{
+    color:var(--gold-soft);font-family:'IBM Plex Mono',monospace;flex:none;white-space:nowrap;
+  }
   .champ-manquant{border-color:var(--danger) !important;}
   .bottle-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
   .tag{
@@ -893,6 +926,7 @@
       <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
       <button class="page-tab-btn" data-page="avis" type="button" title="Avis">📝</button>
       <button class="page-tab-btn" data-page="liste" type="button" title="Liste">📋</button>
+      <button class="page-tab-btn" data-page="stats" type="button" title="Statistiques">📊</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
       <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🪲</button>
     </div>
@@ -981,6 +1015,10 @@
     <p class="panel-note">Lit la zone de texte ci-dessus : chaque ligne contenant « : » est interprétée comme « N° du vin : valeur », et applique cette valeur au champ sélectionné du vin correspondant. Pour le champ Note, la valeur peut se terminer par un « ? » (incertitude), séparé du chiffre — et la note en étoiles n'est jamais modifiée.</p>
   </div>
 
+  <div class="page-body" id="pageCorpsStats" style="display:none;">
+    <div id="statsContenu"></div>
+  </div>
+
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
     <div class="field">
       <label>Assistant IA pour l'identification par photo</label>
@@ -1053,8 +1091,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.45";
+const VERSION = "1.10.48";
 const HISTORY = [
+  { version:"1.10.48", date:"2026-08-29", notes:"Correction : le badge de version distingue maintenant l'appui normal (historique des versions, comportement inchangé depuis toujours — ou envoi si « à sauvegarder ») de l'appui long (~500 ms), qui force le rechargement de l'app en contournant le cache du navigateur." },
+  { version:"1.10.47", date:"2026-08-29", notes:"Appuyer sur le badge de version, quand il affiche le numéro de version (donc hors cas « à sauvegarder »), force désormais un rechargement de l'app en contournant le cache du navigateur (vidage des caches éventuels, désinscription d'éventuels service workers, puis rechargement avec un paramètre unique dans l'URL, en conservant ?edition/?apercu s'ils étaient présents) — pour obtenir la dernière version sans manipulation. Cela remplace l'ancien comportement de ce tap, qui ouvrait l'historique des versions." },
+  { version:"1.10.46", date:"2026-08-29", notes:"Deux ajouts, sans rien changer à l'existant : (1) nouvel onglet « 📊 Statistiques » (page ouverte par l'icône bouteille) avec vue d'ensemble, répartitions par couleur/région/domaine, classements (meilleures notes chiffrées, meilleur rapport qualité/prix) et rythme de consommation par année ; (2) sécurité supplémentaire avant tout envoi vers GitHub — si une version distante plus récente, faite ailleurs, n'a pas été prise en compte ici, une confirmation est demandée avant d'écraser (comportement inchangé dans le cas normal, sans conflit)." },
   { version:"1.10.45", date:"2026-08-29", notes:"Sur la page Journal / Diagnostic, permutation des deux boutons de listing des versions : « 5 dernières versions » passe en premier et récupère le fond doré, « 30 dernières versions » passe en second sans fond coloré." },
   { version:"1.10.44", date:"2026-08-29", notes:"Sur la page Journal / Diagnostic : chaque version listée porte maintenant un bouton « Restaurer » qui remplace la cave actuelle par cette version (après confirmation), utile en cas de perte de données suite à une fausse manipulation. Ajout d'un second bouton « 5 dernières versions », en plus de celui affichant les 30 dernières." },
   { version:"1.10.43", date:"2026-08-29", notes:"Nouveau bouton « 🕘 Lister les versions sauvegardées » sur la page Journal / Diagnostic : parcourt l'historique GitHub du fichier de sauvegarde (jusqu'aux 30 dernières versions) et affiche, pour chacune, le nombre de bouteilles enregistrées et la date/heure de la sauvegarde, dans une liste limitée à 10 lignes visibles avec défilement pour voir le reste." },
@@ -2512,6 +2553,137 @@ document.getElementById("btnImporterNotes").addEventListener("click", function()
   toast(importees ? `${importees} ${champ.label.toLowerCase()} importé(e)(s)${suffixe}` : "Aucune valeur importée" + suffixe);
 });
 
+/* ===================== PAGE STATISTIQUES ===================== */
+/* Construit une liste à barres horizontales (triée décroissant, limitée à `limite` entrées) à partir
+   d'une table { libellé: valeur }. Purement informatif, recalculé à chaque ouverture de l'onglet. */
+function construireBarres(table, limite){
+  const entrees = Object.entries(table).sort((a,b)=>b[1]-a[1]).slice(0, limite||6);
+  if(!entrees.length) return `<p class="panel-note">Aucune donnée disponible.</p>`;
+  const max = entrees[0][1] || 1;
+  return `<div class="stats-barres">` + entrees.map(([label,val])=>{
+    const pct = Math.max(4, Math.round((val/max)*100));
+    return `<div class="stats-barre-ligne">
+      <span class="stats-barre-label">${escapeHtml(label)}</span>
+      <div class="stats-barre-piste"><div class="stats-barre-remplissage" style="width:${pct}%"></div></div>
+      <span class="stats-barre-valeur">${escapeHtml(String(val))}</span>
+    </div>`;
+  }).join("") + `</div>`;
+}
+function construireClassement(items){
+  if(!items.length) return `<p class="panel-note">Aucune donnée disponible.</p>`;
+  return `<div class="classement-liste">` + items.map(it=>`
+    <div class="classement-item">
+      <span class="c-nom">${escapeHtml(it.nom)}</span>
+      <span class="c-valeur">${escapeHtml(it.valeur)}</span>
+    </div>`).join("") + `</div>`;
+}
+function construireStatistiques(){
+  const conteneur = document.getElementById("statsContenu");
+  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
+  const totalBouteillesEnCave = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+  const valeurTotale = enCave.reduce((s,b)=> s + ((Number(b.prixUnitaire)||0) * (Number(b.quantite)||0)), 0);
+  const totalBues = bottles.reduce((s,b)=>s+(Number(b.quantiteBue)||0),0);
+  const vinsAvecNoteChiffree = bottles.filter(b=>b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="");
+  const noteChiffreeMoyenne = vinsAvecNoteChiffree.length
+    ? (vinsAvecNoteChiffree.reduce((s,b)=>s+Number(b.noteNumerique),0) / vinsAvecNoteChiffree.length)
+    : null;
+
+  const parCouleur = {};
+  enCave.forEach(b=>{
+    const c = COULEURS.find(c=>c.key===b.couleur);
+    const label = c ? c.label : "Autre";
+    parCouleur[label] = (parCouleur[label]||0) + (Number(b.quantite)||0);
+  });
+  const parRegion = {};
+  enCave.forEach(b=>{ const r = b.region || "Non renseignée"; parRegion[r] = (parRegion[r]||0) + (Number(b.quantite)||0); });
+  const parDomaine = {};
+  enCave.forEach(b=>{ const d = b.domaine || "Non renseigné"; parDomaine[d] = (parDomaine[d]||0) + (Number(b.quantite)||0); });
+  const parAnnee = {};
+  bottles.forEach(b=>{
+    const q = Number(b.quantiteBue)||0;
+    if(q>0 && b.dateDerniereDegustation){
+      const annee = b.dateDerniereDegustation.slice(0,4);
+      parAnnee[annee] = (parAnnee[annee]||0) + q;
+    }
+  });
+
+  const meilleuresNotes = vinsAvecNoteChiffree
+    .slice()
+    .sort((a,b)=>Number(b.noteNumerique)-Number(a.noteNumerique))
+    .slice(0,5)
+    .map(b=>({
+      nom: (b.numero ? "N°"+b.numero+" — " : "") + (b.nom||"Sans nom"),
+      valeur: String(b.noteNumerique) + (b.noteIncertaine==="?" ? "?" : "")
+    }));
+
+  const rapportQP = bottles
+    .filter(b=> b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="" && Number(b.prixUnitaire)>0)
+    .map(b=>({ b, ratio: Number(b.noteNumerique)/Number(b.prixUnitaire) }))
+    .sort((a,b)=>b.ratio-a.ratio)
+    .slice(0,5)
+    .map(x=>({
+      nom: (x.b.numero ? "N°"+x.b.numero+" — " : "") + (x.b.nom||"Sans nom"),
+      valeur: x.b.noteNumerique + " / " + euro(x.b.prixUnitaire)
+    }));
+
+  conteneur.innerHTML = `
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="val">${totalBouteillesEnCave}</div>
+        <div class="lbl">Bouteilles en cave</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">${euro(valeurTotale)}</div>
+        <div class="lbl">Valeur estimée</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">${totalBues}</div>
+        <div class="lbl">Bouteilles bues (total)</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">${noteChiffreeMoyenne!==null ? noteChiffreeMoyenne.toFixed(1) : "—"}</div>
+        <div class="lbl">Note chiffrée moyenne</div>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Répartition (bouteilles en cave)</p>
+      <h3>Par couleur</h3>
+      ${construireBarres(parCouleur, 8)}
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Répartition (bouteilles en cave)</p>
+      <h3>Régions les plus représentées</h3>
+      ${construireBarres(parRegion, 6)}
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Répartition (bouteilles en cave)</p>
+      <h3>Domaines les plus représentés</h3>
+      ${construireBarres(parDomaine, 6)}
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Classement</p>
+      <h3>Meilleures notes chiffrées</h3>
+      ${construireClassement(meilleuresNotes)}
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Classement</p>
+      <h3>Meilleur rapport qualité/prix</h3>
+      ${construireClassement(rapportQP)}
+    </div>
+
+    <div class="stats-section">
+      <p class="eyebrow">Rythme</p>
+      <h3>Bouteilles bues par année</h3>
+      ${construireBarres(parAnnee, 10)}
+    </div>
+  `;
+}
+
 /* ===================== PAGE PARAMÈTRES ===================== */
 function majLibelleAssistant(){
   const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
@@ -2605,11 +2777,13 @@ function afficherPageOnglet(cle){
   document.getElementById("pageCorpsSaisie").style.display = cle === "saisie" ? "flex" : "none";
   document.getElementById("pageCorpsAvis").style.display = cle === "avis" ? "flex" : "none";
   document.getElementById("pageCorpsListe").style.display = cle === "liste" ? "flex" : "none";
+  document.getElementById("pageCorpsStats").style.display = cle === "stats" ? "flex" : "none";
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
   document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
   document.getElementById("pageTitre").textContent =
-    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
+    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "stats" ? "Statistiques" : cle === "journal" ? "Journal / Diagnostic" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
+  if(cle === "stats") construireStatistiques();
 }
 document.querySelectorAll("#pageTabs .page-tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>afficherPageOnglet(btn.dataset.page));
@@ -2764,9 +2938,52 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
 
 /* ===================== VERSION / HISTORIQUE ===================== */
 majBadgeVersion();
-document.getElementById("versionBadge").addEventListener("click", ()=>{
+/* Appui long (~500 ms sans bouger) sur le badge de version : force le rechargement de l'app en
+   contournant le cache du navigateur. L'appui normal garde son fonctionnement habituel et inchangé
+   (historique des versions, ou envoi immédiat si le badge affiche « à sauvegarder »). */
+let badgeAppuiLongTimer = null;
+let badgeAppuiLongDepart = null;
+let badgeAppuiLongDeclenche = false;
+const DUREE_APPUI_LONG_BADGE = 500;
+const TOLERANCE_APPUI_LONG_BADGE = 10;
+function demarrerAppuiLongBadge(x, y){
+  badgeAppuiLongDeclenche = false;
+  badgeAppuiLongDepart = { x, y };
+  badgeAppuiLongTimer = setTimeout(()=>{
+    badgeAppuiLongDeclenche = true;
+    if(navigator.vibrate) navigator.vibrate(15);
+    forcerRechargementSansCache();
+  }, DUREE_APPUI_LONG_BADGE);
+}
+function deplacerAppuiLongBadge(x, y){
+  if(!badgeAppuiLongDepart) return;
+  if(Math.abs(x-badgeAppuiLongDepart.x) > TOLERANCE_APPUI_LONG_BADGE || Math.abs(y-badgeAppuiLongDepart.y) > TOLERANCE_APPUI_LONG_BADGE){
+    annulerAppuiLongBadge();
+  }
+}
+function annulerAppuiLongBadge(){
+  if(badgeAppuiLongTimer){ clearTimeout(badgeAppuiLongTimer); badgeAppuiLongTimer = null; }
+  badgeAppuiLongDepart = null;
+}
+const versionBadgeEl = document.getElementById("versionBadge");
+versionBadgeEl.addEventListener("touchstart", e=>{
+  const t = e.touches[0];
+  demarrerAppuiLongBadge(t.clientX, t.clientY);
+}, { passive:true });
+versionBadgeEl.addEventListener("touchmove", e=>{
+  const t = e.touches[0];
+  deplacerAppuiLongBadge(t.clientX, t.clientY);
+}, { passive:true });
+versionBadgeEl.addEventListener("touchend", annulerAppuiLongBadge, { passive:true });
+versionBadgeEl.addEventListener("touchcancel", annulerAppuiLongBadge, { passive:true });
+versionBadgeEl.addEventListener("mousedown", e=>demarrerAppuiLongBadge(e.clientX, e.clientY));
+versionBadgeEl.addEventListener("mousemove", e=>deplacerAppuiLongBadge(e.clientX, e.clientY));
+versionBadgeEl.addEventListener("mouseup", annulerAppuiLongBadge);
+versionBadgeEl.addEventListener("mouseleave", annulerAppuiLongBadge);
+versionBadgeEl.addEventListener("click", ()=>{
+  if(badgeAppuiLongDeclenche){ badgeAppuiLongDeclenche = false; return; } // déjà traité par l'appui long
   if(syncDirty || syncEnErreur){
-    envoyerVersGitHub();
+    lancerEnvoiVersGitHub();
     return;
   }
   document.getElementById("historyBody").innerHTML = HISTORY.map(h=>`
@@ -2777,6 +2994,28 @@ document.getElementById("versionBadge").addEventListener("click", ()=>{
   `).join("");
   document.getElementById("overlayHistory").classList.add("show");
 });
+/* Force le rechargement de l'app en contournant le cache du navigateur (Safari/Chrome gardent parfois
+   une ancienne version en cache sur cette page hébergée sur GitHub Pages) : vide les éventuels caches
+   (Cache API), désinscrit d'éventuels service workers, puis recharge avec un paramètre unique dans
+   l'URL — en conservant les paramètres existants (?edition, ?apercu) pour ne pas changer de mode. */
+async function forcerRechargementSansCache(){
+  toast("Rechargement de la dernière version…");
+  try{
+    if(window.caches && caches.keys){
+      const cles = await caches.keys();
+      await Promise.all(cles.map(cle=>caches.delete(cle)));
+    }
+  }catch(e){}
+  try{
+    if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+      const enregistrements = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(enregistrements.map(r=>r.unregister()));
+    }
+  }catch(e){}
+  const parametresUrl = new URLSearchParams(location.search);
+  parametresUrl.set("_", Date.now());
+  location.replace(location.pathname + "?" + parametresUrl.toString() + location.hash);
+}
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 
 /* ===================== EXPORT / IMPORT JSON ===================== */
@@ -2850,7 +3089,28 @@ async function githubAPI(url, cfg, options){
   return res;
 }
 
-async function envoyerVersGitHub(){
+/* Mémorise, par ce local storage, la dernière version distante (maj + origine) que cet appareil sait
+   avoir prise en compte — soit parce qu'il l'a lui-même envoyée, soit parce qu'il l'a récupérée. Sert
+   de repère pour détecter, juste avant un envoi, une version distante plus récente non encore vue ici. */
+const LS_DERNIERE_MAJ_CONNUE = "cave_derniere_maj_connue_v1";
+function lireDerniereMajConnue(){
+  try{
+    const raw = localStorage.getItem(LS_DERNIERE_MAJ_CONNUE);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function ecrireDerniereMajConnue(maj, origine){
+  try{ localStorage.setItem(LS_DERNIERE_MAJ_CONNUE, JSON.stringify({ maj, origine })); }catch(e){}
+}
+/* Décode le contenu base64 (UTF-8) renvoyé par l'API GitHub par défaut (format JSON, pas « raw »). */
+function decoderContenuBase64Utf8(base64){
+  return decodeURIComponent(escape(atob(base64.replace(/\n/g, ""))));
+}
+
+/* Point d'entrée du bouton/badge d'envoi : vérifie d'abord qu'aucune version distante plus récente,
+   faite ailleurs, n'est passée inaperçue ici avant d'écraser — sans changer quoi que ce soit au
+   comportement habituel quand tout est cohérent (cas normal, très large majorité des envois). */
+async function lancerEnvoiVersGitHub(){
   const cfg = lireChampsConfig();
   const btn = document.getElementById("btnPush");
   const statusEl = document.getElementById("syncStatus");
@@ -2859,6 +3119,48 @@ async function envoyerVersGitHub(){
     marquerErreurSynchro();
     return;
   }
+  btn.disabled = true;
+  statusEl.textContent = "Vérification de la version distante…";
+  let sha = null;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+    if(getRes.status === 200){
+      const info = await getRes.json();
+      sha = info.sha;
+      let donneesDistantes = null;
+      try{ donneesDistantes = JSON.parse(decoderContenuBase64Utf8(info.content)); }catch(e){ donneesDistantes = null; }
+      if(donneesDistantes){
+        const connue = lireDerniereMajConnue();
+        const estDifferenteDeNousMemes = donneesDistantes.origine && donneesDistantes.origine !== INSTANCE_ID;
+        const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
+        if(estDifferenteDeNousMemes && estNonPriseEnCompte){
+          btn.disabled = false;
+          statusEl.textContent = "Envoi interrompu — version distante plus récente détectée.";
+          demanderConfirmation(
+            "Version distante plus récente",
+            "Une version plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et elle ne semble pas avoir été prise en compte ici. Écraser quand même avec la version locale ?",
+            ()=>effectuerEnvoiVersGitHub(cfg, sha)
+          );
+          return;
+        }
+      }
+    }else if(getRes.status !== 404){
+      throw new Error("Lecture impossible (" + getRes.status + ")");
+    }
+  }catch(err){
+    statusEl.textContent = "Échec de la vérification : " + err.message;
+    toast("Échec de l'envoi vers GitHub");
+    marquerErreurSynchro();
+    btn.disabled = false;
+    return;
+  }
+  effectuerEnvoiVersGitHub(cfg, sha);
+}
+
+async function effectuerEnvoiVersGitHub(cfg, sha){
+  const btn = document.getElementById("btnPush");
+  const statusEl = document.getElementById("syncStatus");
   btn.disabled = true;
   syncEnCours = true;
   majBadgeVersion();
@@ -2871,17 +3173,10 @@ async function envoyerVersGitHub(){
 
     statusEl.textContent = "Envoi des données…";
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cfg.chemin)}`;
-    let sha = null;
-    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
-    if(getRes.status === 200){
-      const info = await getRes.json();
-      sha = info.sha;
-    }else if(getRes.status !== 404){
-      throw new Error("Lecture impossible (" + getRes.status + ")");
-    }
     // Le fichier de données ne contient jamais de photo en pleine résolution : seulement les métadonnées,
     // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
-    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: new Date().toISOString(), origine: INSTANCE_ID }, null, 2);
+    const nouvelleMaj = new Date().toISOString();
+    const contenu = JSON.stringify({ bottles: bouteillesPourExportGitHub(), maj: nouvelleMaj, origine: INSTANCE_ID }, null, 2);
     const body = {
       message: "Mise à jour de la cave à vin",
       content: btoa(unescape(encodeURIComponent(contenu))),
@@ -2893,6 +3188,7 @@ async function envoyerVersGitHub(){
       const err = await putRes.json().catch(()=>({}));
       throw new Error(err.message || ("Erreur " + putRes.status));
     }
+    ecrireDerniereMajConnue(nouvelleMaj, INSTANCE_ID);
     const cfgSauv = lireChampsConfig();
     cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
     sauvegarderConfig(cfgSauv);
@@ -2910,7 +3206,7 @@ async function envoyerVersGitHub(){
   btn.disabled = false;
   majBadgeVersion();
 }
-document.getElementById("btnPush").addEventListener("click", envoyerVersGitHub);
+document.getElementById("btnPush").addEventListener("click", lancerEnvoiVersGitHub);
 
 /* Vérification silencieuse au lancement : si une sauvegarde GitHub existe et provient d'un autre local storage (autre appareil, ou autre navigateur sur le même appareil) que celui-ci, on l'applique automatiquement quand rien n'est en attente ici, ou on demande sinon (pour ne jamais écraser des changements locaux non envoyés sans le dire). Si la sauvegarde GitHub provient de ce local storage-ci (notre propre dernier envoi), on ne fait rien. */
 async function verifierGitHubAuLancement(){
@@ -2932,6 +3228,7 @@ async function verifierGitHubAuLancement(){
       bottles = distantes;
       sauvegarderBouteilles();
       marquerSynchronise();
+      ecrireDerniereMajConnue(data.maj || null, origineDistante);
       rafraichirTout();
       const cfgSauv = chargerConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
@@ -2974,6 +3271,7 @@ document.getElementById("btnPull").addEventListener("click", async function(){
       bottles = distantes;
       sauvegarderBouteilles();
       marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub
+      ecrireDerniereMajConnue(data.maj || null, data.origine || null);
       rafraichirTout();
       const cfgSauv = lireChampsConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");

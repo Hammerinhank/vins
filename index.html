@@ -581,6 +581,8 @@
     <option value="millesime_desc">Millésime récent→ancien</option>
     <option value="millesime_asc">Millésime ancien→récent</option>
     <option value="note_desc">Meilleure note d'abord</option>
+    <option value="note_numerique_desc">Note chiffrée : meilleure d'abord</option>
+    <option value="note_numerique_asc">Note chiffrée : moins bonne d'abord</option>
     <option value="prix_desc">Prix décroissant</option>
     <option value="prix_asc">Prix croissant</option>
     <option value="apogee_asc">Apogée : à boire en premier</option>
@@ -1014,8 +1016,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.37";
+const VERSION = "1.10.38";
 const HISTORY = [
+  { version:"1.10.38", date:"2026-08-29", notes:"Ajout de deux tris dans le sélecteur de tri : « Note chiffrée : meilleure d'abord » et « Note chiffrée : moins bonne d'abord », basés sur la note chiffrée (distincte des étoiles) ; les vins sans note chiffrée sont toujours placés en fin de liste, quel que soit le sens choisi." },
   { version:"1.10.37", date:"2026-08-29", notes:"L'icône 🐛 (chenille) de l'onglet Journal / Diagnostic est remplacée par 🪲 (scarabée), plus proche de l'icône « bug » habituellement utilisée en informatique." },
   { version:"1.10.36", date:"2026-08-29", notes:"L'icône 🧪 de l'onglet Journal / Diagnostic est remplacée par 🐛, plus parlant pour une page de débogage." },
   { version:"1.10.35", date:"2026-08-29", notes:"L'icône ⚡ de l'onglet Saisie rapide était en fait très bien et est remise telle quelle. C'est l'icône 🩺 de l'onglet Journal / Diagnostic qui était peu visible sur fond sombre (contours fins, presque invisibles) — elle est remplacée par 🧪." },
@@ -1548,6 +1551,16 @@ function bouteillesFiltrees(){
       case "millesime_desc": return (parseInt(b.millesime)||0) - (parseInt(a.millesime)||0);
       case "millesime_asc": return (parseInt(a.millesime)||0) - (parseInt(b.millesime)||0);
       case "note_desc": return (b.note||0) - (a.note||0);
+      case "note_numerique_desc": {
+        const va = (a.noteNumerique!==undefined && a.noteNumerique!==null && a.noteNumerique!=="") ? Number(a.noteNumerique) : -Infinity;
+        const vb = (b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="") ? Number(b.noteNumerique) : -Infinity;
+        return vb - va;
+      }
+      case "note_numerique_asc": {
+        const va = (a.noteNumerique!==undefined && a.noteNumerique!==null && a.noteNumerique!=="") ? Number(a.noteNumerique) : Infinity;
+        const vb = (b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="") ? Number(b.noteNumerique) : Infinity;
+        return va - vb;
+      }
       case "prix_desc": return (Number(b.prixUnitaire)||0) - (Number(a.prixUnitaire)||0);
       case "prix_asc": return (Number(a.prixUnitaire)||0) - (Number(b.prixUnitaire)||0);
       case "apogee_asc": {

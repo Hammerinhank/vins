@@ -1204,8 +1204,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.61";
+const VERSION = "1.10.62";
 const HISTORY = [
+  { version:"1.10.62", date:"2026-08-29", notes:"Le vin créé via « Vin avec n° temporaire » est désormais automatiquement marqué (fond jaune sur son N°), pour le retrouver facilement dans la liste et le compléter plus tard — via le filtre « Vins marqués seulement » par exemple." },
   { version:"1.10.61", date:"2026-08-29", notes:"Possibilité de marquer/démarquer un vin en touchant son N° dans la liste (fond jaune quand marqué, aussi visible sur le badge N° de la fiche détaillée) — sauvegardé immédiatement comme les autres actions directes de la liste. Ajout d'un filtre à trois positions (Tous les vins / Vins marqués seulement / Vins non marqués seulement), combinable avec les autres filtres et regroupements existants." },
   { version:"1.10.60", date:"2026-08-29", notes:"Le défilement automatique vers « Détails complémentaires » vise maintenant la rangée Annuler/Enregistrer juste au-dessus, pour que le bouton Enregistrer reste visible en plus du bandeau. Par ailleurs, après avoir ouvert ChatGPT/Claude pour identifier un vin, le bouton « Appliquer la réponse à ce vin » passe en vert pour indiquer clairement la prochaine étape à faire au retour, et reprend son apparence normale dès qu'il est utilisé (ou qu'une autre fiche est ouverte)." },
   { version:"1.10.59", date:"2026-08-29", notes:"Les quatre boutons liés à la photo sont réorganisés en deux lignes : « Afficher la photo existante » et « Retirer la photo » sur la première (actions sur la photo elle-même), « Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » sur la seconde (actions liées à l'analyse par l'IA)." },
@@ -2236,6 +2237,7 @@ function enregistrerFiche(){
     boireDe: document.getElementById("fBoireDe").value,
     boireA: document.getElementById("fBoireA").value,
     note: noteChoisie,
+    marque: marqueFicheCourante,
     noteNumerique: document.getElementById("fNoteNumerique").value !== "" ? parseFloat(document.getElementById("fNoteNumerique").value) : "",
     noteIncertaine: document.getElementById("fNoteIncertaine").value.trim() === "?" ? "?" : "",
     etiquette: document.getElementById("fEtiquette").value.trim(),
@@ -2332,6 +2334,7 @@ document.getElementById("btnPhotoChoisieNroTemp").addEventListener("click", ()=>
   photoChoisieMiniature = "";
   document.getElementById("photoInput").value = "";
   document.getElementById("fNom").value = "N° " + numeroFicheCourant;
+  marqueFicheCourante = true; // repère jaune automatique, pour retrouver facilement ces vins « à compléter »
   enregistrerFiche();
 });
 document.getElementById("btnChargerPhoto").addEventListener("click", function(){

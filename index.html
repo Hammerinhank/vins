@@ -106,6 +106,9 @@
     font-weight:600;
     transition:background .1s ease, border-color .1s ease;
   }
+  .version-badge.verification-en-cours{
+    border-color:var(--orange) !important;
+  }
   .version-badge:disabled{opacity:.7;}
 
   /* ---------- Stats bar ---------- */
@@ -1220,8 +1223,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.66";
+const VERSION = "1.10.68";
 const HISTORY = [
+  { version:"1.10.68", date:"2026-08-29", notes:"Pendant le scrutin de l'appui long, le badge s'entoure d'un liseré orange le temps exact de chaque requête réseau vers GitHub (du départ de la vérification à la réponse), en plus du fond bleu qui reste affiché pendant tout le scrutin — de quoi visualiser si les 10 secondes entre deux vérifications sont pertinentes par rapport à la durée réelle de chacune." },
+  { version:"1.10.67", date:"2026-08-29", notes:"L'appui long sur le badge de version (rechargement forcé) revérifie désormais toutes les 10 secondes si une nouvelle version est apparue sur GitHub, et abandonne au bout de 2 minutes maximum si ce n'est toujours pas le cas — utile quand le déploiement GitHub Pages met un peu de temps. Dès qu'une version différente est détectée, le rechargement se fait immédiatement ; sinon, l'app reste sur l'ancienne version en le signalant clairement." },
   { version:"1.10.66", date:"2026-08-29", notes:"Retrait ciblé de la partie « hors ligne » de la synchronisation (badge vert « sauvegardé sur ce téléphone », téléchargement automatique d'un fichier de secours, section « Sauvegardes locales » du Diagnostic, retentative automatique à la reconnexion) : devenue confuse en usage réel (proposait un téléchargement de fichier inattendu). Tout le reste du mécanisme de synchronisation reste en place : vérification d'une version distante plus récente avant d'écraser, fenêtre de conflit détaillée (nombre de vins/bouteilles de chaque version, date, recommandation), et l'appui long sur le badge pour forcer un rechargement sans cache — confirmé comme fonctionnant bien, aucune régression sur ce point." },
   { version:"1.10.65", date:"2026-08-29", notes:"Second filet de sécurité, complémentaire à GitHub : quand le réseau n'est pas disponible (badge touché hors ligne, ou connexion perdue en cours d'envoi), un fichier de secours horodaté est automatiquement téléchargé sur le téléphone (comme « Exporter en JSON »). Nouvelle section dans la page Diagnostic, « Sauvegardes locales », listant les 5 ou 30 dernières (date, nombre de bouteilles) — tenue par un journal interne, Safari ne permettant pas à une page web de relire le dossier Téléchargements. Le bouton Restaurer ouvre le sélecteur « Importer un JSON » en indiquant le nom du fichier à choisir." },
   { version:"1.10.64", date:"2026-08-29", notes:"Meilleure gestion du hors-ligne, pour éviter l'anxiété (et le risque) d'un badge « en erreur » alors que les données sont en réalité déjà en sécurité sur l'appareil (la sauvegarde locale a toujours été automatique à chaque modification). Désormais : hors ligne, le badge affiche « 📵 Sauvegardé sur ce téléphone » avec un liseré vert (au lieu du badge orange habituel « à sauvegarder ») ; un appui dessus (ou une tentative d'envoi qui échoue faute de réseau) ne déclenche plus d'état d'erreur alarmant, juste un message rassurant ; l'envoi est retenté automatiquement dès que la connexion revient ; le rechargement forcé par appui long est aussi bloqué proprement hors ligne, sans tentative vouée à l'échec." },
@@ -3292,6 +3297,7 @@ versionBadgeEl.addEventListener("click", ()=>{
    serveur affiche une version différente de celle en cours d'exécution. Ce n'est que dans ce cas qu'on
    recharge — sinon, le problème n'est pas un cache du navigateur mais un déploiement GitHub Pages pas
    encore terminé, et on le dit clairement plutôt que de recharger pour rien sur la même vieille version. */
+let rechargementEnCoursId = 0; // incrémenté à chaque nouveau cycle, invalide les scrutins précédents encore en attente
 async function forcerRechargementSansCache(){
   if(!navigator.onLine){
     document.getElementById("versionBadge").classList.remove("appui-long-ok");
@@ -3311,26 +3317,50 @@ async function forcerRechargementSansCache(){
       await Promise.all(enregistrements.map(r=>r.unregister()));
     }
   }catch(e){}
-  const parametresUrl = new URLSearchParams(location.search);
-  parametresUrl.set("_", Date.now());
-  const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
-  toast("Vérification de la dernière version…");
-  try{
-    const reponse = await fetch(urlFraiche, { cache: "no-store" });
-    const texte = await reponse.text();
-    const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
-    const versionServeur = correspondance ? correspondance[1] : null;
-    if(versionServeur && versionServeur === VERSION){
-      const badge = document.getElementById("versionBadge");
-      badge.classList.remove("appui-long-ok");
+
+  // Scrutin périodique : la nouvelle version peut mettre un moment à être servie par GitHub Pages après
+  // un envoi. On revérifie toutes les 10 s (requête toujours cache:"no-store", jamais depuis un cache),
+  // et on abandonne au bout de 2 minutes maximum si rien de nouveau n'apparaît — on reste alors sur
+  // l'ancienne version plutôt que d'attendre indéfiniment.
+  const DELAI_ENTRE_TENTATIVES = 10000;
+  const DUREE_MAX = 120000;
+  const debut = Date.now();
+  const monId = ++rechargementEnCoursId;
+
+  async function tenter(){
+    if(monId !== rechargementEnCoursId) return; // un nouvel appui long a pris le relais entre-temps
+    const badge = document.getElementById("versionBadge");
+    const parametresUrl = new URLSearchParams(location.search);
+    parametresUrl.set("_", Date.now());
+    const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
+    badge.classList.add("verification-en-cours"); // liseré orange le temps de la requête réseau elle-même
+    try{
+      const reponse = await fetch(urlFraiche, { cache: "no-store" });
+      const texte = await reponse.text();
+      badge.classList.remove("verification-en-cours");
+      const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
+      const versionServeur = correspondance ? correspondance[1] : null;
+      if(versionServeur && versionServeur !== VERSION){
+        location.replace(urlFraiche);
+        return;
+      }
+    }catch(e){
+      badge.classList.remove("verification-en-cours");
+      // Échec réseau ponctuel : on continue les tentatives suivantes plutôt que d'abandonner tout de suite.
+    }
+    if(monId !== rechargementEnCoursId) return;
+    if(Date.now() - debut >= DUREE_MAX){
+      badge.classList.remove("appui-long-ok","verification-en-cours");
       majBadgeVersion();
-      toast(`Le serveur affiche encore la v${VERSION} — le déploiement GitHub Pages n'est peut-être pas terminé, réessaie dans une minute`);
+      toast(`Toujours la v${VERSION} après 2 minutes — le déploiement GitHub Pages n'a peut-être pas encore abouti, réessaie plus tard`);
       return;
     }
-  }catch(e){
-    // Vérification impossible (hors ligne, etc.) : on tente quand même le rechargement direct ci-dessous.
+    toast("Toujours la même version — nouvelle vérification dans 10 s…");
+    setTimeout(tenter, DELAI_ENTRE_TENTATIVES);
   }
-  location.replace(urlFraiche);
+
+  toast("Vérification de la dernière version…");
+  tenter();
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 

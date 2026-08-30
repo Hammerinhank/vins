@@ -659,13 +659,48 @@
     white-space:pre-wrap !important;
     overflow-x:hidden !important;overflow-y:auto !important;
   }
+
+  /* ---------- Infobulle « post-it » (nom + description au survol prolongé) ----------
+     N'apparaît jamais sur un appareil tactile (iPhone, iPad, Android) : voir la garde JS
+     (matchMedia hover:hover/pointer:fine) et cette règle CSS en filet de sécurité. */
+  .tooltip-postit{
+    display:none;
+    position:fixed;
+    z-index:9999;
+    max-width:240px;
+    background:#2A231C;
+    border:1px solid var(--gold);
+    border-radius:8px;
+    padding:9px 11px;
+    box-shadow:var(--shadow);
+    pointer-events:none;
+  }
+  .tooltip-postit.show{display:block;}
+  .tooltip-postit .tooltip-titre{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:600;
+    color:var(--gold-soft);
+    margin:0 0 4px 0;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .tooltip-postit .tooltip-desc{
+    font-size:12.5px;
+    color:var(--text);
+    margin:0;
+    line-height:1.4;
+  }
+  @media (hover:none){
+    .tooltip-postit{ display:none !important; }
+  }
 </style>
 </head>
 <body>
 
 <header class="app-header">
   <div class="header-left">
-    <button class="logo-mark-btn action-edition" id="btnOuvrirParametres" type="button" aria-label="Paramètres de l'application">
+    <button class="logo-mark-btn action-edition" id="btnOuvrirParametres" type="button" aria-label="Paramètres de l'application" data-tt-titre="Paramètres" data-tt-desc="Ouvre la page Paramètres en plein écran (saisie rapide, avis, liste, statistiques, réglages, journal, log).">
       <svg class="logo-mark" width="26" height="34" viewBox="0 0 26 34" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 1H16V6.5C16 6.5 20 9.5 20 16V30C20 32 18.2 33 16.5 33H9.5C7.8 33 6 32 6 30V16C6 9.5 10 6.5 10 6.5V1Z" stroke="#C9A227" stroke-width="1.4"/>
         <line x1="6" y1="16" x2="20" y2="16" stroke="#C9A227" stroke-width="1.2"/>
@@ -677,7 +712,7 @@
       <h1>Cave <span class="accent">à Vin</span></h1>
     </div>
   </div>
-  <button class="version-badge" id="versionBadge" type="button"></button>
+  <button class="version-badge" id="versionBadge" type="button" data-tt-titre="Version &amp; synchronisation" data-tt-desc="Version de l'app et état de synchronisation GitHub. Un appui envoie ou consulte l'historique ; un appui long force un rechargement sans cache."></button>
 </header>
 
 <div class="consultation-banner" id="consultationBanner"></div>
@@ -685,8 +720,8 @@
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="toolbar">
-  <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)"></textarea>
-  <select id="filtreCouleurSel">
+  <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)" data-tt-titre="Recherche" data-tt-desc="Filtre la liste par nom, domaine ou numéro de vin."></textarea>
+  <select id="filtreCouleurSel" data-tt-titre="Filtrer par couleur" data-tt-desc="N'affiche que les vins de la couleur choisie.">
     <option value="toutes">Toutes couleurs</option>
     <option value="rouge">Rouge</option>
     <option value="blanc">Blanc</option>
@@ -697,18 +732,18 @@
     <option value="liquoreux">Liquoreux</option>
     <option value="autre">Autre</option>
   </select>
-  <select id="filtreMarqueSel">
+  <select id="filtreMarqueSel" data-tt-titre="Filtrer par marquage" data-tt-desc="N'affiche que les vins marqués, non marqués, ou tous.">
     <option value="tous" selected>Tous les vins</option>
     <option value="marques">Vins marqués seulement</option>
     <option value="non_marques">Vins non marqués seulement</option>
   </select>
-  <select id="groupBySel">
+  <select id="groupBySel" data-tt-titre="Regroupement" data-tt-desc="Choisit comment regrouper visuellement les vins de la liste. Ce choix est enregistré et synchronisé sur GitHub.">
     <option value="aucun">Ne pas regrouper</option>
     <option value="couleur" selected>Regrouper par couleur</option>
     <option value="region">Regrouper par région</option>
     <option value="emplacement">Regrouper par emplacement</option>
   </select>
-  <select id="sortSel">
+  <select id="sortSel" data-tt-titre="Tri" data-tt-desc="Choisit l'ordre d'affichage des vins de la liste. Ce choix est enregistré et synchronisé sur GitHub.">
     <option value="ajout_desc">Ajout récent d'abord</option>
     <option value="nom_asc">Nom A→Z</option>
     <option value="millesime_desc">Millésime récent→ancien</option>
@@ -720,15 +755,15 @@
     <option value="prix_asc">Prix croissant</option>
     <option value="apogee_asc">Apogée : à boire en premier</option>
   </select>
-  <button class="btn btn-gold action-edition" id="btnAjouter" type="button">+ Ajouter un vin</button>
+  <button class="btn btn-gold action-edition" id="btnAjouter" type="button" data-tt-titre="Ajouter un vin" data-tt-desc="Ouvre une fiche vierge pour enregistrer un nouveau vin dans la cave.">+ Ajouter un vin</button>
 </div>
 
 <div class="toolbar" id="chipsToolbar">
-  <button class="chip-toggle active" data-statut="cave" type="button">En cave</button>
-  <button class="chip-toggle" data-statut="bue" type="button">Historique (bues)</button>
-  <button class="chip-toggle" data-statut="toutes" type="button">Toutes</button>
-  <button class="chip-toggle" id="chipApogee" type="button">🍷 À boire maintenant</button>
-  <label class="checkbox-chip" for="avecPhotoCheckbox">
+  <button class="chip-toggle active" data-statut="cave" type="button" data-tt-titre="En cave" data-tt-desc="N'affiche que les vins encore présents en cave (quantité restante &gt; 0).">En cave</button>
+  <button class="chip-toggle" data-statut="bue" type="button" data-tt-titre="Historique (bues)" data-tt-desc="N'affiche que les vins dont au moins une bouteille a été marquée comme bue.">Historique (bues)</button>
+  <button class="chip-toggle" data-statut="toutes" type="button" data-tt-titre="Toutes" data-tt-desc="Affiche tous les vins de la cave, en cave ou bus.">Toutes</button>
+  <button class="chip-toggle" id="chipApogee" type="button" data-tt-titre="À boire maintenant" data-tt-desc="N'affiche que les vins actuellement dans leur fenêtre d'apogée (prêts à boire).">🍷 À boire maintenant</button>
+  <label class="checkbox-chip" for="avecPhotoCheckbox" data-tt-titre="Avec photo" data-tt-desc="Affiche automatiquement la miniature de chaque vin ayant une photo. Décochée, la photo n'apparaît qu'à la demande.">
     <input type="checkbox" id="avecPhotoCheckbox" checked>
     Avec photo
   </label>
@@ -738,33 +773,33 @@
 
 <div class="settings action-edition">
   <details class="panel" id="panelSync">
-    <summary>Synchronisation GitHub (optionnelle)</summary>
+    <summary data-tt-titre="Synchronisation GitHub" data-tt-desc="Ouvre ou referme la section de configuration et d'envoi/réception vers GitHub.">Synchronisation GitHub (optionnelle)</summary>
     <div class="panel-body">
       <p class="panel-note">Ta cave est toujours enregistrée sur cet appareil (hors ligne) : les fiches, en version complète, et une petite miniature de chaque photo. Cette section permet en plus de sauvegarder/récupérer la cave dans un dépôt GitHub, pour la retrouver sur un autre appareil. Les photos en pleine résolution sont alors envoyées comme fichiers séparés dans le dépôt (dossier images/), ce qui libère de la place sur cet appareil et évite d'atteindre la limite de stockage du navigateur. Le jeton n'est jamais synchronisé, seulement gardé sur cet appareil.</p>
       <div class="field-row">
-        <div class="field"><label>Utilisateur GitHub</label><textarea id="cfgUser" class="champ-ligne-unique" rows="1" autocomplete="off"></textarea></div>
-        <div class="field"><label>Dépôt</label><textarea id="cfgRepo" class="champ-ligne-unique" rows="1" autocomplete="off"></textarea></div>
+        <div class="field"><label>Utilisateur GitHub</label><textarea id="cfgUser" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Utilisateur GitHub" data-tt-desc="Nom d'utilisateur (ou organisation) du compte GitHub utilisé pour la sauvegarde."></textarea></div>
+        <div class="field"><label>Dépôt</label><textarea id="cfgRepo" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Dépôt" data-tt-desc="Nom du dépôt GitHub dans lequel la cave est sauvegardée."></textarea></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Branche</label><textarea id="cfgBranche" class="champ-ligne-unique" rows="1">main</textarea></div>
-        <div class="field"><label>Chemin du fichier</label><textarea id="cfgChemin" class="champ-ligne-unique" rows="1">cave.json</textarea></div>
+        <div class="field"><label>Branche</label><textarea id="cfgBranche" class="champ-ligne-unique" rows="1" data-tt-titre="Branche" data-tt-desc="Branche du dépôt GitHub à utiliser (généralement « main »).">main</textarea></div>
+        <div class="field"><label>Chemin du fichier</label><textarea id="cfgChemin" class="champ-ligne-unique" rows="1" data-tt-titre="Chemin du fichier" data-tt-desc="Emplacement du fichier de données dans le dépôt (par défaut « cave.json »).">cave.json</textarea></div>
       </div>
-      <div class="field"><label>Jeton d'accès (PAT)</label><input type="password" id="cfgToken" autocomplete="off"></div>
+      <div class="field"><label>Jeton d'accès (PAT)</label><input type="password" id="cfgToken" autocomplete="off" data-tt-titre="Jeton d'accès (PAT)" data-tt-desc="Jeton d'authentification GitHub personnel, nécessaire pour lire et écrire dans le dépôt. Jamais synchronisé, gardé uniquement sur cet appareil."></div>
       <div class="panel-row">
-        <button class="btn" id="btnPush" type="button">Envoyer vers GitHub</button>
-        <button class="btn" id="btnPull" type="button">Récupérer depuis GitHub</button>
-        <button class="btn btn-ghost" id="btnSaveCfg" type="button">Enregistrer les identifiants</button>
+        <button class="btn" id="btnPush" type="button" data-tt-titre="Envoyer vers GitHub" data-tt-desc="Sauvegarde la cave actuelle sur GitHub, après vérification qu'aucune version plus récente n'existe déjà là-bas.">Envoyer vers GitHub</button>
+        <button class="btn" id="btnPull" type="button" data-tt-titre="Récupérer depuis GitHub" data-tt-desc="Recharge la cave depuis la version actuellement enregistrée sur GitHub, en remplaçant les données locales.">Récupérer depuis GitHub</button>
+        <button class="btn btn-ghost" id="btnSaveCfg" type="button" data-tt-titre="Enregistrer les identifiants" data-tt-desc="Sauvegarde localement l'utilisateur, le dépôt, la branche et le jeton GitHub saisis ci-dessus.">Enregistrer les identifiants</button>
       </div>
       <div class="sync-status" id="syncStatus">Aucune synchronisation effectuée.</div>
     </div>
   </details>
   <details class="panel">
-    <summary>Sauvegarde locale</summary>
+    <summary data-tt-titre="Sauvegarde locale" data-tt-desc="Ouvre ou referme la section d'export/import d'un fichier de secours JSON.">Sauvegarde locale</summary>
     <div class="panel-body">
       <p class="panel-note">Exporte un fichier de secours (JSON), ou récupère une sauvegarde précédente.</p>
       <div class="panel-row">
-        <button class="btn" id="btnExport" type="button">Exporter en JSON</button>
-        <button class="btn" id="btnImport" type="button">Importer un JSON</button>
+        <button class="btn" id="btnExport" type="button" data-tt-titre="Exporter en JSON" data-tt-desc="Télécharge un fichier de secours contenant toute la cave, à conserver ou réimporter plus tard.">Exporter en JSON</button>
+        <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON précédemment exporté.">Importer un JSON</button>
         <input type="file" id="importFile" accept="application/json" style="display:none">
       </div>
     </div>
@@ -776,33 +811,33 @@
   <div class="modal">
     <div class="modal-header">
       <h2 id="ficheTitre">Ajouter un vin</h2>
-      <button class="modal-close" id="closeFiche" type="button">✕</button>
+      <button class="modal-close" id="closeFiche" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <div class="fiche-section-haute">
         <div class="numero-fiche-badge" id="numeroFicheBadge">
-          <span class="numero-fiche-valeur" id="numeroFicheValeur" title="Toucher pour modifier"></span>
-          <input type="number" id="numeroFicheInput" class="numero-fiche-input" min="1" style="display:none;">
+          <span class="numero-fiche-valeur" id="numeroFicheValeur" data-tt-titre="Numéro du vin" data-tt-desc="Numéro court unique à recopier sur l'étiquette. Toucher pour le modifier manuellement."></span>
+          <input type="number" id="numeroFicheInput" class="numero-fiche-input" min="1" style="display:none;" data-tt-titre="Nouveau numéro" data-tt-desc="Saisis le nouveau numéro à attribuer à ce vin.">
           <span class="numero-fiche-note">à noter sur l'étiquette</span>
         </div>
 
-        <div class="field"><label>Nom / cuvée *</label><textarea id="fNom" class="champ-ligne-unique" rows="1" placeholder="ex. Clos des Ormes"></textarea></div>
+        <div class="field"><label>Nom / cuvée *</label><textarea id="fNom" class="champ-ligne-unique" rows="1" placeholder="ex. Clos des Ormes" data-tt-titre="Nom / cuvée" data-tt-desc="Nom du vin ou de la cuvée. Champ obligatoire."></textarea></div>
         <div class="field-row">
-          <div class="field"><label>Domaine / producteur</label><textarea id="fDomaine" class="champ-ligne-unique" rows="1"></textarea></div>
-          <div class="field"><label>Pays</label><textarea id="fPays" class="champ-ligne-unique" rows="1">France</textarea></div>
+          <div class="field"><label>Domaine / producteur</label><textarea id="fDomaine" class="champ-ligne-unique" rows="1" data-tt-titre="Domaine / producteur" data-tt-desc="Nom du domaine, du producteur ou de la maison ayant produit ce vin."></textarea></div>
+          <div class="field"><label>Pays</label><textarea id="fPays" class="champ-ligne-unique" rows="1" data-tt-titre="Pays" data-tt-desc="Pays d'origine du vin.">France</textarea></div>
         </div>
 
         <div class="field"><label>Couleur</label>
-          <div class="couleur-choices" id="couleurChoices"></div>
+          <div class="couleur-choices" id="couleurChoices" data-tt-titre="Couleur" data-tt-desc="Choisit la couleur du vin."></div>
         </div>
 
         <div class="field-row">
-          <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM"></textarea></div>
+          <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM" data-tt-titre="Millésime" data-tt-desc="Année de récolte du vin (ou « NM » si non millésimé)."></textarea></div>
           <div class="field"><label>Quantité en cave</label>
             <div class="quantite-row">
-              <button type="button" class="qty-btn-fiche" id="btnQuantiteMoins" aria-label="Diminuer la quantité">−</button>
-              <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off">
-              <button type="button" class="qty-btn-fiche" id="btnQuantitePlus" aria-label="Augmenter la quantité">+</button>
+              <button type="button" class="qty-btn-fiche" id="btnQuantiteMoins" aria-label="Diminuer la quantité" data-tt-titre="Diminuer la quantité" data-tt-desc="Réduit d'une unité le nombre de bouteilles en cave pour ce vin.">−</button>
+              <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off" data-tt-titre="Quantité en cave" data-tt-desc="Nombre de bouteilles actuellement en cave pour ce vin.">
+              <button type="button" class="qty-btn-fiche" id="btnQuantitePlus" aria-label="Augmenter la quantité" data-tt-titre="Augmenter la quantité" data-tt-desc="Ajoute une unité au nombre de bouteilles en cave pour ce vin.">+</button>
             </div>
             <datalist id="fQuantiteListe">
               <option value="0"></option>
@@ -824,14 +859,14 @@
 
         <div class="field"><label>Emplacement (casier / rangée)</label>
           <div class="emplacement-row">
-            <textarea id="fEmplacement" class="champ-ligne-unique" rows="1" placeholder="ex. Casier B, rang 3"></textarea>
-            <select class="emplacement-select" id="fEmplacementGauche" title="Insérer la partie gauche">
+            <textarea id="fEmplacement" class="champ-ligne-unique" rows="1" placeholder="ex. Casier B, rang 3" data-tt-titre="Emplacement" data-tt-desc="Casier et rangée où se trouve le vin dans la cave."></textarea>
+            <select class="emplacement-select" id="fEmplacementGauche" data-tt-titre="Partie gauche de l'emplacement" data-tt-desc="Insère une valeur prédéfinie (ex. nom de casier) dans le champ Emplacement.">
               <option value="">📍</option>
             </select>
-            <select class="emplacement-select" id="fEmplacementDroite" title="Insérer la partie droite">
+            <select class="emplacement-select" id="fEmplacementDroite" data-tt-titre="Partie droite de l'emplacement" data-tt-desc="Insère une valeur prédéfinie (ex. rang, position) à la suite dans le champ Emplacement.">
               <option value="">📌</option>
             </select>
-            <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" title="Reprendre le dernier emplacement utilisé" disabled>🔁</button>
+            <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
         </div>
 
@@ -839,24 +874,24 @@
       </div>
 
       <div class="modal-actions fiche-separateur">
-        <button class="btn btn-sm action-gauche" id="btnChoisirPhoto" type="button">📷 Ajouter une photo</button>
-        <button class="btn btn-ghost" id="btnAnnulerFiche" type="button">Annuler</button>
-        <button class="btn btn-gold" id="btnSauverFiche" type="button">Enregistrer</button>
+        <button class="btn btn-sm action-gauche" id="btnChoisirPhoto" type="button" data-tt-titre="Ajouter une photo" data-tt-desc="Prend ou choisit une photo de l'étiquette pour ce vin.">📷 Ajouter une photo</button>
+        <button class="btn btn-ghost" id="btnAnnulerFiche" type="button" data-tt-titre="Annuler / Fermer" data-tt-desc="Ferme la fiche sans enregistrer (« Fermer » en mode consultation).">Annuler</button>
+        <button class="btn btn-gold" id="btnSauverFiche" type="button" data-tt-titre="Enregistrer" data-tt-desc="Sauvegarde les modifications de cette fiche dans la cave.">Enregistrer</button>
       </div>
 
       <details class="fiche-section-basse" id="ficheSectionBasse">
-        <summary class="fiche-section-label">Détails complémentaires</summary>
+        <summary class="fiche-section-label" data-tt-titre="Détails complémentaires" data-tt-desc="Affiche les champs secondaires : photo, région, appellation, cépages, prix, dates, apogée, note, commentaire.">Détails complémentaires</summary>
         <div class="fiche-section-basse-corps">
           <div class="photo-section">
             <img id="photoPreview" class="photo-img" style="display:none" alt="Étiquette du vin">
             <div class="photo-actions">
               <div class="photo-actions-row">
-                <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;">👁 Afficher la photo existante</button>
-                <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;">🗑 Retirer la photo</button>
+                <button class="btn btn-ghost btn-sm" id="btnChargerPhoto" type="button" style="display:none;" data-tt-titre="Afficher la photo existante" data-tt-desc="Charge et affiche la photo pleine résolution déjà enregistrée sur GitHub pour ce vin.">👁 Afficher la photo existante</button>
+                <button class="btn btn-ghost btn-sm" id="btnRetirerPhoto" type="button" style="display:none;" data-tt-titre="Retirer la photo" data-tt-desc="Supprime la photo associée à ce vin (avec confirmation).">🗑 Retirer la photo</button>
               </div>
               <div class="photo-actions-row">
-                <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;">🤖 Identifier avec ChatGPT</button>
-                <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;">📥 Appliquer la réponse à ce vin</button>
+                <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;" data-tt-titre="Identifier avec l'assistant IA" data-tt-desc="Copie la photo dans le presse-papier et ouvre l'assistant IA choisi pour identifier le vin.">🤖 Identifier avec ChatGPT</button>
+                <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;" data-tt-titre="Appliquer la réponse à ce vin" data-tt-desc="Lit la réponse copiée depuis l'assistant IA et l'applique aux champs de cette fiche, après vérification.">📥 Appliquer la réponse à ce vin</button>
               </div>
             </div>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
@@ -865,44 +900,44 @@
           <div class="field-row">
             <div class="field"><label>Région</label>
               <div class="emplacement-row">
-                <textarea id="fRegion" class="champ-ligne-unique" rows="1"></textarea>
-                <select class="emplacement-select" id="fRegionSelect" title="Choisir une région">
+                <textarea id="fRegion" class="champ-ligne-unique" rows="1" data-tt-titre="Région" data-tt-desc="Région viticole du vin."></textarea>
+                <select class="emplacement-select" id="fRegionSelect" data-tt-titre="Choisir une région" data-tt-desc="Sélectionne une région parmi celles proposées dans les Paramètres.">
                   <option value="">🌍</option>
                 </select>
-                <button type="button" class="emplacement-icon-btn" id="btnAppliquerRegion" title="Copier la région choisie dans le champ">✓</button>
+                <button type="button" class="emplacement-icon-btn" id="btnAppliquerRegion" data-tt-titre="Copier la région choisie" data-tt-desc="Recopie la région sélectionnée dans le champ Région.">✓</button>
               </div>
             </div>
-            <div class="field"><label>Appellation</label><textarea id="fAppellation" class="champ-ligne-unique" rows="1"></textarea></div>
+            <div class="field"><label>Appellation</label><textarea id="fAppellation" class="champ-ligne-unique" rows="1" data-tt-titre="Appellation" data-tt-desc="Appellation d'origine du vin."></textarea></div>
           </div>
 
           <div class="field-row">
-            <div class="field"><label>Cépage(s)</label><textarea id="fCepages" class="champ-ligne-unique" rows="1"></textarea></div>
-            <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01"></div>
+            <div class="field"><label>Cépage(s)</label><textarea id="fCepages" class="champ-ligne-unique" rows="1" data-tt-titre="Cépage(s)" data-tt-desc="Cépage ou assemblage de cépages du vin."></textarea></div>
+            <div class="field"><label>Prix unitaire (€)</label><input type="number" id="fPrix" min="0" step="0.01" data-tt-titre="Prix unitaire" data-tt-desc="Prix d'achat d'une bouteille, en euros."></div>
           </div>
 
           <div class="field-row">
-            <div class="field"><label>Date d'achat</label><input type="date" id="fDateAchat"></div>
-            <div class="field"><label>Lieu d'achat</label><textarea id="fLieuAchat" class="champ-ligne-unique" rows="1"></textarea></div>
+            <div class="field"><label>Date d'achat</label><input type="date" id="fDateAchat" data-tt-titre="Date d'achat" data-tt-desc="Date à laquelle ce vin a été acheté."></div>
+            <div class="field"><label>Lieu d'achat</label><textarea id="fLieuAchat" class="champ-ligne-unique" rows="1" data-tt-titre="Lieu d'achat" data-tt-desc="Endroit où ce vin a été acheté (caviste, domaine, salon…)."></textarea></div>
           </div>
 
           <div class="field-row">
-            <div class="field"><label>Boire à partir de (année)</label><input type="number" id="fBoireDe" placeholder="ex. 2024"></div>
-            <div class="field"><label>Boire avant (année)</label><input type="number" id="fBoireA" placeholder="ex. 2030"></div>
+            <div class="field"><label>Boire à partir de (année)</label><input type="number" id="fBoireDe" placeholder="ex. 2024" data-tt-titre="Boire à partir de" data-tt-desc="Année à partir de laquelle ce vin est considéré prêt à boire."></div>
+            <div class="field"><label>Boire avant (année)</label><input type="number" id="fBoireA" placeholder="ex. 2030" data-tt-titre="Boire avant" data-tt-desc="Année après laquelle ce vin est considéré passé son apogée."></div>
           </div>
 
           <div class="field"><label>Note</label>
             <div class="note-row">
-              <div class="star-picker" id="starPicker">
+              <div class="star-picker" id="starPicker" data-tt-titre="Note en étoiles" data-tt-desc="Note personnelle du vin, de 1 à 5 étoiles.">
                 <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
               </div>
-              <input type="number" id="fNoteNumerique" class="note-numerique-input" step="0.1" placeholder="Note chiffrée">
-              <input type="text" id="fNoteIncertaine" class="note-incertaine-input" maxlength="1" placeholder="?" title="Note incertaine (?)">
+              <input type="number" id="fNoteNumerique" class="note-numerique-input" step="0.1" placeholder="Note chiffrée" data-tt-titre="Note chiffrée" data-tt-desc="Note numérique libre, distincte de la note en étoiles (ex. issue d'un avis externe).">
+              <input type="text" id="fNoteIncertaine" class="note-incertaine-input" maxlength="1" placeholder="?" data-tt-titre="Note incertaine" data-tt-desc="Marque la note chiffrée comme incertaine (affiche un « ? » à côté).">
             </div>
           </div>
 
-          <div class="field"><label>Étiquette</label><textarea id="fEtiquette" placeholder="Description de l'étiquette (visuel, mentions…)"></textarea></div>
+          <div class="field"><label>Étiquette</label><textarea id="fEtiquette" placeholder="Description de l'étiquette (visuel, mentions…)" data-tt-titre="Étiquette" data-tt-desc="Description libre de l'étiquette (visuel, mentions particulières…)."></textarea></div>
 
-          <div class="field"><label>Commentaire / notes de dégustation</label><textarea id="fCommentaire" placeholder="Robe, nez, bouche, accords mets-vin…"></textarea></div>
+          <div class="field"><label>Commentaire / notes de dégustation</label><textarea id="fCommentaire" placeholder="Robe, nez, bouche, accords mets-vin…" data-tt-titre="Commentaire de dégustation" data-tt-desc="Notes de dégustation libres : robe, nez, bouche, accords mets-vin…"></textarea></div>
 
           <div class="fiche-action-supprimer" id="ficheActionSupprimer"></div>
         </div>
@@ -916,14 +951,14 @@
   <div class="modal photo-choisie-box">
     <div class="modal-header">
       <h2>Photo sélectionnée</h2>
-      <button class="modal-close" id="closePhotoChoisie" type="button">✕</button>
+      <button class="modal-close" id="closePhotoChoisie" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <img id="photoChoisieApercu" class="photo-img" alt="Photo sélectionnée">
       <div class="photo-choisie-actions">
-        <button class="btn btn-ghost" id="btnPhotoChoisieAnnuler" type="button">Annuler</button>
-        <button class="btn" id="btnPhotoChoisieNroTemp" type="button">Vin avec n° temporaire</button>
-        <button class="btn btn-gold" id="btnPhotoChoisieOk" type="button">OK</button>
+        <button class="btn btn-ghost" id="btnPhotoChoisieAnnuler" type="button" data-tt-titre="Annuler" data-tt-desc="Referme la fenêtre sans utiliser la photo sélectionnée.">Annuler</button>
+        <button class="btn" id="btnPhotoChoisieNroTemp" type="button" data-tt-titre="Vin avec n° temporaire" data-tt-desc="Crée immédiatement une nouvelle fiche avec cette photo et un numéro temporaire, à compléter plus tard.">Vin avec n° temporaire</button>
+        <button class="btn btn-gold" id="btnPhotoChoisieOk" type="button" data-tt-titre="OK" data-tt-desc="Applique cette photo à la fiche en cours.">OK</button>
       </div>
     </div>
   </div>
@@ -934,7 +969,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>Historique des versions</h2>
-      <button class="modal-close" id="closeHistory" type="button">✕</button>
+      <button class="modal-close" id="closeHistory" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body" id="historyBody"></div>
   </div>
@@ -945,13 +980,13 @@
   <div class="modal confirm-box">
     <div class="modal-header">
       <h2 id="confirmTitre">Confirmer</h2>
-      <button class="modal-close" id="closeConfirm" type="button">✕</button>
+      <button class="modal-close" id="closeConfirm" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <p id="confirmMessage"></p>
       <div class="modal-actions" style="justify-content:center;">
-        <button class="btn btn-ghost" id="btnConfirmNon" type="button">Annuler</button>
-        <button class="btn btn-danger" id="btnConfirmOui" type="button">Confirmer</button>
+        <button class="btn btn-ghost" id="btnConfirmNon" type="button" data-tt-titre="Annuler" data-tt-desc="Annule l'action et ferme cette fenêtre.">Annuler</button>
+        <button class="btn btn-danger" id="btnConfirmOui" type="button" data-tt-titre="Confirmer" data-tt-desc="Valide l'action décrite ci-dessus.">Confirmer</button>
       </div>
     </div>
   </div>
@@ -962,7 +997,7 @@
   <div class="modal conflit-sync-box">
     <div class="modal-header">
       <h2>Version différente sur GitHub</h2>
-      <button class="modal-close" id="closeConflitSync" type="button">✕</button>
+      <button class="modal-close" id="closeConflitSync" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <p class="verif-photo-note" id="conflitSyncExplication"></p>
@@ -978,8 +1013,8 @@
       </div>
       <p class="panel-note" id="conflitSyncConseil"></p>
       <div class="conflit-sync-actions">
-        <button class="btn btn-gold" id="btnConflitGarderLocal" type="button">Garder mes modifications locales</button>
-        <button class="btn btn-danger" id="btnConflitUtiliserDistant" type="button">Utiliser la version GitHub (écraser le local)</button>
+        <button class="btn btn-gold" id="btnConflitGarderLocal" type="button" data-tt-titre="Garder mes modifications locales" data-tt-desc="Conserve les données de cet appareil et propose de les envoyer immédiatement vers GitHub.">Garder mes modifications locales</button>
+        <button class="btn btn-danger" id="btnConflitUtiliserDistant" type="button" data-tt-titre="Utiliser la version GitHub" data-tt-desc="Remplace les données de cet appareil par la version enregistrée sur GitHub (les modifications locales non envoyées seront perdues).">Utiliser la version GitHub (écraser le local)</button>
       </div>
     </div>
   </div>
@@ -990,14 +1025,14 @@
   <div class="modal verif-photo-box">
     <div class="modal-header">
       <h2>Photo copiée</h2>
-      <button class="modal-close" id="closeVerifPhoto" type="button">✕</button>
+      <button class="modal-close" id="closeVerifPhoto" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <p class="verif-photo-note">Voici la photo qui vient d'être copiée dans le presse-papier — vérifie qu'elle correspond bien avant d'ouvrir ChatGPT (colle-la avec Cmd+V une fois là-bas).</p>
       <img id="verifPhotoImg" class="verif-photo-img" alt="Photo copiée dans le presse-papier">
       <div class="modal-actions" style="justify-content:center;">
-        <button class="btn btn-ghost" id="btnAnnulerVerifPhoto" type="button">Annuler</button>
-        <button class="btn btn-gold" id="btnOuvrirChatGPT" type="button">Ouvrir ChatGPT</button>
+        <button class="btn btn-ghost" id="btnAnnulerVerifPhoto" type="button" data-tt-titre="Annuler" data-tt-desc="Annule l'identification et ferme cette fenêtre.">Annuler</button>
+        <button class="btn btn-gold" id="btnOuvrirChatGPT" type="button" data-tt-titre="Ouvrir l'assistant IA" data-tt-desc="Ouvre l'assistant IA choisi dans un nouvel onglet, pour y coller la photo copiée.">Ouvrir ChatGPT</button>
       </div>
     </div>
   </div>
@@ -1008,17 +1043,17 @@
   <div class="modal verif-texte-box">
     <div class="modal-header">
       <h2 id="verifTexteTitre">Vérifier avant de créer le vin</h2>
-      <button class="modal-close" id="closeVerifTexte" type="button">✕</button>
+      <button class="modal-close" id="closeVerifTexte" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <p class="verif-photo-note" id="verifTexteNote">Voici ce qui a été extrait du presse-papier — corrige si besoin avant de créer la fiche.</p>
-      <div class="field"><label>Nom / cuvée</label><textarea id="verifTexteNom" class="champ-ligne-unique" rows="1"></textarea></div>
-      <div class="field"><label>Domaine / producteur</label><textarea id="verifTexteDomaine" class="champ-ligne-unique" rows="1"></textarea></div>
-      <div class="field"><label>Millésime</label><textarea id="verifTexteMillesime" class="champ-ligne-unique" rows="1"></textarea></div>
-      <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5"></textarea></div>
+      <div class="field"><label>Nom / cuvée</label><textarea id="verifTexteNom" class="champ-ligne-unique" rows="1" data-tt-titre="Nom / cuvée (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
+      <div class="field"><label>Domaine / producteur</label><textarea id="verifTexteDomaine" class="champ-ligne-unique" rows="1" data-tt-titre="Domaine / producteur (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
+      <div class="field"><label>Millésime</label><textarea id="verifTexteMillesime" class="champ-ligne-unique" rows="1" data-tt-titre="Millésime (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
+      <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5" data-tt-titre="Étiquette (extraite)" data-tt-desc="Description extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
       <div class="modal-actions" style="justify-content:center;">
-        <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button">Annuler</button>
-        <button class="btn btn-gold" id="btnConfirmerVerifTexte" type="button">Créer le vin</button>
+        <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button" data-tt-titre="Annuler" data-tt-desc="Annule la création du vin et ferme cette fenêtre.">Annuler</button>
+        <button class="btn btn-gold" id="btnConfirmerVerifTexte" type="button" data-tt-titre="Créer le vin" data-tt-desc="Crée la fiche avec les valeurs vérifiées ci-dessus.">Créer le vin</button>
       </div>
     </div>
   </div>
@@ -1029,18 +1064,18 @@
   <div class="modal verif-texte-box">
     <div class="modal-header">
       <h2>Vérifier avant d'appliquer au vin</h2>
-      <button class="modal-close" id="closeVerifAvis" type="button">✕</button>
+      <button class="modal-close" id="closeVerifAvis" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
       <p class="verif-photo-note">Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche.</p>
-      <div class="field"><label>Commentaire</label><textarea id="verifAvisCommentaire" rows="8"></textarea></div>
+      <div class="field"><label>Commentaire</label><textarea id="verifAvisCommentaire" rows="8" data-tt-titre="Commentaire (extrait)" data-tt-desc="Commentaire de dégustation extrait de la réponse de l'assistant IA — vérifie et corrige avant d'appliquer."></textarea></div>
       <div class="field-row">
-        <div class="field"><label>Note (0 à 5)</label><input type="number" id="verifAvisNote" min="0" max="5" step="1"></div>
-        <div class="field"><label>Prix unitaire (€)</label><input type="number" id="verifAvisPrix" min="0" step="0.01"></div>
+        <div class="field"><label>Note (0 à 5)</label><input type="number" id="verifAvisNote" min="0" max="5" step="1" data-tt-titre="Note (extraite)" data-tt-desc="Note sur 5 extraite de la réponse de l'assistant IA."></div>
+        <div class="field"><label>Prix unitaire (€)</label><input type="number" id="verifAvisPrix" min="0" step="0.01" data-tt-titre="Prix unitaire (extrait)" data-tt-desc="Prix indicatif extrait de la réponse de l'assistant IA."></div>
       </div>
       <div class="modal-actions" style="justify-content:center;">
-        <button class="btn btn-ghost" id="btnAnnulerVerifAvis" type="button">Annuler</button>
-        <button class="btn btn-gold" id="btnConfirmerVerifAvis" type="button">Appliquer à la fiche</button>
+        <button class="btn btn-ghost" id="btnAnnulerVerifAvis" type="button" data-tt-titre="Annuler" data-tt-desc="Annule l'application de l'avis et ferme cette fenêtre.">Annuler</button>
+        <button class="btn btn-gold" id="btnConfirmerVerifAvis" type="button" data-tt-titre="Appliquer à la fiche" data-tt-desc="Applique le commentaire, la note et le prix vérifiés ci-dessus à la fiche du vin.">Appliquer à la fiche</button>
       </div>
     </div>
   </div>
@@ -1050,32 +1085,32 @@
 <div class="page-parametres" id="pageParametres" style="display:none;">
   <div class="page-top-sticky">
     <div class="page-header">
-      <button class="page-back" id="btnFermerParametres" type="button">← Retour</button>
+      <button class="page-back" id="btnFermerParametres" type="button" data-tt-titre="Retour" data-tt-desc="Referme la page Paramètres et revient à la liste des vins.">← Retour</button>
       <h1 id="pageTitre">Saisie rapide</h1>
     </div>
     <div class="page-tabs" id="pageTabs">
-      <button class="page-tab-btn active" data-page="saisie" type="button" title="Saisie rapide">⚡</button>
-      <button class="page-tab-btn" data-page="avis" type="button" title="Avis">📝</button>
-      <button class="page-tab-btn" data-page="liste" type="button" title="Liste">📋</button>
-      <button class="page-tab-btn" data-page="stats" type="button" title="Statistiques">📊</button>
-      <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
-      <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🪲</button>
-      <button class="page-tab-btn" data-page="log" type="button" title="Log">📜</button>
+      <button class="page-tab-btn active" data-page="saisie" type="button" data-tt-titre="Saisie rapide" data-tt-desc="Identifier un vin à partir d'une photo d'étiquette et créer sa fiche automatiquement.">⚡</button>
+      <button class="page-tab-btn" data-page="avis" type="button" data-tt-titre="Avis" data-tt-desc="Demander à l'assistant IA un avis, une note et un prix indicatif sur un vin, et les appliquer à sa fiche.">📝</button>
+      <button class="page-tab-btn" data-page="liste" type="button" data-tt-titre="Liste" data-tt-desc="Générer, personnaliser et copier la liste texte de tous les vins de la cave.">📋</button>
+      <button class="page-tab-btn" data-page="stats" type="button" data-tt-titre="Statistiques" data-tt-desc="Voir les statistiques globales de la cave (bouteilles, valeur estimée, répartition…).">📊</button>
+      <button class="page-tab-btn" data-page="parametres" type="button" data-tt-titre="Paramètres" data-tt-desc="Régler l'assistant IA, les questions posées, les listes d'emplacement et de régions, et le mode consultation.">⚙️</button>
+      <button class="page-tab-btn" data-page="journal" type="button" data-tt-titre="Journal / Diagnostic" data-tt-desc="Diagnostiquer un problème de synchronisation GitHub et restaurer une version antérieure de la cave.">🪲</button>
+      <button class="page-tab-btn" data-page="log" type="button" data-tt-titre="Log" data-tt-desc="Journal détaillé des échanges avec l'assistant IA (identification et avis).">📜</button>
     </div>
   </div>
 
   <div class="page-body" id="pageCorpsSaisie">
     <p class="panel-note">Prends ou choisis la photo d'une étiquette, identifie le vin avec l'IA, colle sa réponse dans ChatGPT/Claude puis reviens ici pour créer la fiche à partir du texte copié.</p>
     <div class="panel-row">
-      <button class="btn" id="btnSaisiePhoto" type="button">📷 Prendre / choisir une photo</button>
+      <button class="btn" id="btnSaisiePhoto" type="button" data-tt-titre="Prendre / choisir une photo" data-tt-desc="Sélectionne la photo d'une étiquette à identifier.">📷 Prendre / choisir une photo</button>
     </div>
     <input type="file" id="saisiePhotoInput" accept="image/*" style="display:none">
     <img id="saisiePhotoApercu" class="photo-img" style="display:none" alt="Photo capturée">
     <div class="panel-row">
-      <button class="btn btn-ghost" id="btnSaisieIdentifier" type="button" disabled>🤖 Identifier avec ChatGPT</button>
+      <button class="btn btn-ghost" id="btnSaisieIdentifier" type="button" disabled data-tt-titre="Identifier avec l'assistant IA" data-tt-desc="Copie la photo dans le presse-papier et ouvre l'assistant IA choisi.">🤖 Identifier avec ChatGPT</button>
     </div>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnSaisieCreerVin" type="button">➕ Créer un nouveau vin à partir de la réponse copiée</button>
+      <button class="btn btn-gold" id="btnSaisieCreerVin" type="button" data-tt-titre="Créer un nouveau vin" data-tt-desc="Utilise le texte actuellement dans le presse-papier (réponse copiée depuis l'assistant IA) pour créer une nouvelle fiche.">➕ Créer un nouveau vin à partir de la réponse copiée</button>
     </div>
     <p class="panel-note">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
   </div>
@@ -1084,25 +1119,25 @@
     <p class="panel-note" id="avisContexte">Touche l'icône 📝 sur une carte de la liste pour charger un vin ici.</p>
     <div class="field">
       <label>Nom</label>
-      <textarea id="avisNom" class="champ-ligne-unique" rows="1"></textarea>
+      <textarea id="avisNom" class="champ-ligne-unique" rows="1" data-tt-titre="Nom / cuvée" data-tt-desc="Repris de la fiche du vin choisi — sert de contexte pour la question posée à l'assistant IA."></textarea>
     </div>
     <div class="field">
       <label>Domaine</label>
-      <textarea id="avisDomaine" class="champ-ligne-unique" rows="1"></textarea>
+      <textarea id="avisDomaine" class="champ-ligne-unique" rows="1" data-tt-titre="Domaine / producteur" data-tt-desc="Repris de la fiche du vin choisi — sert de contexte pour la question posée à l'assistant IA."></textarea>
     </div>
     <div class="field">
       <label>Millésime</label>
-      <textarea id="avisMillesime" class="champ-ligne-unique" rows="1"></textarea>
+      <textarea id="avisMillesime" class="champ-ligne-unique" rows="1" data-tt-titre="Millésime" data-tt-desc="Repris de la fiche du vin choisi — sert de contexte pour la question posée à l'assistant IA."></textarea>
     </div>
     <div class="field">
       <label>Étiquette</label>
-      <textarea id="avisEtiquette" rows="10"></textarea>
+      <textarea id="avisEtiquette" rows="10" data-tt-titre="Étiquette" data-tt-desc="Repris de la fiche du vin choisi — sert de contexte pour la question posée à l'assistant IA."></textarea>
     </div>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnAvisEnvoyer" type="button">💬 Demander un avis à ChatGPT</button>
+      <button class="btn btn-gold" id="btnAvisEnvoyer" type="button" data-tt-titre="Demander un avis" data-tt-desc="Envoie ces informations à l'assistant IA choisi pour obtenir un avis, une note et un prix indicatif.">💬 Demander un avis à ChatGPT</button>
     </div>
     <div class="panel-row">
-      <button class="btn" id="btnAvisAppliquer" type="button">📥 Appliquer la réponse au vin</button>
+      <button class="btn" id="btnAvisAppliquer" type="button" data-tt-titre="Appliquer la réponse au vin" data-tt-desc="Lit la réponse copiée depuis l'assistant IA pour compléter le commentaire, la note et le prix du vin, après vérification.">📥 Appliquer la réponse au vin</button>
     </div>
     <p class="panel-note">Lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise pour compléter la fiche du vin ci-dessus : commentaire intégral, note et prix unitaire si détectés — après vérification, il ne reste qu'à Enregistrer.</p>
   </div>
@@ -1110,39 +1145,39 @@
   <div class="page-body" id="pageCorpsListe" style="display:none;">
     <p class="panel-note">Génère la liste des noms de tous les vins de la cave (triés par ordre alphabétique) dans la zone de texte ci-dessous, librement modifiable et copiable.</p>
     <div class="panel-row">
-      <label class="checkbox-chip" for="listeAvecDomaine">
+      <label class="checkbox-chip" for="listeAvecDomaine" data-tt-titre="Domaine" data-tt-desc="Ajoute le domaine à la suite du nom de chaque vin dans la liste générée.">
         <input type="checkbox" id="listeAvecDomaine">
         Domaine
       </label>
-      <label class="checkbox-chip" for="listeAvecMillesime">
+      <label class="checkbox-chip" for="listeAvecMillesime" data-tt-titre="Millésime" data-tt-desc="Ajoute le millésime à la suite du nom de chaque vin dans la liste générée.">
         <input type="checkbox" id="listeAvecMillesime">
         Millésime
       </label>
-      <label class="checkbox-chip" for="listeAvecPrix">
+      <label class="checkbox-chip" for="listeAvecPrix" data-tt-titre="Prix" data-tt-desc="Ajoute le prix unitaire à la suite du nom de chaque vin dans la liste générée.">
         <input type="checkbox" id="listeAvecPrix">
         Prix
       </label>
-      <label class="checkbox-chip" for="listeAvecNumero">
+      <label class="checkbox-chip" for="listeAvecNumero" data-tt-titre="Numéroter" data-tt-desc="Ajoute un numéro d'ordre (1., 2., 3.…) devant chaque ligne de la liste générée.">
         <input type="checkbox" id="listeAvecNumero">
         Numéroter
       </label>
-      <label class="checkbox-chip" for="listeAvecNroVin">
+      <label class="checkbox-chip" for="listeAvecNroVin" data-tt-titre="N° du vin" data-tt-desc="Ajoute le numéro court du vin (N° xxx) en tête de chaque ligne de la liste générée.">
         <input type="checkbox" id="listeAvecNroVin">
         N° du vin
       </label>
     </div>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnGenererListe" type="button">📋 Générer la liste</button>
-      <button class="btn" id="btnCopierListe" type="button">📎 Copier</button>
-      <button class="btn" id="btnViderListe" type="button">🗑 Vider</button>
+      <button class="btn btn-gold" id="btnGenererListe" type="button" data-tt-titre="Générer la liste" data-tt-desc="Remplit la zone de texte ci-dessous avec les noms de tous les vins, selon les options cochées.">📋 Générer la liste</button>
+      <button class="btn" id="btnCopierListe" type="button" data-tt-titre="Copier" data-tt-desc="Copie le contenu de la liste dans le presse-papier.">📎 Copier</button>
+      <button class="btn" id="btnViderListe" type="button" data-tt-titre="Vider" data-tt-desc="Efface le contenu de la zone de texte.">🗑 Vider</button>
     </div>
     <div class="field">
       <label>Liste des vins</label>
-      <textarea id="listeTexte" rows="16" placeholder="Touche « Générer la liste » pour remplir cette zone…"></textarea>
+      <textarea id="listeTexte" rows="16" placeholder="Touche « Générer la liste » pour remplir cette zone…" data-tt-titre="Liste des vins" data-tt-desc="Zone de texte librement modifiable contenant la liste générée."></textarea>
     </div>
     <div class="panel-row">
-      <button class="btn" id="btnImporterNotes" type="button">📥 Importer les notes</button>
-      <select id="selectChampImport" class="select-champ-import"></select>
+      <button class="btn" id="btnImporterNotes" type="button" data-tt-titre="Importer les notes" data-tt-desc="Applique au champ sélectionné les valeurs saisies dans la liste ci-dessus (une ligne « N° : valeur » par vin).">📥 Importer les notes</button>
+      <select id="selectChampImport" class="select-champ-import" data-tt-titre="Champ à importer" data-tt-desc="Choisit le champ de la fiche que « Importer les notes » doit mettre à jour."></select>
     </div>
     <p class="panel-note">Lit la zone de texte ci-dessus : chaque ligne contenant « : » est interprétée comme « N° du vin : valeur », et applique cette valeur au champ sélectionné du vin correspondant. Pour le champ Note, la valeur peut se terminer par un « ? » (incertitude), séparé du chiffre — et la note en étoiles n'est jamais modifiée.</p>
   </div>
@@ -1155,48 +1190,48 @@
     <div class="field">
       <label>Assistant IA pour l'identification par photo</label>
       <div class="assistant-choices" id="assistantChoices">
-        <div class="assistant-choice" data-key="chatgpt">ChatGPT</div>
-        <div class="assistant-choice" data-key="claude">Claude</div>
+        <div class="assistant-choice" data-key="chatgpt" data-tt-titre="ChatGPT" data-tt-desc="Utilise ChatGPT comme assistant IA pour l'identification par photo et les avis.">ChatGPT</div>
+        <div class="assistant-choice" data-key="claude" data-tt-titre="Claude" data-tt-desc="Utilise Claude comme assistant IA pour l'identification par photo et les avis.">Claude</div>
       </div>
     </div>
     <div class="field">
       <label>Question envoyée à l'assistant (identification d'un vin à partir de sa photo)</label>
-      <textarea id="paramQuestionChatGPT" rows="4"></textarea>
+      <textarea id="paramQuestionChatGPT" rows="4" data-tt-titre="Question d'identification" data-tt-desc="Texte envoyé à l'assistant IA avec la photo pour identifier un vin."></textarea>
     </div>
     <div class="field">
       <label>Deuxième question envoyée à l'assistant (avis sur un vin)</label>
-      <textarea id="paramQuestionAvis" rows="4"></textarea>
+      <textarea id="paramQuestionAvis" rows="4" data-tt-titre="Question d'avis" data-tt-desc="Texte envoyé à l'assistant IA pour demander un avis sur un vin."></textarea>
     </div>
     <div class="field">
       <label>Emplacement — valeurs de la partie gauche (une par ligne)</label>
-      <textarea id="paramEmplacementGauche" rows="4" placeholder="Casier A&#10;Casier B&#10;Cave à vin"></textarea>
+      <textarea id="paramEmplacementGauche" rows="4" placeholder="Casier A&#10;Casier B&#10;Cave à vin" data-tt-titre="Emplacements — partie gauche" data-tt-desc="Valeurs proposées pour la partie gauche du champ Emplacement, une par ligne."></textarea>
     </div>
     <div class="field">
       <label>Emplacement — valeurs de la partie droite (une par ligne)</label>
-      <textarea id="paramEmplacementDroite" rows="4" placeholder="Rang 1&#10;Rang 2&#10;Haut&#10;Bas"></textarea>
+      <textarea id="paramEmplacementDroite" rows="4" placeholder="Rang 1&#10;Rang 2&#10;Haut&#10;Bas" data-tt-titre="Emplacements — partie droite" data-tt-desc="Valeurs proposées pour la partie droite du champ Emplacement, une par ligne."></textarea>
     </div>
     <div class="field">
       <label>Régions proposées dans la fiche</label>
       <div class="panel-row">
-        <select id="paramRegionsSelect" class="select-champ-import"></select>
-        <button class="btn" id="btnInitRegions" type="button">Init</button>
+        <select id="paramRegionsSelect" class="select-champ-import" data-tt-titre="Régions proposées" data-tt-desc="Liste des régions proposées dans la fiche d'un vin."></select>
+        <button class="btn" id="btnInitRegions" type="button" data-tt-titre="Init" data-tt-desc="Reconstruit la liste des régions en scannant toutes les fiches existantes.">Init</button>
       </div>
       <p class="panel-note">« Init » scanne toutes les fiches existantes, récupère les valeurs du champ Région, retire les doublons et les classe par ordre alphabétique. La liste est ensuite envoyée sur GitHub avec les autres réglages, au clic sur Enregistrer.</p>
     </div>
     <div class="field">
       <label>Accès</label>
-      <label class="checkbox-chip" for="paramLimitationConsultation">
+      <label class="checkbox-chip" for="paramLimitationConsultation" data-tt-titre="Limiter l'URL sans ?edition" data-tt-desc="Active la séparation entre lien de consultation et lien d'édition.">
         <input type="checkbox" id="paramLimitationConsultation">
         Limiter l'URL sans ?edition à la consultation seule
       </label>
       <p class="panel-note">Décochée (par défaut) : l'URL habituelle permet toujours de modifier la cave, comme avant. Cochée : seule l'URL avec « ?edition » à la fin permet de modifier quoi que ce soit — l'URL habituelle passe en lecture seule.</p>
       <div class="panel-row">
-        <button class="btn btn-ghost" id="btnApercuConsultation" type="button">👁 Aperçu du mode consultation</button>
+        <button class="btn btn-ghost" id="btnApercuConsultation" type="button" data-tt-titre="Aperçu du mode consultation" data-tt-desc="Ouvre un nouvel onglet en lecture seule, sans rien activer, pour vérifier le rendu.">👁 Aperçu du mode consultation</button>
       </div>
       <p class="panel-note">Ouvre un nouvel onglet en mode consultation, sans rien activer ni modifier — pratique pour vérifier son rendu avant de décider de l'activer pour de bon.</p>
     </div>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnEnregistrerParametres" type="button">Enregistrer</button>
+      <button class="btn btn-gold" id="btnEnregistrerParametres" type="button" data-tt-titre="Enregistrer" data-tt-desc="Sauvegarde ces réglages localement et les envoie sur GitHub.">Enregistrer</button>
     </div>
     <p class="panel-note" id="paramSyncStatus"></p>
   </div>
@@ -1205,21 +1240,21 @@
     <p class="panel-note diag-version-app" id="diagVersionApp"></p>
     <p class="panel-note">Aide au diagnostic d'un problème de synchronisation GitHub : relance une récupération en détaillant chaque étape (sans jamais modifier la cave locale), et affiche le contenu brut du fichier récupéré pour que tu puisses me le transmettre.</p>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnLancerDiagnostic" type="button">🔍 Lancer le diagnostic</button>
-      <button class="btn btn-ghost" id="btnEffacerJournal" type="button">Effacer</button>
+      <button class="btn btn-gold" id="btnLancerDiagnostic" type="button" data-tt-titre="Lancer le diagnostic" data-tt-desc="Relance une récupération détaillée depuis GitHub, étape par étape, sans modifier la cave locale.">🔍 Lancer le diagnostic</button>
+      <button class="btn btn-ghost" id="btnEffacerJournal" type="button" data-tt-titre="Effacer" data-tt-desc="Vide le journal détaillé affiché ci-dessous.">Effacer</button>
     </div>
     <div class="field">
       <label>Journal détaillé</label>
-      <textarea id="journalTexte" readonly rows="10" class="journal-textarea" placeholder="Touche « Lancer le diagnostic » pour commencer…"></textarea>
+      <textarea id="journalTexte" readonly rows="10" class="journal-textarea" placeholder="Touche « Lancer le diagnostic » pour commencer…" data-tt-titre="Journal détaillé" data-tt-desc="Détail de chaque étape de la dernière vérification lancée."></textarea>
     </div>
     <div class="field">
       <label>Contenu JSON brut récupéré</label>
-      <textarea id="journalJson" readonly rows="10" class="journal-textarea" placeholder="Apparaîtra ici une fois le fichier récupéré."></textarea>
+      <textarea id="journalJson" readonly rows="10" class="journal-textarea" placeholder="Apparaîtra ici une fois le fichier récupéré." data-tt-titre="Contenu JSON brut" data-tt-desc="Contenu brut du fichier récupéré depuis GitHub lors du dernier diagnostic."></textarea>
     </div>
     <p class="panel-note">Liste les versions successives du fichier de sauvegarde sur GitHub, avec le nombre de bouteilles enregistrées et la date de chacune — et permet de restaurer la cave à l'une d'elles en cas de fausse manipulation.</p>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnListerVersions5" type="button">🕘 5 dernières versions</button>
-      <button class="btn" id="btnListerVersions30" type="button">🕘 30 dernières versions</button>
+      <button class="btn btn-gold" id="btnListerVersions5" type="button" data-tt-titre="5 dernières versions" data-tt-desc="Liste les 5 dernières sauvegardes GitHub, avec leur date et leur nombre de vins/bouteilles.">🕘 5 dernières versions</button>
+      <button class="btn" id="btnListerVersions30" type="button" data-tt-titre="30 dernières versions" data-tt-desc="Liste les 30 dernières sauvegardes GitHub, avec leur date et leur nombre de vins/bouteilles.">🕘 30 dernières versions</button>
     </div>
     <div class="versions-liste" id="versionsListe"></div>
   </div>
@@ -1227,17 +1262,22 @@
   <div class="page-body" id="pageCorpsLog" style="display:none;">
     <p class="panel-note">Journal détaillé, étape par étape, de ce qui se passe quand tu utilises « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » (lecture du presse-papier, extraction des champs, application à la fiche). Utilise « Copier » pour me transmettre ce contenu.</p>
     <div class="panel-row">
-      <button class="btn" id="btnViderLog" type="button">🗑 Vider</button>
-      <button class="btn btn-gold" id="btnCopierLog" type="button">📎 Copier</button>
+      <button class="btn" id="btnViderLog" type="button" data-tt-titre="Vider" data-tt-desc="Efface le contenu du log détaillé.">🗑 Vider</button>
+      <button class="btn btn-gold" id="btnCopierLog" type="button" data-tt-titre="Copier" data-tt-desc="Copie le contenu du log dans le presse-papier.">📎 Copier</button>
     </div>
     <div class="field">
       <label>Log</label>
-      <textarea id="logTexte" readonly rows="18" class="journal-textarea" placeholder="Utilise « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » pour voir apparaître les étapes ici…"></textarea>
+      <textarea id="logTexte" readonly rows="18" class="journal-textarea" placeholder="Utilise « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » pour voir apparaître les étapes ici…" data-tt-titre="Log" data-tt-desc="Détail pas à pas des échanges avec l'assistant IA (identification et avis)."></textarea>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="tooltip-postit" id="tooltipPostit">
+  <p class="tooltip-titre"></p>
+  <p class="tooltip-desc"></p>
+</div>
 
 <script>
 // CHATGPT (function(){
@@ -1245,8 +1285,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.85";
+const VERSION = "1.10.86";
 const HISTORY = [
+  { version:"1.10.86", date:"2026-08-31", notes:"Le regroupement et le tri de la liste (jusqu'ici réinitialisés à chaque rechargement) sont désormais persistés comme les autres réglages : enregistrés localement et synchronisés sur GitHub (cave-reglages.json) à chaque changement, rechargés au lancement. Ajout d'un système d'infobulles « post-it » sur la quasi-totalité des champs et boutons de l'app (en-tête, barre d'outils, fiche détail, toutes les pages de Paramètres, cartes de la grille, historique des versions…) : un nom et une courte description apparaissent après 3 secondes de survol immobile de la souris, et n'apparaissent jamais sur un appareil tactile (iPhone/iPad) — la détection se fait par capacité de survol réel, pas seulement par un masquage visuel."},
   { version:"1.10.85", date:"2026-08-30", notes:"Refonte de la synchronisation au lancement : la vérification GitHub (devenue double par erreur) est unifiée en un seul passage, qui teste maintenant cave.json ET les réglages. GitHub n'est considéré injoignable qu'en cas de vraie panne (réseau/statut d'erreur) — un fichier simplement absent (première utilisation) n'en fait plus partie. Sur vraie panne : message bloquant détaillant la raison + passage en mode consultation, désormais verrouillé pour toute la session (impossible d'y échapper même si GitHub redevient joignable entre-temps, y compris via ?edition) jusqu'à relance complète de l'app, avec une bannière permanente qui le rappelle en plus du badge. Sur succès mais modifications locales non envoyées : ne plus jamais écraser silencieusement — la fenêtre de conflit détaillée (vins/bouteilles des deux côtés, date), déjà utilisée à l'envoi mais orpheline jusqu'ici, s'affiche aussi au lancement pour trancher explicitement ; si GitHub n'a en réalité pas bougé depuis la dernière synchro connue, les modifications locales sont simplement conservées sans question inutile. Corrigé au passage : la restauration d'une version distante appelait une fonction marquerDirty() inexistante, qui interrompait silencieusement la suite (proposition d'envoi immédiat jamais affichée)."},
   { version:"1.10.83", date:"2026-08-30", notes:"GEMINI pour les dates de restauration à metre à jour"},
   { version:"1.10.82", date:"2026-08-30", notes:"Retiré toute logique qui décidait ou orientait une action en fonction du nombre de vins ou de bouteilles (plus ou moins qu'une autre version) — que ce soit pour bloquer un envoi, déclencher une fenêtre d'alerte, ou recommander un choix dans la fenêtre de conflit. Le seul critère retenu, neutre, est désormais : cette sauvegarde distante correspond-elle à la dernière connue de cet appareil ou non — si non, la question est posée avec les faits (dates, décomptes des deux côtés), sans jugement ni suggestion sur laquelle garder. Une version avec moins de vins qu'une précédente est un choix légitime comme un autre." },
@@ -1532,6 +1573,70 @@ function masquerBanniereConsultation(){
   b.style.display = "none";
 }
 
+/* ---- Infobulle « post-it » (nom + description au survol prolongé, jamais sur appareil tactile) ----
+   S'attache par délégation d'événements sur document, à tout élément portant data-tt-titre : couvre
+   donc aussi bien les champs statiques du HTML que ceux ajoutés dynamiquement (cartes de la grille,
+   liste des versions, boutons créés en JS…), sans avoir besoin de la réattacher après chaque rendu.
+   Le survol réel (souris/trackpad) est détecté une fois via matchMedia ; sur un appareil qui n'en a
+   pas (iPhone, iPad, Android), aucun écouteur n'est même posé — l'infobulle ne peut jamais apparaître. */
+const TOOLTIP_DELAI_MS = 3000;
+const TOOLTIP_SUPPORTE = !!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+let tooltipTimer = null;
+let tooltipElementCourant = null;
+
+function positionnerTooltip(el){
+  const tt = document.getElementById("tooltipPostit");
+  const rect = el.getBoundingClientRect();
+  tt.style.top = "-9999px";
+  tt.style.left = "-9999px";
+  tt.classList.add("show");
+  const largeurTt = tt.offsetWidth;
+  const hauteurTt = tt.offsetHeight;
+  let left = Math.min(rect.left, window.innerWidth - largeurTt - 8);
+  left = Math.max(8, left);
+  let top;
+  if(rect.top - hauteurTt - 8 > 4){
+    top = rect.top - hauteurTt - 8;
+  }else{
+    top = Math.min(rect.bottom + 8, window.innerHeight - hauteurTt - 8);
+  }
+  tt.style.left = left + "px";
+  tt.style.top = top + "px";
+}
+
+function annulerTooltip(){
+  clearTimeout(tooltipTimer);
+  tooltipTimer = null;
+  tooltipElementCourant = null;
+  const tt = document.getElementById("tooltipPostit");
+  if(tt) tt.classList.remove("show");
+}
+
+if(TOOLTIP_SUPPORTE){
+  document.addEventListener("mouseover", (e)=>{
+    const el = e.target.closest("[data-tt-titre]");
+    if(!el || el === tooltipElementCourant) return;
+    annulerTooltip();
+    tooltipElementCourant = el;
+    tooltipTimer = setTimeout(()=>{
+      const tt = document.getElementById("tooltipPostit");
+      if(!tt || el !== tooltipElementCourant) return;
+      tt.querySelector(".tooltip-titre").textContent = el.getAttribute("data-tt-titre") || "";
+      tt.querySelector(".tooltip-desc").textContent = el.getAttribute("data-tt-desc") || "";
+      positionnerTooltip(el);
+    }, TOOLTIP_DELAI_MS);
+  });
+  document.addEventListener("mouseout", (e)=>{
+    const el = e.target.closest("[data-tt-titre]");
+    if(!el || el !== tooltipElementCourant) return;
+    if(e.relatedTarget && el.contains(e.relatedTarget)) return;
+    annulerTooltip();
+  });
+  document.addEventListener("scroll", annulerTooltip, true);
+  window.addEventListener("blur", annulerTooltip);
+  document.addEventListener("mousedown", annulerTooltip, true);
+}
+
 /* ---- Confirmation (fenêtre intégrée, pas de confirm() natif) ---- */
 let confirmCallback = null;
 function demanderConfirmation(titre, message, onOui){
@@ -1746,7 +1851,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1757,7 +1862,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -1902,11 +2007,11 @@ function carteBouteille(b){
     : "";
   const iconePhoto = miniature
     ? (photoVisible
-        ? `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Masquer la photo">${ICONE_CAMERA_MASQUEE}</button>`
-        : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" title="Voir la photo">${ICONE_CAMERA}</button>`)
+        ? `<button type="button" class="icon-photo-btn" data-action="togglePhoto" data-tt-titre="Masquer la photo" data-tt-desc="Cache la photo de ce vin dans la liste.">${ICONE_CAMERA_MASQUEE}</button>`
+        : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" data-tt-titre="Voir la photo" data-tt-desc="Affiche la photo de ce vin dans la liste.">${ICONE_CAMERA}</button>`)
     : "";
   const iconeAvis = MODE_EDITION
-    ? `<button type="button" class="icon-photo-btn" data-action="voirAvis" title="Avis — étiquette">📝</button>`
+    ? `<button type="button" class="icon-photo-btn" data-action="voirAvis" data-tt-titre="Avis — étiquette" data-tt-desc="Ouvre la page Avis pour demander à l'assistant IA une note et un prix indicatif sur ce vin.">📝</button>`
     : "";
   const stars = Array.from({length:5},(_,i)=> i < (b.note||0) ? "★" : `<span class="empty">★</span>`).join("");
   const noteNumeriqueAffichee = (b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="")
@@ -1927,9 +2032,9 @@ function carteBouteille(b){
 
   const controleQuantite = MODE_EDITION
     ? `<div class="qty-control">
-          <button type="button" data-action="bue" title="Marquer une bouteille comme bue"${quantite<=0?" disabled":""}>🍷</button>
+          <button type="button" data-action="bue" data-tt-titre="Marquer une bouteille comme bue" data-tt-desc="Retire une bouteille du stock en cave et l'ajoute à l'historique des bues."${quantite<=0?" disabled":""}>🍷</button>
           <span class="qty-val">${quantite}</span>
-          <button type="button" data-action="annulerBue" title="Annuler la dernière bue"${quantiteBue<=0?' style="display:none;"':""}>↩</button>
+          <button type="button" data-action="annulerBue" data-tt-titre="Annuler la dernière bue" data-tt-desc="Remet en cave la dernière bouteille marquée comme bue par erreur."${quantiteBue<=0?' style="display:none;"':""}>↩</button>
         </div>`
     : `<span class="qty-lecture">${quantite} en cave</span>`;
 
@@ -1940,7 +2045,7 @@ function carteBouteille(b){
       <div data-action="ouvrir">
         <div class="bottle-title-row">
           <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
-          ${b.numero ? `<span class="numero-badge${b.marque?' numero-badge-marque':''}" data-action="toggleMarque" title="Toucher pour marquer/démarquer">N°${b.numero}</span>` : ""}
+          ${b.numero ? `<span class="numero-badge${b.marque?' numero-badge-marque':''}" data-action="toggleMarque" data-tt-titre="Marquer / démarquer" data-tt-desc="Toucher pour marquer ce vin d'un repère (utile pour le retrouver facilement dans la liste).">N°${b.numero}</span>` : ""}
         </div>
         ${sousTitre ? `<div class="bottle-sub">${escapeHtml(sousTitre)}</div>` : ""}
         <div class="bottle-meta-row">
@@ -1957,7 +2062,7 @@ function carteBouteille(b){
         <div class="footer-actions">
           ${iconeAvis}
           ${iconePhoto}
-          <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button">Détails</button>
+          <button class="btn btn-sm btn-ghost" data-action="ouvrir" type="button" data-tt-titre="Détails" data-tt-desc="Ouvre la fiche complète de ce vin.">Détails</button>
         </div>
       </div>
     </div>
@@ -2064,7 +2169,7 @@ function basculerMarque(id){
 /* ===================== FICHE (AJOUT / ÉDITION) ===================== */
 function construireChoixCouleur(){
   const wrap = document.getElementById("couleurChoices");
-  wrap.innerHTML = COULEURS.map(c => `<div class="couleur-choice" data-key="${c.key}"><span class="capsule ${c.key}"></span>${c.label}</div>`).join("");
+  wrap.innerHTML = COULEURS.map(c => `<div class="couleur-choice" data-key="${c.key}" data-tt-titre="${c.label}" data-tt-desc="Sélectionne ${c.label.toLowerCase()} comme couleur du vin."><span class="capsule ${c.key}"></span>${c.label}</div>`).join("");
   wrap.querySelectorAll(".couleur-choice").forEach(el=>{
     el.addEventListener("click", ()=>{
       wrap.querySelectorAll(".couleur-choice").forEach(x=>x.classList.remove("active"));
@@ -2218,6 +2323,8 @@ function ouvrirFiche(id){
     btnSupprimer.type = "button";
     btnSupprimer.className = "btn btn-danger btn-sm";
     btnSupprimer.textContent = "Supprimer";
+    btnSupprimer.setAttribute("data-tt-titre", "Supprimer");
+    btnSupprimer.setAttribute("data-tt-desc", "Supprime définitivement ce vin de la cave, après confirmation.");
     btnSupprimer.addEventListener("click", ()=>{
       demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?`, ()=>{
         const cheminPhoto = b.photoFichier;
@@ -2240,6 +2347,8 @@ function ouvrirFiche(id){
       btnBue.type = "button";
       btnBue.className = "btn-bue-principal";
       btnBue.textContent = "🍷 Marquer une bouteille comme bue";
+      btnBue.setAttribute("data-tt-titre", "Marquer une bouteille comme bue");
+      btnBue.setAttribute("data-tt-desc", "Retire une bouteille du stock en cave et l'ajoute à l'historique des bues.");
       btnBue.addEventListener("click", ()=>{
         marquerBue(id);
         document.getElementById("overlayFiche").classList.remove("show");
@@ -2251,6 +2360,8 @@ function ouvrirFiche(id){
       btnAnnulerBue.type = "button";
       btnAnnulerBue.className = "btn btn-ghost btn-sm";
       btnAnnulerBue.textContent = "↩ Annuler la dernière bue";
+      btnAnnulerBue.setAttribute("data-tt-titre", "Annuler la dernière bue");
+      btnAnnulerBue.setAttribute("data-tt-desc", "Remet en cave la dernière bouteille marquée comme bue par erreur.");
       btnAnnulerBue.addEventListener("click", ()=>{
         annulerBue(id);
         document.getElementById("overlayFiche").classList.remove("show");
@@ -2729,8 +2840,22 @@ function compresserImage(file, maxDim, qualite){
 document.getElementById("rechercheInput").addEventListener("input", e=>{ recherche = e.target.value; renderGrille(); });
 document.getElementById("filtreCouleurSel").addEventListener("change", e=>{ filtreCouleur = e.target.value; renderGrille(); });
 document.getElementById("filtreMarqueSel").addEventListener("change", e=>{ filtreMarque = e.target.value; renderGrille(); });
-document.getElementById("groupBySel").addEventListener("change", e=>{ groupBy = e.target.value; renderGrille(); });
-document.getElementById("sortSel").addEventListener("change", e=>{ sortKey = e.target.value; renderGrille(); });
+document.getElementById("groupBySel").addEventListener("change", e=>{
+  groupBy = e.target.value;
+  renderGrille();
+  sauvegarderReglagesLocal();
+  pousserReglagesVersGitHub().then(ok=>{
+    if(!ok && chargerConfig().token) toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
+  });
+});
+document.getElementById("sortSel").addEventListener("change", e=>{
+  sortKey = e.target.value;
+  renderGrille();
+  sauvegarderReglagesLocal();
+  pousserReglagesVersGitHub().then(ok=>{
+    if(!ok && chargerConfig().token) toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
+  });
+});
 
 document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(chip=>{
   chip.addEventListener("click", ()=>{
@@ -3985,6 +4110,16 @@ async function initialiserSynchronisationGitHub(){
       construireSelectRegionsParametres();
       changement = true;
     }
+    if(typeof distant.groupBy === "string" && distant.groupBy !== groupBy){
+      groupBy = distant.groupBy;
+      document.getElementById("groupBySel").value = groupBy;
+      changement = true;
+    }
+    if(typeof distant.sortKey === "string" && distant.sortKey !== sortKey){
+      sortKey = distant.sortKey;
+      document.getElementById("sortSel").value = sortKey;
+      changement = true;
+    }
     if(changementModeEdition){ appliquerModeEdition(); majBoutonDernierEmplacement(); }
     if(changement){
       sauvegarderReglagesLocal();
@@ -4192,7 +4327,7 @@ async function listerVersionsSauvegardees(limite, btn){
       return `<div class="version-item">
         <span class="v-date">${escapeHtml(dateTexte)}</span>
         <span class="v-count">${escapeHtml(String(r.nbVins))} vin(s) · ${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span>
-        <button type="button" class="btn btn-sm btn-ghost version-restaurer-btn" data-sha="${r.sha}">Restaurer</button>
+        <button type="button" class="btn btn-sm btn-ghost version-restaurer-btn" data-sha="${r.sha}" data-tt-titre="Restaurer" data-tt-desc="Remplace la cave actuelle par cette version sauvegardée sur GitHub.">Restaurer</button>
       </div>`;
     }).join("");
     conteneur.querySelectorAll(".version-restaurer-btn").forEach(boutonRestaurer=>{
@@ -4428,8 +4563,12 @@ limitationConsultationActive = reglagesLocaux.limitationConsultationActive === t
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];
 emplacementDroiteListe = Array.isArray(reglagesLocaux.emplacementDroiteListe) ? reglagesLocaux.emplacementDroiteListe : [];
 regionsListe = Array.isArray(reglagesLocaux.regionsListe) ? reglagesLocaux.regionsListe : [];
+groupBy = typeof reglagesLocaux.groupBy === "string" ? reglagesLocaux.groupBy : "couleur";
+sortKey = typeof reglagesLocaux.sortKey === "string" ? reglagesLocaux.sortKey : "ajout_desc";
 try{ dernierEmplacementUtilise = localStorage.getItem(LS_DERNIER_EMPLACEMENT) || ""; }catch(e){ dernierEmplacementUtilise = ""; }
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+document.getElementById("groupBySel").value = groupBy;
+document.getElementById("sortSel").value = sortKey;
 majLibelleAssistant();
 appliquerModeEdition();
 construireSelectsEmplacement();

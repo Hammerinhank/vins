@@ -426,17 +426,19 @@
   .fiche-section-basse summary{
     cursor:pointer;list-style:none;
     display:flex;align-items:center;gap:6px;
-    padding:2px 0 4px 0;
+    margin:2px -18px 0 -18px;
+    padding:10px 18px;
+    background:color-mix(in srgb, var(--gold) 22%, var(--bg-panel));
   }
   .fiche-section-basse summary::-webkit-details-marker{display:none;}
   .fiche-section-label{
     font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;
-    font-size:11px;color:var(--text-faint);margin:0;
+    font-size:11px;color:#FFFFFF;font-weight:600;margin:0;
     display:flex;align-items:center;gap:6px;
   }
   .fiche-section-label::before{content:'▸';display:inline-block;color:var(--gold-soft);transition:transform .15s;}
   .fiche-section-basse[open] .fiche-section-label::before{transform:rotate(90deg);}
-  .fiche-section-basse-corps{display:flex;flex-direction:column;gap:14px;padding-top:12px;}
+  .fiche-section-basse-corps{display:flex;flex-direction:column;gap:14px;padding-top:14px;}
   .fiche-actions-bue{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
   .btn-bue-principal{
     flex:1;min-width:190px;
@@ -1016,8 +1018,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.38";
+const VERSION = "1.10.41";
 const HISTORY = [
+  { version:"1.10.41", date:"2026-08-29", notes:"Corrigé : le défilement automatique vers « Détails complémentaires » remontait un peu trop haut et cachait partiellement le bandeau sous l'en-tête sticky de la fiche. Le décalage est maintenant calculé précisément pour que le bandeau s'arrête juste sous l'en-tête, toujours entièrement visible." },
+  { version:"1.10.40", date:"2026-08-29", notes:"Quand on déplie « Détails complémentaires » dans la fiche, celle-ci défile automatiquement pour amener ce titre en haut de la zone visible, au lieu de laisser le contenu déplié s'ouvrir hors champ." },
+  { version:"1.10.39", date:"2026-08-29", notes:"Le titre « Détails complémentaires » de la fiche est maintenant en blanc et gras, sur un bandeau horizontal plein toute largeur, pour être bien visible." },
   { version:"1.10.38", date:"2026-08-29", notes:"Ajout de deux tris dans le sélecteur de tri : « Note chiffrée : meilleure d'abord » et « Note chiffrée : moins bonne d'abord », basés sur la note chiffrée (distincte des étoiles) ; les vins sans note chiffrée sont toujours placés en fin de liste, quel que soit le sens choisi." },
   { version:"1.10.37", date:"2026-08-29", notes:"L'icône 🐛 (chenille) de l'onglet Journal / Diagnostic est remplacée par 🪲 (scarabée), plus proche de l'icône « bug » habituellement utilisée en informatique." },
   { version:"1.10.36", date:"2026-08-29", notes:"L'icône 🧪 de l'onglet Journal / Diagnostic est remplacée par 🐛, plus parlant pour une page de débogage." },
@@ -1935,6 +1940,23 @@ function ouvrirFiche(id){
 }
 
 document.getElementById("btnAjouter").addEventListener("click", ouvrirAjout);
+/* Quand « Détails complémentaires » se déplie, fait remonter son titre juste sous l'en-tête de la fiche
+   (qui reste collé en haut grâce à position:sticky) — un simple scrollIntoView irait trop haut et
+   cacherait le bandeau derrière cet en-tête, d'où un calcul manuel du décalage exact. */
+document.getElementById("ficheSectionBasse").addEventListener("toggle", function(){
+  if(this.open){
+    const section = this;
+    requestAnimationFrame(()=>{
+      const modal = section.closest(".modal");
+      const entete = modal ? modal.querySelector(".modal-header") : null;
+      const bandeau = section.querySelector("summary");
+      if(!modal || !entete || !bandeau) return;
+      const margeSousEntete = 6;
+      const decalage = bandeau.getBoundingClientRect().top - entete.getBoundingClientRect().bottom - margeSousEntete;
+      modal.scrollBy({ top: decalage, behavior:"smooth" });
+    });
+  }
+});
 document.getElementById("numeroFicheValeur").addEventListener("click", activerEditionNumero);
 document.getElementById("numeroFicheInput").addEventListener("blur", commitEditionNumero);
 document.getElementById("numeroFicheInput").addEventListener("input", function(){

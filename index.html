@@ -526,6 +526,19 @@
   .confirm-box .modal-body{text-align:center;padding-top:22px;}
   .confirm-box p{font-size:14.5px;color:var(--text-muted);}
 
+  /* conflit de synchronisation */
+  .conflit-sync-box{max-width:460px;border-radius:16px;}
+  .conflit-sync-options{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+  .conflit-sync-option{
+    border:1px solid var(--line-soft);border-radius:var(--radius);
+    background:var(--bg-panel-2);padding:12px 14px;
+  }
+  .conflit-sync-option-titre{font-family:'Fraunces',serif;font-size:14.5px;font-weight:600;margin:0 0 4px 0;color:var(--text);}
+  .conflit-sync-option-detail{font-size:12.5px;color:var(--text-muted);margin:0;line-height:1.5;}
+  .conflit-sync-option-detail .maj{color:var(--gold-soft);font-weight:600;}
+  .conflit-sync-actions{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .conflit-sync-actions .btn{width:100%;justify-content:center;}
+
   /* verification photo modal */
   .verif-photo-box{max-width:440px;border-radius:16px;}
   .verif-texte-box{max-width:460px;border-radius:16px;}
@@ -861,6 +874,34 @@
   </div>
 </div>
 
+<!-- Modal résolution de conflit de synchronisation (version locale vs version GitHub) -->
+<div class="overlay" id="overlayConflitSync">
+  <div class="modal conflit-sync-box">
+    <div class="modal-header">
+      <h2>Version différente sur GitHub</h2>
+      <button class="modal-close" id="closeConflitSync" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="verif-photo-note" id="conflitSyncExplication"></p>
+      <div class="conflit-sync-options">
+        <div class="conflit-sync-option">
+          <p class="conflit-sync-option-titre">📍 Version locale (cet appareil)</p>
+          <p class="conflit-sync-option-detail" id="conflitSyncDetailLocal"></p>
+        </div>
+        <div class="conflit-sync-option">
+          <p class="conflit-sync-option-titre">☁️ Version sur GitHub</p>
+          <p class="conflit-sync-option-detail" id="conflitSyncDetailDistant"></p>
+        </div>
+      </div>
+      <p class="panel-note" id="conflitSyncConseil"></p>
+      <div class="conflit-sync-actions">
+        <button class="btn btn-gold" id="btnConflitGarderLocal" type="button">Garder mes modifications locales</button>
+        <button class="btn btn-danger" id="btnConflitUtiliserDistant" type="button">Utiliser la version GitHub (écraser le local)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal vérification photo avant ChatGPT -->
 <div class="overlay" id="overlayVerifPhoto">
   <div class="modal verif-photo-box">
@@ -1098,8 +1139,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.51";
+const VERSION = "1.10.52";
 const HISTORY = [
+  { version:"1.10.52", date:"2026-08-29", notes:"Correction critique : l'appui long sur le badge (rechargement forcé) refuse désormais de partir tant que des modifications locales ne sont pas envoyées (badge « à sauvegarder » ou en erreur) — c'était la cause d'une perte de données possible, un rechargement pouvant faire apparaître ensuite une proposition d'écraser le local par une version distante. Cette proposition, à l'ouverture de l'app, passe par une nouvelle fenêtre détaillée indiquant le nombre de vins et de bouteilles en cave de chaque version (locale et GitHub), la date de la version distante, et une recommandation explicite vers l'option la plus probablement la plus récente — au lieu d'un simple message générique. Le message précise aussi qu'une version « faite ailleurs » peut venir d'une session précédente, pas forcément d'un envoi concurrent. La confirmation du pull manuel (« Récupérer depuis GitHub ») affiche elle aussi désormais le nombre de bouteilles en cave de chaque côté, en plus du nombre de vins." },
   { version:"1.10.51", date:"2026-08-29", notes:"Le champ « Quantité en cave » est réduit à une largeur fixe adaptée à 2 chiffres (au lieu de s'étirer sur toute la largeur disponible), ce qui rapproche aussi le bouton « + » au lieu de le laisser trop à droite." },
   { version:"1.10.50", date:"2026-08-29", notes:"Corrigé : le passage en bleu du badge lors de l'appui long n'était pas perceptible car le rechargement pouvait survenir avant que le navigateur n'ait eu l'occasion d'afficher le changement de couleur. Un court délai (0,5 s) est désormais intercalé entre l'affichage du bleu et le déclenchement effectif du rechargement." },
   { version:"1.10.49", date:"2026-08-29", notes:"L'appui long sur le badge de version passe désormais brièvement le badge en bleu, pour confirmer visuellement que le rechargement forcé (contournement du cache) a bien été pris en compte." },
@@ -2961,6 +3003,15 @@ function demarrerAppuiLongBadge(x, y){
   badgeAppuiLongDepart = { x, y };
   badgeAppuiLongTimer = setTimeout(()=>{
     badgeAppuiLongDeclenche = true;
+    // Sécurité essentielle : un rechargement forcé pendant que des modifications locales n'ont pas
+    // encore été envoyées peut, au chargement suivant, déclencher une proposition d'écraser le local
+    // par une version distante — avec risque de perte définitive de ces modifications. On refuse donc
+    // de recharger tant que le badge affiche « à sauvegarder » ou une erreur d'envoi.
+    if(syncDirty || syncEnErreur){
+      if(navigator.vibrate) navigator.vibrate([15,60,15]);
+      toast("Modifications non envoyées — envoie-les d'abord (appui simple) avant de recharger");
+      return;
+    }
     if(navigator.vibrate) navigator.vibrate(15);
     const badge = document.getElementById("versionBadge");
     badge.classList.add("appui-long-ok");
@@ -3224,6 +3275,36 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
 document.getElementById("btnPush").addEventListener("click", lancerEnvoiVersGitHub);
 
 /* Vérification silencieuse au lancement : si une sauvegarde GitHub existe et provient d'un autre local storage (autre appareil, ou autre navigateur sur le même appareil) que celui-ci, on l'applique automatiquement quand rien n'est en attente ici, ou on demande sinon (pour ne jamais écraser des changements locaux non envoyés sans le dire). Si la sauvegarde GitHub provient de ce local storage-ci (notre propre dernier envoi), on ne fait rien. */
+/* Affiche la fenêtre de résolution de conflit : décrit clairement les deux versions possibles
+   (nombre de vins, nombre de bouteilles en cave, date de la version distante), et recommande l'option
+   qui correspond le plus probablement aux dernières saisies — sans jamais choisir à la place de
+   l'utilisateur. « Garder mes modifications locales » ne modifie rien (juste un rappel de les envoyer) ;
+   seul « Utiliser la version GitHub » est destructeur pour le local, d'où sa couleur d'alerte. */
+function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
+  const totalLocal = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+  const totalDistant = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+  const dateDistante = donneesDistantes.maj ? new Date(donneesDistantes.maj).toLocaleString("fr-FR") : "date inconnue";
+  document.getElementById("conflitSyncExplication").textContent =
+    "Une version différente existe sur GitHub, et cet appareil a ici des modifications pas encore envoyées. Cette version distante peut venir d'un envoi fait ailleurs aujourd'hui, mais aussi tout simplement d'une session précédente sur un autre navigateur ou appareil — ce n'est pas forcément récent ni concurrent.";
+  document.getElementById("conflitSyncDetailLocal").innerHTML =
+    `${bottles.length} vin(s) enregistré(s) · ${totalLocal} bouteille(s) en cave · <span class="maj">modifications non envoyées</span>`;
+  document.getElementById("conflitSyncDetailDistant").innerHTML =
+    `${distantes.length} vin(s) enregistré(s) · ${totalDistant} bouteille(s) en cave · sauvegardée le <span class="maj">${escapeHtml(dateDistante)}</span>`;
+  document.getElementById("conflitSyncConseil").textContent = bottles.length >= distantes.length
+    ? "💡 Ta version locale contient autant ou plus de vins que celle sur GitHub : dans la majorité des cas, c'est donc elle qui correspond à tes dernières saisies — mieux vaut la garder, puis l'envoyer ensuite avec le bouton « Envoyer vers GitHub »."
+    : "💡 La version sur GitHub contient plus de vins que ta version locale : vérifie qu'elle ne provient pas d'ajouts récents faits ailleurs avant de l'écraser.";
+  document.getElementById("btnConflitGarderLocal").onclick = ()=>{
+    document.getElementById("overlayConflitSync").classList.remove("show");
+    toast("Modifications locales conservées — pense à les envoyer");
+  };
+  document.getElementById("btnConflitUtiliserDistant").onclick = ()=>{
+    document.getElementById("overlayConflitSync").classList.remove("show");
+    onUtiliserDistant();
+  };
+  document.getElementById("overlayConflitSync").classList.add("show");
+}
+document.getElementById("closeConflitSync").addEventListener("click", ()=>document.getElementById("overlayConflitSync").classList.remove("show"));
+
 async function verifierGitHubAuLancement(){
   const cfg = chargerConfig();
   if(!cfg.user || !cfg.repo || !cfg.token) return;
@@ -3256,11 +3337,7 @@ async function verifierGitHubAuLancement(){
     if(!syncDirty){
       appliquerDistantes("Cave mise à jour depuis GitHub (modifiée ailleurs)");
     }else{
-      demanderConfirmation(
-        "Version différente sur GitHub",
-        "Une sauvegarde plus récente existe sur GitHub, faite depuis un autre appareil ou navigateur, et tu as ici des changements pas encore envoyés. Utiliser la version GitHub à la place (tes changements locaux non envoyés seront perdus) ?",
-        ()=>appliquerDistantes("Cave remplacée par la version GitHub")
-      );
+      afficherConflitSync(distantes, data, ()=>appliquerDistantes("Cave remplacée par la version GitHub"));
     }
   }catch(e){
     // Échec silencieux (hors ligne, dépôt pas encore créé, etc.) : la cave locale reste utilisable, synchro manuelle toujours possible.
@@ -3282,7 +3359,12 @@ document.getElementById("btnPull").addEventListener("click", async function(){
     const texte = await res.text();
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
-    demanderConfirmation("Récupérer depuis GitHub", `Remplacer la cave locale (${bottles.length} vin(s)) par la version GitHub (${distantes.length} vin(s)) ?`, ()=>{
+    const totalLocalPull = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const totalDistantPull = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    demanderConfirmation(
+      "Récupérer depuis GitHub",
+      `Remplacer la cave locale (${bottles.length} vin(s), ${totalLocalPull} bouteille(s) en cave) par la version GitHub (${distantes.length} vin(s), ${totalDistantPull} bouteille(s) en cave) ?`,
+      ()=>{
       bottles = distantes;
       sauvegarderBouteilles();
       marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub

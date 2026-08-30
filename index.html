@@ -1166,8 +1166,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.53";
+const VERSION = "1.10.54";
 const HISTORY = [
+  { version:"1.10.54", date:"2026-08-29", notes:"Le rechargement forcé (appui long sur le badge) vérifie maintenant, par une requête réseau explicite qui ne peut pas être servie depuis un cache (cache:\"no-store\"), si le fichier réellement présent sur le serveur affiche une version différente avant de recharger. S'il affiche encore la même version, l'app le signale clairement (déploiement GitHub Pages probablement pas terminé) au lieu de recharger pour rien sur la même ancienne version — ce qui, jusqu'ici, pouvait donner l'impression trompeuse que le vidage de cache ne fonctionnait pas alors que le souci venait du serveur." },
   { version:"1.10.53", date:"2026-08-29", notes:"Le bouton « Ajouter une photo » (partie haute de la fiche) affiche désormais une fenêtre avec la photo choisie et trois boutons sur la même ligne : « Annuler » (ignore la photo, retour à la fiche telle quelle), « Vin avec n° temporaire » (nomme le vin « N° X » avec son numéro déjà attribué, enregistre avec la photo et referme la fiche pour revenir à la liste) et « OK » (applique la photo à la fiche en cours, sans l'enregistrer ni la fermer — comme avant)." },
   { version:"1.10.52", date:"2026-08-29", notes:"Correction critique : l'appui long sur le badge (rechargement forcé) refuse désormais de partir tant que des modifications locales ne sont pas envoyées (badge « à sauvegarder » ou en erreur) — c'était la cause d'une perte de données possible, un rechargement pouvant faire apparaître ensuite une proposition d'écraser le local par une version distante. Cette proposition, à l'ouverture de l'app, passe par une nouvelle fenêtre détaillée indiquant le nombre de vins et de bouteilles en cave de chaque version (locale et GitHub), la date de la version distante, et une recommandation explicite vers l'option la plus probablement la plus récente — au lieu d'un simple message générique. Le message précise aussi qu'une version « faite ailleurs » peut venir d'une session précédente, pas forcément d'un envoi concurrent. La confirmation du pull manuel (« Récupérer depuis GitHub ») affiche elle aussi désormais le nombre de bouteilles en cave de chaque côté, en plus du nombre de vins." },
   { version:"1.10.51", date:"2026-08-29", notes:"Le champ « Quantité en cave » est réduit à une largeur fixe adaptée à 2 chiffres (au lieu de s'étirer sur toute la largeur disponible), ce qui rapproche aussi le bouton « + » au lieu de le laisser trop à droite." },
@@ -3133,10 +3134,12 @@ versionBadgeEl.addEventListener("click", ()=>{
 });
 /* Force le rechargement de l'app en contournant le cache du navigateur (Safari/Chrome gardent parfois
    une ancienne version en cache sur cette page hébergée sur GitHub Pages) : vide les éventuels caches
-   (Cache API), désinscrit d'éventuels service workers, puis recharge avec un paramètre unique dans
-   l'URL — en conservant les paramètres existants (?edition, ?apercu) pour ne pas changer de mode. */
+   (Cache API), désinscrit d'éventuels service workers, PUIS vérifie par une requête réseau explicite
+   (cache:"no-store", donc jamais servie depuis un cache local) si le fichier réellement présent sur le
+   serveur affiche une version différente de celle en cours d'exécution. Ce n'est que dans ce cas qu'on
+   recharge — sinon, le problème n'est pas un cache du navigateur mais un déploiement GitHub Pages pas
+   encore terminé, et on le dit clairement plutôt que de recharger pour rien sur la même vieille version. */
 async function forcerRechargementSansCache(){
-  toast("Rechargement de la dernière version…");
   try{
     if(window.caches && caches.keys){
       const cles = await caches.keys();
@@ -3151,7 +3154,24 @@ async function forcerRechargementSansCache(){
   }catch(e){}
   const parametresUrl = new URLSearchParams(location.search);
   parametresUrl.set("_", Date.now());
-  location.replace(location.pathname + "?" + parametresUrl.toString() + location.hash);
+  const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
+  toast("Vérification de la dernière version…");
+  try{
+    const reponse = await fetch(urlFraiche, { cache: "no-store" });
+    const texte = await reponse.text();
+    const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
+    const versionServeur = correspondance ? correspondance[1] : null;
+    if(versionServeur && versionServeur === VERSION){
+      const badge = document.getElementById("versionBadge");
+      badge.classList.remove("appui-long-ok");
+      majBadgeVersion();
+      toast(`Le serveur affiche encore la v${VERSION} — le déploiement GitHub Pages n'est peut-être pas terminé, réessaie dans une minute`);
+      return;
+    }
+  }catch(e){
+    // Vérification impossible (hors ligne, etc.) : on tente quand même le rechargement direct ci-dessous.
+  }
+  location.replace(urlFraiche);
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 

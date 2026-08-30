@@ -1166,8 +1166,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.54";
+const VERSION = "1.10.55";
 const HISTORY = [
+  { version:"1.10.55", date:"2026-08-29", notes:"Correction du flux « Appliquer la réponse à ce vin » : si rien n'a pu être extrait du presse-papier (réponse pas encore copiée, mauvais format…), l'app le signale clairement et n'ouvre plus la fenêtre de vérification — jusqu'ici, celle-ci s'ouvrait quand même avec des champs vides, et les confirmer effaçait le Nom/Domaine/Étiquette déjà présents sur la fiche avec du vide. Désormais, dans cette fenêtre, un champ resté vide ne modifie plus jamais un champ déjà rempli sur la fiche : seuls les champs pour lesquels quelque chose a été extrait sont appliqués." },
   { version:"1.10.54", date:"2026-08-29", notes:"Le rechargement forcé (appui long sur le badge) vérifie maintenant, par une requête réseau explicite qui ne peut pas être servie depuis un cache (cache:\"no-store\"), si le fichier réellement présent sur le serveur affiche une version différente avant de recharger. S'il affiche encore la même version, l'app le signale clairement (déploiement GitHub Pages probablement pas terminé) au lieu de recharger pour rien sur la même ancienne version — ce qui, jusqu'ici, pouvait donner l'impression trompeuse que le vidage de cache ne fonctionnait pas alors que le souci venait du serveur." },
   { version:"1.10.53", date:"2026-08-29", notes:"Le bouton « Ajouter une photo » (partie haute de la fiche) affiche désormais une fenêtre avec la photo choisie et trois boutons sur la même ligne : « Annuler » (ignore la photo, retour à la fiche telle quelle), « Vin avec n° temporaire » (nomme le vin « N° X » avec son numéro déjà attribué, enregistre avec la photo et referme la fiche pour revenir à la liste) et « OK » (applique la photo à la fiche en cours, sans l'enregistrer ni la fermer — comme avant)." },
   { version:"1.10.52", date:"2026-08-29", notes:"Correction critique : l'appui long sur le badge (rechargement forcé) refuse désormais de partir tant que des modifications locales ne sont pas envoyées (badge « à sauvegarder » ou en erreur) — c'était la cause d'une perte de données possible, un rechargement pouvant faire apparaître ensuite une proposition d'écraser le local par une version distante. Cette proposition, à l'ouverture de l'app, passe par une nouvelle fenêtre détaillée indiquant le nombre de vins et de bouteilles en cave de chaque version (locale et GitHub), la date de la version distante, et une recommandation explicite vers l'option la plus probablement la plus récente — au lieu d'un simple message générique. Le message précise aussi qu'une version « faite ailleurs » peut venir d'une session précédente, pas forcément d'un envoi concurrent. La confirmation du pull manuel (« Récupérer depuis GitHub ») affiche elle aussi désormais le nombre de bouteilles en cave de chaque côté, en plus du nombre de vins." },
@@ -2449,11 +2450,15 @@ document.getElementById("btnAppliquerReponseFiche").addEventListener("click", as
   }
   const sections = extraireSectionsReponseIA(texte);
   if(!sections.nom && !sections.domaine && !sections.etiquette){
-    toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
+    // Rien d'exploitable trouvé (réponse pas encore copiée, mauvais format…) : on s'arrête ici plutôt
+    // que d'ouvrir une fenêtre de vérification vide qui, une fois confirmée, effacerait les champs
+    // existants de la fiche avec des valeurs blanches.
+    toast("Réponse non reconnue dans le presse-papier — vérifie que tu as bien copié la réponse de l'IA (attendu : Nom : / Domaine : / Étiquette :)");
+    return;
   }
   verifTexteModeMiseAJour = true;
   document.getElementById("verifTexteTitre").textContent = "Vérifier avant de mettre à jour ce vin";
-  document.getElementById("verifTexteNote").textContent = "Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche de ce vin (rien n'est encore enregistré).";
+  document.getElementById("verifTexteNote").textContent = "Voici ce qui a été extrait du presse-papier — corrige si besoin avant d'appliquer à la fiche de ce vin (rien n'est encore enregistré). Un champ resté vide ci-dessous ne modifiera pas la valeur déjà présente sur la fiche.";
   document.getElementById("btnConfirmerVerifTexte").textContent = "Mettre à jour ce vin";
   document.getElementById("verifTexteNom").value = sections.nom;
   document.getElementById("verifTexteDomaine").value = sections.domaine;
@@ -2472,11 +2477,13 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
 
   if(verifTexteModeMiseAJour){
     // Met à jour la fiche déjà ouverte (celle depuis laquelle « Appliquer la réponse à ce vin » a été touché) —
-    // ne crée rien de nouveau, ne ferme ni ne rouvre la fiche.
-    document.getElementById("fNom").value = nom;
-    document.getElementById("fDomaine").value = domaine;
+    // ne crée rien de nouveau, ne ferme ni ne rouvre la fiche. Un champ resté vide dans la vérification
+    // (rien d'extrait pour lui) ne touche pas à la valeur déjà présente sur la fiche — jamais d'écrasement
+    // par du vide.
+    if(nom) document.getElementById("fNom").value = nom;
+    if(domaine) document.getElementById("fDomaine").value = domaine;
     if(millesime) document.getElementById("fMillesime").value = millesime;
-    document.getElementById("fEtiquette").value = etiquette;
+    if(etiquette) document.getElementById("fEtiquette").value = etiquette;
     if(etiquette) document.getElementById("ficheSectionBasse").open = true;
     toast("Champs mis à jour — vérifie puis Enregistre");
     return;

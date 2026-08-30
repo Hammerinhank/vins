@@ -93,12 +93,6 @@
     color:#F0C48A;
     font-weight:600;
   }
-  .version-badge.hors-ligne{
-    background:rgba(217,130,43,.22);
-    border:2px solid #4CAF6B;
-    color:#F0C48A;
-    font-weight:600;
-  }
   .version-badge.error{
     background:rgba(180,71,47,.28);
     border-color:var(--danger);
@@ -1204,13 +1198,6 @@
       <button class="btn" id="btnListerVersions30" type="button">🕘 30 dernières versions</button>
     </div>
     <div class="versions-liste" id="versionsListe"></div>
-
-    <p class="panel-note">Sauvegardes locales (fichiers téléchargés automatiquement quand tu touches le badge de version sans réseau) — l'app ne peut pas relire le dossier Téléchargements toute seule, donc cette liste vient d'un journal qu'elle tient elle-même. Pour restaurer, choisis le fichier indiqué via le sélecteur qui s'ouvre.</p>
-    <div class="panel-row">
-      <button class="btn btn-gold" id="btnListerBackupsLocales5" type="button">💾 5 dernières sauvegardes locales</button>
-      <button class="btn" id="btnListerBackupsLocales30" type="button">💾 30 dernières sauvegardes locales</button>
-    </div>
-    <div class="versions-liste" id="backupsLocalesListe"></div>
   </div>
 
   <div class="page-body" id="pageCorpsLog" style="display:none;">
@@ -1233,8 +1220,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.65";
+const VERSION = "1.10.66";
 const HISTORY = [
+  { version:"1.10.66", date:"2026-08-29", notes:"Retrait ciblé de la partie « hors ligne » de la synchronisation (badge vert « sauvegardé sur ce téléphone », téléchargement automatique d'un fichier de secours, section « Sauvegardes locales » du Diagnostic, retentative automatique à la reconnexion) : devenue confuse en usage réel (proposait un téléchargement de fichier inattendu). Tout le reste du mécanisme de synchronisation reste en place : vérification d'une version distante plus récente avant d'écraser, fenêtre de conflit détaillée (nombre de vins/bouteilles de chaque version, date, recommandation), et l'appui long sur le badge pour forcer un rechargement sans cache — confirmé comme fonctionnant bien, aucune régression sur ce point." },
   { version:"1.10.65", date:"2026-08-29", notes:"Second filet de sécurité, complémentaire à GitHub : quand le réseau n'est pas disponible (badge touché hors ligne, ou connexion perdue en cours d'envoi), un fichier de secours horodaté est automatiquement téléchargé sur le téléphone (comme « Exporter en JSON »). Nouvelle section dans la page Diagnostic, « Sauvegardes locales », listant les 5 ou 30 dernières (date, nombre de bouteilles) — tenue par un journal interne, Safari ne permettant pas à une page web de relire le dossier Téléchargements. Le bouton Restaurer ouvre le sélecteur « Importer un JSON » en indiquant le nom du fichier à choisir." },
   { version:"1.10.64", date:"2026-08-29", notes:"Meilleure gestion du hors-ligne, pour éviter l'anxiété (et le risque) d'un badge « en erreur » alors que les données sont en réalité déjà en sécurité sur l'appareil (la sauvegarde locale a toujours été automatique à chaque modification). Désormais : hors ligne, le badge affiche « 📵 Sauvegardé sur ce téléphone » avec un liseré vert (au lieu du badge orange habituel « à sauvegarder ») ; un appui dessus (ou une tentative d'envoi qui échoue faute de réseau) ne déclenche plus d'état d'erreur alarmant, juste un message rassurant ; l'envoi est retenté automatiquement dès que la connexion revient ; le rechargement forcé par appui long est aussi bloqué proprement hors ligne, sans tentative vouée à l'échec." },
   { version:"1.10.63", date:"2026-08-29", notes:"Ajout dans Paramètres d'une combobox « Régions proposées dans la fiche » avec un bouton « Init » qui la construit en scannant le champ Région de toutes les fiches (doublons retirés, tri alphabétique) — sauvegardée sur GitHub avec les autres réglages, au clic sur Enregistrer. Dans la fiche, un petit sélecteur et un bouton ✓ à droite du champ Région permettent de copier une valeur choisie dans cette liste ; le champ Région reste modifiable librement à la main, avec ou sans cette liste." },
@@ -1393,7 +1381,7 @@ let syncEnCours = false;
 
 function majBadgeVersion(){
   const btn = document.getElementById("versionBadge");
-  btn.classList.remove("dirty","error","hors-ligne");
+  btn.classList.remove("dirty","error");
   if(syncEnCours){
     btn.textContent = "Sauvegarde…";
     btn.disabled = true;
@@ -1402,13 +1390,8 @@ function majBadgeVersion(){
     btn.classList.add("error");
     btn.disabled = false;
   }else if(syncDirty){
-    if(navigator.onLine){
-      btn.textContent = "● À sauvegarder";
-      btn.classList.add("dirty");
-    }else{
-      btn.textContent = "📵 Sauvegardé sur ce téléphone";
-      btn.classList.add("hors-ligne");
-    }
+    btn.textContent = "● À sauvegarder";
+    btn.classList.add("dirty");
     btn.disabled = false;
   }else{
     btn.textContent = "v" + VERSION;
@@ -3352,71 +3335,6 @@ async function forcerRechargementSansCache(){
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 
 /* ===================== EXPORT / IMPORT JSON ===================== */
-/* ===================== SAUVEGARDE LOCALE AUTOMATIQUE (FICHIER, SANS RÉSEAU) =====================
-   Complément à la synchronisation GitHub : quand le réseau ne répond pas, un fichier de secours est
-   téléchargé (même mécanisme que « Exporter en JSON »), et l'app tient elle-même un journal de ces
-   fichiers (nom, date, nombre de vins/bouteilles) — car une page web ne peut pas relire le contenu du
-   dossier Téléchargements du téléphone pour le lister toute seule (restriction de Safari, pas de notre
-   fait). La restauration se fait via le sélecteur « Importer un JSON » déjà existant. */
-const LS_BACKUPS_LOCALES = "cave_backups_locales_v1";
-function lireBackupsLocales(){
-  try{
-    const raw = localStorage.getItem(LS_BACKUPS_LOCALES);
-    return raw ? JSON.parse(raw) : [];
-  }catch(e){ return []; }
-}
-function ecrireBackupsLocales(liste){
-  try{ localStorage.setItem(LS_BACKUPS_LOCALES, JSON.stringify(liste)); }catch(e){}
-}
-function creerNomFichierSecours(){
-  const d = new Date();
-  const pad = n => String(n).padStart(2,"0");
-  return `cave-a-vin-secours-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.json`;
-}
-/* Déclenche le téléchargement du fichier de secours et l'ajoute au journal local (30 plus récents gardés). */
-function declencherSauvegardeLocaleFichier(){
-  const nomFichier = creerNomFichierSecours();
-  const contenu = JSON.stringify({ bottles, exportedAt: new Date().toISOString(), origine: INSTANCE_ID }, null, 2);
-  const blob = new Blob([contenu], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nomFichier;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  const totalBouteilles = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-  const liste = lireBackupsLocales();
-  liste.unshift({ fichier: nomFichier, date: new Date().toISOString(), nbVins: bottles.length, nbBouteilles: totalBouteilles });
-  ecrireBackupsLocales(liste.slice(0, 30));
-  return nomFichier;
-}
-function listerBackupsLocales(limite){
-  const conteneur = document.getElementById("backupsLocalesListe");
-  const liste = lireBackupsLocales().slice(0, limite);
-  if(!liste.length){
-    conteneur.innerHTML = `<div class="version-item">Aucune sauvegarde locale enregistrée pour l'instant (elles se créent quand tu touches le badge de version sans réseau).</div>`;
-    return;
-  }
-  conteneur.innerHTML = liste.map(entree=>{
-    const dateTexte = entree.date ? new Date(entree.date).toLocaleString("fr-FR") : "Date inconnue";
-    return `<div class="version-item">
-      <span class="v-date">${escapeHtml(dateTexte)}</span>
-      <span class="v-count">${escapeHtml(String(entree.nbBouteilles))} bouteille(s)</span>
-      <button type="button" class="btn btn-sm btn-ghost backup-locale-restaurer-btn" data-fichier="${escapeHtml(entree.fichier)}">Restaurer</button>
-    </div>`;
-  }).join("");
-  conteneur.querySelectorAll(".backup-locale-restaurer-btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      toast(`Sélectionne « ${btn.dataset.fichier} » dans le sélecteur (dossier Téléchargements en général)`);
-      document.getElementById("importFile").click();
-    });
-  });
-}
-document.getElementById("btnListerBackupsLocales5").addEventListener("click", ()=>listerBackupsLocales(5));
-document.getElementById("btnListerBackupsLocales30").addEventListener("click", ()=>listerBackupsLocales(30));
-
 document.getElementById("btnExport").addEventListener("click", ()=>{
   const blob = new Blob([JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
@@ -3505,13 +3423,6 @@ function decoderContenuBase64Utf8(base64){
   return decodeURIComponent(escape(atob(base64.replace(/\n/g, ""))));
 }
 
-/* Distingue une simple absence de réseau (fetch qui échoue avant même d'atteindre le serveur) d'une
-   vraie erreur GitHub (identifiants invalides, dépôt introuvable…) : dans le premier cas, les données
-   restent en sécurité sur l'appareil et il ne faut pas afficher un état d'erreur alarmant. */
-function estErreurReseau(err){
-  return !navigator.onLine || !!(err && err.message && /Failed to fetch|NetworkError|Load failed|network/i.test(err.message));
-}
-
 /* Point d'entrée du bouton/badge d'envoi : vérifie d'abord qu'aucune version distante plus récente,
    faite ailleurs, n'est passée inaperçue ici avant d'écraser — sans changer quoi que ce soit au
    comportement habituel quand tout est cohérent (cas normal, très large majorité des envois). */
@@ -3522,15 +3433,6 @@ async function lancerEnvoiVersGitHub(){
   if(!cfg.user || !cfg.repo || !cfg.token){
     toast("Renseigne utilisateur, dépôt et jeton");
     marquerErreurSynchro();
-    return;
-  }
-  if(!navigator.onLine){
-    // Deux filets de sécurité en l'absence de réseau : la sauvegarde locale (déjà faite automatiquement
-    // à chaque modification) suffit pour continuer à utiliser l'app, et en plus, un fichier de secours
-    // est téléchargé ici pour avoir une trace indépendante du navigateur.
-    majBadgeVersion();
-    const nomFichier = declencherSauvegardeLocaleFichier();
-    toast(`Hors ligne — fichier de secours téléchargé (${nomFichier}). Envoi automatique vers GitHub dès la reconnexion.`);
     return;
   }
   btn.disabled = true;
@@ -3563,14 +3465,6 @@ async function lancerEnvoiVersGitHub(){
       throw new Error("Lecture impossible (" + getRes.status + ")");
     }
   }catch(err){
-    if(estErreurReseau(err)){
-      const nomFichier = declencherSauvegardeLocaleFichier();
-      statusEl.textContent = `Hors ligne — fichier de secours téléchargé (${nomFichier}).`;
-      toast(`Hors ligne — fichier de secours téléchargé (${nomFichier})`);
-      majBadgeVersion();
-      btn.disabled = false;
-      return;
-    }
     statusEl.textContent = "Échec de la vérification : " + err.message;
     toast("Échec de l'envoi vers GitHub");
     marquerErreurSynchro();
@@ -3620,37 +3514,15 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     toast(resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub");
     marquerSynchronise();
   }catch(err){
-    if(estErreurReseau(err)){
-      const nomFichier = declencherSauvegardeLocaleFichier();
-      statusEl.textContent = `Connexion perdue en cours d'envoi — fichier de secours téléchargé (${nomFichier}).`;
-      toast(`Connexion perdue — fichier de secours téléchargé (${nomFichier})`);
-      syncEnErreur = false;
-      syncDirty = true;
-      try{ localStorage.setItem(LS_SYNC_DIRTY, "1"); }catch(e){}
-    }else{
-      statusEl.textContent = "Échec de l'envoi : " + err.message;
-      toast("Échec de l'envoi vers GitHub");
-      marquerErreurSynchro();
-    }
+    statusEl.textContent = "Échec de l'envoi : " + err.message;
+    toast("Échec de l'envoi vers GitHub");
+    marquerErreurSynchro();
   }
   syncEnCours = false;
   btn.disabled = false;
   majBadgeVersion();
 }
 document.getElementById("btnPush").addEventListener("click", lancerEnvoiVersGitHub);
-/* Dès que la connexion revient, on retente automatiquement l'envoi si des modifications sont en
-   attente — pour tenir la promesse faite à l'utilisateur (« envoi automatique dès la reconnexion »).
-   Sur perte de connexion, on rafraîchit juste l'apparence du badge (liseré vert « en sécurité »). */
-window.addEventListener("online", ()=>{
-  majBadgeVersion();
-  if(syncDirty && !syncEnCours){
-    toast("Connexion retrouvée — envoi automatique en cours…");
-    lancerEnvoiVersGitHub();
-  }
-});
-window.addEventListener("offline", ()=>{
-  majBadgeVersion();
-});
 /* Vérification silencieuse au lancement : si une sauvegarde GitHub existe et provient d'un autre local storage (autre appareil, ou autre navigateur sur le même appareil) que celui-ci, on l'applique automatiquement quand rien n'est en attente ici, ou on demande sinon (pour ne jamais écraser des changements locaux non envoyés sans le dire). Si la sauvegarde GitHub provient de ce local storage-ci (notre propre dernier envoi), on ne fait rien. */
 /* Affiche la fenêtre de résolution de conflit : décrit clairement les deux versions possibles
    (nombre de vins, nombre de bouteilles en cave, date de la version distante), et recommande l'option

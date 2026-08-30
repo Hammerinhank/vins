@@ -1098,7 +1098,9 @@
     </div>
     <div class="modal-body">
       <p class="panel-note">Voici le texte par défaut codé en dur dans l'application. Si tu ne fais pas Annuler, il remplacera le texte actuellement présent dans le champ.</p>
-      <textarea id="defautQuestionTexte" readonly rows="10" class="texte-defaut-apercu" data-tt-titre="Texte par défaut" data-tt-desc="Texte par défaut codé en dur, tel qu'il sera appliqué au champ si tu confirmes."></textarea>
+      <div class="field">
+        <textarea id="defautQuestionTexte" readonly rows="10" class="texte-defaut-apercu" data-tt-titre="Texte par défaut" data-tt-desc="Texte par défaut codé en dur, tel qu'il sera appliqué au champ si tu confirmes."></textarea>
+      </div>
       <div class="modal-actions" style="justify-content:center;">
         <button class="btn btn-ghost" id="btnDefautQuestionAnnuler" type="button" data-tt-titre="Annuler" data-tt-desc="Ferme cette fenêtre sans rien changer au champ.">Annuler</button>
         <button class="btn btn-gold" id="btnDefautQuestionRevenir" type="button" data-tt-titre="Revenir au texte par défaut" data-tt-desc="Remplace le texte actuellement dans le champ par le texte par défaut affiché ci-dessus.">Revenir au texte par défaut</button>
@@ -1317,8 +1319,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.89";
+const VERSION = "1.10.90";
 const HISTORY = [
+  { version:"1.10.90", date:"2026-08-31", notes:"Corrigé un problème de lisibilité dans la fenêtre d'aperçu du texte par défaut (boutons Init) : la zone de texte n'était pas enveloppée comme les autres champs et affichait donc du texte clair sur fond blanc (au lieu du fond sombre habituel) — illisible. Elle a maintenant le même fond que les autres champs de l'application."},
   { version:"1.10.89", date:"2026-08-31", notes:"Corrigé l'affichage du texte par défaut dans la fenêtre d'aperçu (boutons Init) : il s'affichait sur une seule ligne avec défilement horizontal ; il revient maintenant à la ligne normalement pour se lire sans avoir à faire défiler latéralement."},
   { version:"1.10.88", date:"2026-08-31", notes:"Nouveau texte par défaut codé en dur pour la question d'identification par photo (demande désormais explicitement Nom/Domaine/Étiquette/Millésime/Région dans un format précis). Ajout d'un bouton « Init » à droite de chacune des deux questions IA (identification et avis) : il ouvre une fenêtre affichant le texte par défaut codé en dur, avec Annuler ou Revenir au texte par défaut — ce dernier remplace le texte actuellement dans le champ correspondant (à Enregistrer ensuite pour le sauvegarder)."},
   { version:"1.10.87", date:"2026-08-31", notes:"La fonction « Identifier avec ChatGPT/Claude » reconnaît désormais aussi le mot-clé « Région : » dans la réponse copiée de l'assistant IA, exactement comme pour Nom/Domaine/Millésime/Étiquette : la valeur trouvée est proposée dans la fenêtre de vérification puis appliquée au champ Région de la fiche (sans écraser une valeur déjà présente en cas de mise à jour d'une fiche existante)."},

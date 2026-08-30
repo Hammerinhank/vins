@@ -1319,8 +1319,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.90";
+const VERSION = "1.10.91";
 const HISTORY = [
+  { version:"1.10.91", date:"2026-08-31", notes:"Corrigé : le filtre « Filtrer par marquage » (et les autres critères de sélection de la barre d'outils — filtre couleur, chips En cave/Historique/Toutes, À boire maintenant) ne survivaient pas à un rechargement, contrairement au regroupement et au tri déjà persistés. Les quatre sont maintenant enregistrés localement et synchronisés sur GitHub à chaque changement, exactement comme le regroupement et le tri. Seul le texte de recherche reste volontairement non conservé, pour éviter qu'une ancienne recherche ne fasse croire à tort que des vins ont disparu au prochain lancement."},
   { version:"1.10.90", date:"2026-08-31", notes:"Corrigé un problème de lisibilité dans la fenêtre d'aperçu du texte par défaut (boutons Init) : la zone de texte n'était pas enveloppée comme les autres champs et affichait donc du texte clair sur fond blanc (au lieu du fond sombre habituel) — illisible. Elle a maintenant le même fond que les autres champs de l'application."},
   { version:"1.10.89", date:"2026-08-31", notes:"Corrigé l'affichage du texte par défaut dans la fenêtre d'aperçu (boutons Init) : il s'affichait sur une seule ligne avec défilement horizontal ; il revient maintenant à la ligne normalement pour se lire sans avoir à faire défiler latéralement."},
   { version:"1.10.88", date:"2026-08-31", notes:"Nouveau texte par défaut codé en dur pour la question d'identification par photo (demande désormais explicitement Nom/Domaine/Étiquette/Millésime/Région dans un format précis). Ajout d'un bouton « Init » à droite de chacune des deux questions IA (identification et avis) : il ouvre une fenêtre affichant le texte par défaut codé en dur, avec Annuler ou Revenir au texte par défaut — ce dernier remplace le texte actuellement dans le champ correspondant (à Enregistrer ensuite pour le sauvegarder)."},
@@ -1889,7 +1890,7 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey }));
+  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -1900,7 +1901,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -2882,24 +2883,32 @@ function compresserImage(file, maxDim, qualite){
 }
 
 /* ===================== TOOLBAR ===================== */
-document.getElementById("rechercheInput").addEventListener("input", e=>{ recherche = e.target.value; renderGrille(); });
-document.getElementById("filtreCouleurSel").addEventListener("change", e=>{ filtreCouleur = e.target.value; renderGrille(); });
-document.getElementById("filtreMarqueSel").addEventListener("change", e=>{ filtreMarque = e.target.value; renderGrille(); });
-document.getElementById("groupBySel").addEventListener("change", e=>{
-  groupBy = e.target.value;
-  renderGrille();
+function sauvegarderEtPousserReglages(){
   sauvegarderReglagesLocal();
   pousserReglagesVersGitHub().then(ok=>{
     if(!ok && chargerConfig().token) toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
   });
+}
+document.getElementById("rechercheInput").addEventListener("input", e=>{ recherche = e.target.value; renderGrille(); });
+document.getElementById("filtreCouleurSel").addEventListener("change", e=>{
+  filtreCouleur = e.target.value;
+  renderGrille();
+  sauvegarderEtPousserReglages();
+});
+document.getElementById("filtreMarqueSel").addEventListener("change", e=>{
+  filtreMarque = e.target.value;
+  renderGrille();
+  sauvegarderEtPousserReglages();
+});
+document.getElementById("groupBySel").addEventListener("change", e=>{
+  groupBy = e.target.value;
+  renderGrille();
+  sauvegarderEtPousserReglages();
 });
 document.getElementById("sortSel").addEventListener("change", e=>{
   sortKey = e.target.value;
   renderGrille();
-  sauvegarderReglagesLocal();
-  pousserReglagesVersGitHub().then(ok=>{
-    if(!ok && chargerConfig().token) toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
-  });
+  sauvegarderEtPousserReglages();
 });
 
 document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(chip=>{
@@ -2907,12 +2916,14 @@ document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(chi
     filtreStatut = chip.dataset.statut;
     document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(c=>c.classList.toggle("active", c===chip));
     renderGrille();
+    sauvegarderEtPousserReglages();
   });
 });
 document.getElementById("chipApogee").addEventListener("click", function(){
   filtreApogeeOnly = !filtreApogeeOnly;
   this.classList.toggle("active", filtreApogeeOnly);
   renderGrille();
+  sauvegarderEtPousserReglages();
 });
 document.getElementById("avecPhotoCheckbox").addEventListener("change", function(){
   avecPhoto = this.checked;
@@ -4190,6 +4201,26 @@ async function initialiserSynchronisationGitHub(){
       document.getElementById("sortSel").value = sortKey;
       changement = true;
     }
+    if(typeof distant.filtreStatut === "string" && distant.filtreStatut !== filtreStatut){
+      filtreStatut = distant.filtreStatut;
+      document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(c=>c.classList.toggle("active", c.dataset.statut === filtreStatut));
+      changement = true;
+    }
+    if(typeof distant.filtreCouleur === "string" && distant.filtreCouleur !== filtreCouleur){
+      filtreCouleur = distant.filtreCouleur;
+      document.getElementById("filtreCouleurSel").value = filtreCouleur;
+      changement = true;
+    }
+    if(typeof distant.filtreMarque === "string" && distant.filtreMarque !== filtreMarque){
+      filtreMarque = distant.filtreMarque;
+      document.getElementById("filtreMarqueSel").value = filtreMarque;
+      changement = true;
+    }
+    if(typeof distant.filtreApogeeOnly === "boolean" && distant.filtreApogeeOnly !== filtreApogeeOnly){
+      filtreApogeeOnly = distant.filtreApogeeOnly;
+      document.getElementById("chipApogee").classList.toggle("active", filtreApogeeOnly);
+      changement = true;
+    }
     if(changementModeEdition){ appliquerModeEdition(); majBoutonDernierEmplacement(); }
     if(changement){
       sauvegarderReglagesLocal();
@@ -4635,10 +4666,18 @@ emplacementDroiteListe = Array.isArray(reglagesLocaux.emplacementDroiteListe) ? 
 regionsListe = Array.isArray(reglagesLocaux.regionsListe) ? reglagesLocaux.regionsListe : [];
 groupBy = typeof reglagesLocaux.groupBy === "string" ? reglagesLocaux.groupBy : "couleur";
 sortKey = typeof reglagesLocaux.sortKey === "string" ? reglagesLocaux.sortKey : "ajout_desc";
+filtreStatut = typeof reglagesLocaux.filtreStatut === "string" ? reglagesLocaux.filtreStatut : "cave";
+filtreCouleur = typeof reglagesLocaux.filtreCouleur === "string" ? reglagesLocaux.filtreCouleur : "toutes";
+filtreMarque = typeof reglagesLocaux.filtreMarque === "string" ? reglagesLocaux.filtreMarque : "tous";
+filtreApogeeOnly = reglagesLocaux.filtreApogeeOnly === true;
 try{ dernierEmplacementUtilise = localStorage.getItem(LS_DERNIER_EMPLACEMENT) || ""; }catch(e){ dernierEmplacementUtilise = ""; }
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
 document.getElementById("groupBySel").value = groupBy;
 document.getElementById("sortSel").value = sortKey;
+document.getElementById("filtreCouleurSel").value = filtreCouleur;
+document.getElementById("filtreMarqueSel").value = filtreMarque;
+document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(c=>c.classList.toggle("active", c.dataset.statut === filtreStatut));
+document.getElementById("chipApogee").classList.toggle("active", filtreApogeeOnly);
 majLibelleAssistant();
 appliquerModeEdition();
 construireSelectsEmplacement();

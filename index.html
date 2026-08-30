@@ -861,7 +861,7 @@
       <button class="page-tab-btn" data-page="avis" type="button" title="Avis">📝</button>
       <button class="page-tab-btn" data-page="liste" type="button" title="Liste">📋</button>
       <button class="page-tab-btn" data-page="parametres" type="button" title="Paramètres">⚙️</button>
-      <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🩺</button>
+      <button class="page-tab-btn" data-page="journal" type="button" title="Journal / Diagnostic">🪲</button>
     </div>
   </div>
 
@@ -935,6 +935,7 @@
     <div class="panel-row">
       <button class="btn btn-gold" id="btnGenererListe" type="button">📋 Générer la liste</button>
       <button class="btn" id="btnCopierListe" type="button">📎 Copier</button>
+      <button class="btn" id="btnViderListe" type="button">🗑 Vider</button>
     </div>
     <div class="field">
       <label>Liste des vins</label>
@@ -1013,8 +1014,12 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.33";
+const VERSION = "1.10.37";
 const HISTORY = [
+  { version:"1.10.37", date:"2026-08-29", notes:"L'icône 🐛 (chenille) de l'onglet Journal / Diagnostic est remplacée par 🪲 (scarabée), plus proche de l'icône « bug » habituellement utilisée en informatique." },
+  { version:"1.10.36", date:"2026-08-29", notes:"L'icône 🧪 de l'onglet Journal / Diagnostic est remplacée par 🐛, plus parlant pour une page de débogage." },
+  { version:"1.10.35", date:"2026-08-29", notes:"L'icône ⚡ de l'onglet Saisie rapide était en fait très bien et est remise telle quelle. C'est l'icône 🩺 de l'onglet Journal / Diagnostic qui était peu visible sur fond sombre (contours fins, presque invisibles) — elle est remplacée par 🧪." },
+  { version:"1.10.34", date:"2026-08-29", notes:"Ajout d'un bouton « 🗑 Vider » sur l'onglet Liste pour effacer d'un coup le contenu de la zone de texte. Remplacement de l'icône ⚡ (peu visible sur fond sombre) de l'onglet Saisie rapide par une icône appareil photo 📷." },
   { version:"1.10.33", date:"2026-08-29", notes:"Généralisation de l'import : une combobox à droite du bouton (onglet Liste) permet de choisir n'importe quel champ importable de la fiche détaillée (Note, Nom, Domaine, Appellation, Région, Pays, Millésime, Cépages, Prix, Quantité, Emplacement, Lieu d'achat, Boire à partir de/avant, Étiquette, Commentaire) ; le bouton affiche « Import des <champ> » et applique la partie droite de chaque ligne « N° : valeur » au champ sélectionné (le cas du « ? » d'incertitude reste réservé au champ Note)." },
   { version:"1.10.32", date:"2026-08-29", notes:"Sur chaque carte de la liste principale des vins, la note chiffrée s'affiche désormais entre les étoiles et le prix, entre parenthèses et accompagnée du « ? » d'incertitude s'il est renseigné (ex. « (89?) »). Purement informatif, non modifiable à cet endroit." },
   { version:"1.10.31", date:"2026-08-29", notes:"Nouveau bouton « 📥 Importer les notes » sur l'onglet Liste : lit la zone de texte et, pour chaque ligne au format « N° du vin : note », applique cette note chiffrée au vin correspondant (la note en étoiles n'est jamais modifiée). Un tout petit champ « ? » a été ajouté à droite du champ de note chiffrée dans la fiche, pour signaler une note incertaine sans mélanger ce symbole à la valeur numérique elle-même." },
@@ -2345,6 +2350,10 @@ document.getElementById("btnCopierListe").addEventListener("click", async functi
   }catch(e){
     toast("Échec de la copie — sélectionne et copie manuellement");
   }
+});
+document.getElementById("btnViderListe").addEventListener("click", function(){
+  document.getElementById("listeTexte").value = "";
+  toast("Zone de texte vidée");
 });
 
 /* Lit la zone de texte de la page Liste : chaque ligne contenant « : » est interprétée comme

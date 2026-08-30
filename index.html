@@ -1050,6 +1050,7 @@
       <div class="field"><label>Nom / cuvée</label><textarea id="verifTexteNom" class="champ-ligne-unique" rows="1" data-tt-titre="Nom / cuvée (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
       <div class="field"><label>Domaine / producteur</label><textarea id="verifTexteDomaine" class="champ-ligne-unique" rows="1" data-tt-titre="Domaine / producteur (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
       <div class="field"><label>Millésime</label><textarea id="verifTexteMillesime" class="champ-ligne-unique" rows="1" data-tt-titre="Millésime (extrait)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
+      <div class="field"><label>Région</label><textarea id="verifTexteRegion" class="champ-ligne-unique" rows="1" data-tt-titre="Région (extraite)" data-tt-desc="Valeur extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
       <div class="field"><label>Étiquette</label><textarea id="verifTexteEtiquette" rows="5" data-tt-titre="Étiquette (extraite)" data-tt-desc="Description extraite de la réponse de l'assistant IA — vérifie et corrige avant de créer la fiche."></textarea></div>
       <div class="modal-actions" style="justify-content:center;">
         <button class="btn btn-ghost" id="btnAnnulerVerifTexte" type="button" data-tt-titre="Annuler" data-tt-desc="Annule la création du vin et ferme cette fenêtre.">Annuler</button>
@@ -1285,8 +1286,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.86";
+const VERSION = "1.10.87";
 const HISTORY = [
+  { version:"1.10.87", date:"2026-08-31", notes:"La fonction « Identifier avec ChatGPT/Claude » reconnaît désormais aussi le mot-clé « Région : » dans la réponse copiée de l'assistant IA, exactement comme pour Nom/Domaine/Millésime/Étiquette : la valeur trouvée est proposée dans la fenêtre de vérification puis appliquée au champ Région de la fiche (sans écraser une valeur déjà présente en cas de mise à jour d'une fiche existante)."},
   { version:"1.10.86", date:"2026-08-31", notes:"Le regroupement et le tri de la liste (jusqu'ici réinitialisés à chaque rechargement) sont désormais persistés comme les autres réglages : enregistrés localement et synchronisés sur GitHub (cave-reglages.json) à chaque changement, rechargés au lancement. Ajout d'un système d'infobulles « post-it » sur la quasi-totalité des champs et boutons de l'app (en-tête, barre d'outils, fiche détail, toutes les pages de Paramètres, cartes de la grille, historique des versions…) : un nom et une courte description apparaissent après 3 secondes de survol immobile de la souris, et n'apparaissent jamais sur un appareil tactile (iPhone/iPad) — la détection se fait par capacité de survol réel, pas seulement par un masquage visuel."},
   { version:"1.10.85", date:"2026-08-30", notes:"Refonte de la synchronisation au lancement : la vérification GitHub (devenue double par erreur) est unifiée en un seul passage, qui teste maintenant cave.json ET les réglages. GitHub n'est considéré injoignable qu'en cas de vraie panne (réseau/statut d'erreur) — un fichier simplement absent (première utilisation) n'en fait plus partie. Sur vraie panne : message bloquant détaillant la raison + passage en mode consultation, désormais verrouillé pour toute la session (impossible d'y échapper même si GitHub redevient joignable entre-temps, y compris via ?edition) jusqu'à relance complète de l'app, avec une bannière permanente qui le rappelle en plus du badge. Sur succès mais modifications locales non envoyées : ne plus jamais écraser silencieusement — la fenêtre de conflit détaillée (vins/bouteilles des deux côtés, date), déjà utilisée à l'envoi mais orpheline jusqu'ici, s'affiche aussi au lancement pour trancher explicitement ; si GitHub n'a en réalité pas bougé depuis la dernière synchro connue, les modifications locales sont simplement conservées sans question inutile. Corrigé au passage : la restauration d'une version distante appelait une fonction marquerDirty() inexistante, qui interrompait silencieusement la suite (proposition d'envoi immédiat jamais affichée)."},
   { version:"1.10.83", date:"2026-08-30", notes:"GEMINI pour les dates de restauration à metre à jour"},
@@ -2677,16 +2679,17 @@ document.getElementById("btnSaisieIdentifier").addEventListener("click", functio
 /* La réponse de l'IA, copiée manuellement depuis ChatGPT/Claude, est attendue sous la forme de trois sections
    introduites par « Nom : », « Domaine : » et « Étiquette : » (accents/casse variables tolérés). */
 function extraireSectionsReponseIA(texteBrut){
-  const resultat = { nom:"", domaine:"", etiquette:"", millesime:"" };
+  const resultat = { nom:"", domaine:"", etiquette:"", millesime:"", region:"" };
   if(!texteBrut) return resultat;
   // Retire le gras Markdown (**texte** / __texte__) qui empêcherait sinon de repérer « Nom : » etc. en début de ligne.
   const texte = texteBrut.replace(/\*\*/g, "").replace(/__/g, "");
-  const regex = /^\s*(nom|domaine|[ée]tiquette|mill[ée]sime)\s*:\s*/gim;
+  const regex = /^\s*(nom|domaine|r[ée]gion|[ée]tiquette|mill[ée]sime)\s*:\s*/gim;
   const correspondances = [...texte.matchAll(regex)];
   for(let i=0; i<correspondances.length; i++){
     let cle = correspondances[i][1].toLowerCase();
     if(cle === "étiquette") cle = "etiquette";
     if(cle === "millésime") cle = "millesime";
+    if(cle === "région") cle = "region";
     const debut = correspondances[i].index + correspondances[i][0].length;
     const fin = (i+1 < correspondances.length) ? correspondances[i+1].index : texte.length;
     const contenu = texte.slice(debut, fin).trim();
@@ -2694,6 +2697,7 @@ function extraireSectionsReponseIA(texteBrut){
     else if(cle === "domaine") resultat.domaine = contenu;
     else if(cle === "etiquette") resultat.etiquette = contenu;
     else if(cle === "millesime") resultat.millesime = contenu;
+    else if(cle === "region") resultat.region = contenu;
   }
   return resultat;
 }
@@ -2711,7 +2715,7 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   }
   const sections = extraireSectionsReponseIA(texte);
   if(!sections.nom && !sections.domaine && !sections.etiquette){
-    toast("Réponse non reconnue — attendu : Nom : / Domaine : / Étiquette :");
+    toast("Réponse non reconnue — attendu : Nom : / Domaine : / Région : / Étiquette :");
   }
   verifTexteModeMiseAJour = false;
   document.getElementById("verifTexteTitre").textContent = "Vérifier avant de créer le vin";
@@ -2720,6 +2724,7 @@ document.getElementById("btnSaisieCreerVin").addEventListener("click", async fun
   document.getElementById("verifTexteNom").value = sections.nom;
   document.getElementById("verifTexteDomaine").value = sections.domaine;
   document.getElementById("verifTexteMillesime").value = sections.millesime;
+  document.getElementById("verifTexteRegion").value = sections.region;
   document.getElementById("verifTexteEtiquette").value = sections.etiquette;
   document.getElementById("overlayVerifTexte").classList.add("show");
 });
@@ -2741,13 +2746,13 @@ document.getElementById("btnAppliquerReponseFiche").addEventListener("click", as
     return;
   }
   const sections = extraireSectionsReponseIA(texte);
-  logAjouter(`Extraction — nom="${sections.nom}" (${sections.nom.length}c) · domaine="${sections.domaine}" (${sections.domaine.length}c) · millesime="${sections.millesime}" · etiquette=${sections.etiquette.length}c`);
+  logAjouter(`Extraction — nom="${sections.nom}" (${sections.nom.length}c) · domaine="${sections.domaine}" (${sections.domaine.length}c) · millesime="${sections.millesime}" · region="${sections.region}" · etiquette=${sections.etiquette.length}c`);
   if(!sections.nom && !sections.domaine && !sections.etiquette){
     // Rien d'exploitable trouvé (réponse pas encore copiée, mauvais format…) : on s'arrête ici plutôt
     // que d'ouvrir une fenêtre de vérification vide qui, une fois confirmée, effacerait les champs
     // existants de la fiche avec des valeurs blanches.
     logAjouter("→ Rien d'exploitable extrait, la fenêtre de vérification n'est PAS ouverte.");
-    toast("Réponse non reconnue dans le presse-papier — vérifie que tu as bien copié la réponse de l'IA (attendu : Nom : / Domaine : / Étiquette :)");
+    toast("Réponse non reconnue dans le presse-papier — vérifie que tu as bien copié la réponse de l'IA (attendu : Nom : / Domaine : / Région : / Étiquette :)");
     return;
   }
   verifTexteModeMiseAJour = true;
@@ -2758,6 +2763,7 @@ document.getElementById("btnAppliquerReponseFiche").addEventListener("click", as
   document.getElementById("verifTexteNom").value = sections.nom;
   document.getElementById("verifTexteDomaine").value = sections.domaine;
   document.getElementById("verifTexteMillesime").value = sections.millesime;
+  document.getElementById("verifTexteRegion").value = sections.region;
   document.getElementById("verifTexteEtiquette").value = sections.etiquette;
   document.getElementById("overlayVerifTexte").classList.add("show");
 });
@@ -2767,8 +2773,9 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
   const nom = document.getElementById("verifTexteNom").value.trim();
   const domaine = document.getElementById("verifTexteDomaine").value.trim();
   const millesime = document.getElementById("verifTexteMillesime").value.trim();
+  const region = document.getElementById("verifTexteRegion").value.trim();
   const etiquette = document.getElementById("verifTexteEtiquette").value.trim();
-  logAjouter(`Clic « ${document.getElementById("btnConfirmerVerifTexte").textContent} » — verifTexteModeMiseAJour=${verifTexteModeMiseAJour} · ficheEnCours=${ficheEnCours} · nom="${nom}" · domaine="${domaine}" · millesime="${millesime}" · etiquette=${etiquette.length}c · ${etatPhotoPourLog()}`);
+  logAjouter(`Clic « ${document.getElementById("btnConfirmerVerifTexte").textContent} » — verifTexteModeMiseAJour=${verifTexteModeMiseAJour} · ficheEnCours=${ficheEnCours} · nom="${nom}" · domaine="${domaine}" · millesime="${millesime}" · region="${region}" · etiquette=${etiquette.length}c · ${etatPhotoPourLog()}`);
   document.getElementById("overlayVerifTexte").classList.remove("show");
 
   if(verifTexteModeMiseAJour){
@@ -2780,9 +2787,10 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
     if(nom) document.getElementById("fNom").value = nom;
     if(domaine) document.getElementById("fDomaine").value = domaine;
     if(millesime) document.getElementById("fMillesime").value = millesime;
+    if(region) document.getElementById("fRegion").value = region;
     if(etiquette) document.getElementById("fEtiquette").value = etiquette;
-    if(etiquette) document.getElementById("ficheSectionBasse").open = true;
-    logAjouter(`→ Après application — fNom="${document.getElementById("fNom").value}" · fDomaine="${document.getElementById("fDomaine").value}" · ${etatPhotoPourLog()}`);
+    if(etiquette || region) document.getElementById("ficheSectionBasse").open = true;
+    logAjouter(`→ Après application — fNom="${document.getElementById("fNom").value}" · fDomaine="${document.getElementById("fDomaine").value}" · fRegion="${document.getElementById("fRegion").value}" · ${etatPhotoPourLog()}`);
     toast("Champs mis à jour — vérifie puis Enregistre");
     return;
   }
@@ -2794,6 +2802,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
   document.getElementById("fNom").value = nom;
   document.getElementById("fDomaine").value = domaine;
   if(millesime) document.getElementById("fMillesime").value = millesime;
+  document.getElementById("fRegion").value = region;
   document.getElementById("fEtiquette").value = etiquette;
 
   if(saisiePhotoDataUrl){
@@ -2808,7 +2817,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
     majBoutonChoisirPhoto();
   }
 
-  if(etiquette || saisiePhotoDataUrl){
+  if(etiquette || region || saisiePhotoDataUrl){
     document.getElementById("ficheSectionBasse").open = true;
   }
 });

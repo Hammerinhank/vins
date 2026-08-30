@@ -1039,8 +1039,8 @@
     </div>
     <p class="panel-note">Liste les versions successives du fichier de sauvegarde sur GitHub, avec le nombre de bouteilles enregistrées et la date de chacune — et permet de restaurer la cave à l'une d'elles en cas de fausse manipulation.</p>
     <div class="panel-row">
-      <button class="btn btn-gold" id="btnListerVersions30" type="button">🕘 30 dernières versions</button>
-      <button class="btn" id="btnListerVersions5" type="button">🕘 5 dernières versions</button>
+      <button class="btn btn-gold" id="btnListerVersions5" type="button">🕘 5 dernières versions</button>
+      <button class="btn" id="btnListerVersions30" type="button">🕘 30 dernières versions</button>
     </div>
     <div class="versions-liste" id="versionsListe"></div>
   </div>
@@ -1053,8 +1053,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.44";
+const VERSION = "1.10.45";
 const HISTORY = [
+  { version:"1.10.45", date:"2026-08-29", notes:"Sur la page Journal / Diagnostic, permutation des deux boutons de listing des versions : « 5 dernières versions » passe en premier et récupère le fond doré, « 30 dernières versions » passe en second sans fond coloré." },
   { version:"1.10.44", date:"2026-08-29", notes:"Sur la page Journal / Diagnostic : chaque version listée porte maintenant un bouton « Restaurer » qui remplace la cave actuelle par cette version (après confirmation), utile en cas de perte de données suite à une fausse manipulation. Ajout d'un second bouton « 5 dernières versions », en plus de celui affichant les 30 dernières." },
   { version:"1.10.43", date:"2026-08-29", notes:"Nouveau bouton « 🕘 Lister les versions sauvegardées » sur la page Journal / Diagnostic : parcourt l'historique GitHub du fichier de sauvegarde (jusqu'aux 30 dernières versions) et affiche, pour chacune, le nombre de bouteilles enregistrées et la date/heure de la sauvegarde, dans une liste limitée à 10 lignes visibles avec défilement pour voir le reste." },
   { version:"1.10.42", date:"2026-08-29", notes:"Le champ « Quantité en cave » de la fiche est encadré de deux boutons +/- pour incrémenter/décrémenter facilement le nombre de bouteilles, tout en gardant la saisie directe d'une valeur possible dans le champ." },

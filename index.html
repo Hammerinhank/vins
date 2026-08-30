@@ -111,6 +111,19 @@
   }
   .version-badge:disabled{opacity:.7;}
 
+  /* ---------- Bannière de mode consultation forcé ---------- */
+  .consultation-banner{
+    display:none;
+    max-width:960px;margin:0 auto 14px auto;
+    padding:10px 16px;
+    background:rgba(180,71,47,.18);
+    border:1px solid var(--danger);
+    color:#F5B8A5;
+    font-size:13px;
+    line-height:1.4;
+    border-radius:var(--radius);
+  }
+
   /* ---------- Stats bar ---------- */
   .stats-bar{
     max-width:960px;margin:0 auto;padding:0 16px 14px 16px;
@@ -666,6 +679,8 @@
   </div>
   <button class="version-badge" id="versionBadge" type="button"></button>
 </header>
+
+<div class="consultation-banner" id="consultationBanner"></div>
 
 <div class="stats-bar" id="statsBar"></div>
 
@@ -1230,9 +1245,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.84";
+const VERSION = "1.10.85";
 const HISTORY = [
-  { version:"1.10.84", date:"2026-08-30", notes:"CHATGPT pour charger les données à partir de github en tout premier si le réseau marche"},
+  { version:"1.10.85", date:"2026-08-30", notes:"Refonte de la synchronisation au lancement : la vérification GitHub (devenue double par erreur) est unifiée en un seul passage, qui teste maintenant cave.json ET les réglages. GitHub n'est considéré injoignable qu'en cas de vraie panne (réseau/statut d'erreur) — un fichier simplement absent (première utilisation) n'en fait plus partie. Sur vraie panne : message bloquant détaillant la raison + passage en mode consultation, désormais verrouillé pour toute la session (impossible d'y échapper même si GitHub redevient joignable entre-temps, y compris via ?edition) jusqu'à relance complète de l'app, avec une bannière permanente qui le rappelle en plus du badge. Sur succès mais modifications locales non envoyées : ne plus jamais écraser silencieusement — la fenêtre de conflit détaillée (vins/bouteilles des deux côtés, date), déjà utilisée à l'envoi mais orpheline jusqu'ici, s'affiche aussi au lancement pour trancher explicitement ; si GitHub n'a en réalité pas bougé depuis la dernière synchro connue, les modifications locales sont simplement conservées sans question inutile. Corrigé au passage : la restauration d'une version distante appelait une fonction marquerDirty() inexistante, qui interrompait silencieusement la suite (proposition d'envoi immédiat jamais affichée)."},
   { version:"1.10.83", date:"2026-08-30", notes:"GEMINI pour les dates de restauration à metre à jour"},
   { version:"1.10.82", date:"2026-08-30", notes:"Retiré toute logique qui décidait ou orientait une action en fonction du nombre de vins ou de bouteilles (plus ou moins qu'une autre version) — que ce soit pour bloquer un envoi, déclencher une fenêtre d'alerte, ou recommander un choix dans la fenêtre de conflit. Le seul critère retenu, neutre, est désormais : cette sauvegarde distante correspond-elle à la dernière connue de cet appareil ou non — si non, la question est posée avec les faits (dates, décomptes des deux côtés), sans jugement ni suggestion sur laquelle garder. Une version avec moins de vins qu'une précédente est un choix légitime comme un autre." },
   { version:"1.10.81", date:"2026-08-30", notes:"Corrigé un piège sérieux : après avoir confirmé « Envoyer cette version restaurée » ou « Garder mes modifications locales », l'envoi repassait par la vérification de conflit normale — qui, si la version choisie avait moins de vins que ce qui restait sur GitHub, redemandait une SECONDE confirmation différente, facile à manquer. Résultat possible : l'utilisateur croit avoir envoyé alors que rien n'est parti (repéré via une date de sauvegarde GitHub inchangée après confirmation). Ces deux cas envoient désormais directement, sans repasser par cette vérification redondante — le choix explicite déjà fait par l'utilisateur est respecté sans nouvelle question." },
@@ -1371,6 +1386,12 @@ const LS_INSTANCE_ID = "cave_instance_id_v1";
 // pour que l'URL habituelle continue à permettre l'édition tant qu'on ne l'a pas activée soi-même).
 let MODE_EDITION = new URLSearchParams(location.search).has("edition");
 
+// Verrou absolu : passe à true uniquement quand GitHub s'est révélé injoignable au lancement
+// (cave.json et/ou réglages). Tant qu'il est actif, appliquerModeEdition() ne peut plus repasser
+// en mode édition, quoi qu'il arrive (URL ?edition, changement de réglage resynchronisé...) — seule
+// une relance complète de l'application (qui réinitialise cette variable) peut le lever.
+let verrouConsultationForcee = false;
+
 let bottles = [];
 let filtreStatut = "cave";
 let filtreCouleur = "toutes";
@@ -1496,6 +1517,19 @@ function feedbackBouton(btn, label){
   btn.textContent = label || "✓";
   btn.disabled = true;
   setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 2000);
+}
+
+/* ---- Bannière permanente de mode consultation forcé (reste affichée tant que le verrou est actif) ---- */
+function afficherBanniereConsultation(message){
+  const b = document.getElementById("consultationBanner");
+  if(!b) return;
+  b.textContent = "📵 Mode consultation — " + message + " · données locales utilisées · relance l'application pour réessayer.";
+  b.style.display = "block";
+}
+function masquerBanniereConsultation(){
+  const b = document.getElementById("consultationBanner");
+  if(!b) return;
+  b.style.display = "none";
 }
 
 /* ---- Confirmation (fenêtre intégrée, pas de confirm() natif) ---- */
@@ -1731,16 +1765,24 @@ async function pousserReglagesVersGitHub(){
     return true;
   }catch(e){ return false; }
 }
+/* Retourne { ok, data, motif }. ok=false SEULEMENT en cas de vraie panne (réseau, statut d'erreur autre
+   que « fichier absent »). Un fichier de réglages absent (404 — première utilisation, rien encore
+   enregistré) est un cas normal : GitHub a bien répondu, ok reste true, data reste null. Cette
+   distinction est nécessaire pour ne pas déclencher le mode consultation forcé sur une simple absence
+   de fichier. */
 async function recupererReglagesDepuisGitHub(){
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token) return null;
+  if(!cfg.user || !cfg.repo || !cfg.token) return { ok:false, data:null, motif:"GitHub non configuré" };
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_REGLAGES)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
     const res = await githubAPI(base, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
-    if(!res.ok) return null;
+    if(res.status === 404) return { ok:true, data:null };
+    if(!res.ok) return { ok:false, data:null, motif:"réglages : statut " + res.status };
     const texte = await res.text();
-    return JSON.parse(texte);
-  }catch(e){ return null; }
+    return { ok:true, data: JSON.parse(texte) };
+  }catch(e){
+    return { ok:false, data:null, motif:"réglages : " + (e && e.message ? e.message : String(e)) };
+  }
 }
 
 /* ===================== APOGÉE ===================== */
@@ -2978,7 +3020,12 @@ function majLibelleAssistant(){
    (changement du réglage, retour de la synchro GitHub) sans laisser l'interface dans un état incohérent. */
 
 
-function passerEnModeConsultationHorsLigne(){  //CHATGPT
+/* Passage en mode consultation forcé parce que GitHub s'est révélé injoignable au lancement (cave.json
+   et/ou réglages). Pose le verrou verrouConsultationForcee : à partir d'ici, appliquerModeEdition() ne
+   recalculera plus jamais MODE_EDITION depuis l'URL/les réglages tant que l'app n'a pas été relancée —
+   même si une resynchronisation ultérieure des réglages ou un lien ?edition tenterait de le faire. */
+function passerEnModeConsultationHorsLigne(motif){  //CHATGPT
+  verrouConsultationForcee = true;
   MODE_EDITION = false;
   document.body.classList.add("mode-consultation");
   document.body.classList.remove("mode-edition");
@@ -2988,12 +3035,14 @@ function passerEnModeConsultationHorsLigne(){  //CHATGPT
   const badge = document.getElementById("versionBadge");
   if(badge){
     badge.classList.add("error");
-    badge.title = "Mode consultation : données locales utilisées";
+    badge.title = "Mode consultation forcée : " + (motif || "GitHub injoignable");
   }
+
+  afficherBanniereConsultation(motif || "GitHub injoignable");
 }
 
 
-function informerModeHorsLigne(){  //CHATGPT
+function informerModeHorsLigne(motif){  //CHATGPT
   const nbVins = bottles.length;
   const nbBouteilles = bottles.reduce(
     (total, b) => total + (Number(b.quantite) || 0),
@@ -3001,10 +3050,12 @@ function informerModeHorsLigne(){  //CHATGPT
   );
 
   alert(
-    "Connexion à GitHub impossible.\n\n" +
+    "Connexion à GitHub impossible" + (motif ? " (" + motif + ")" : "") + ".\n\n" +
     "L'application fonctionne avec les données enregistrées localement sur cet appareil.\n\n" +
     "Ces données peuvent ne pas être aussi récentes que celles enregistrées sur GitHub.\n\n" +
-    "La modification des données est donc désactivée et l'application est placée en mode consultation.\n\n" +
+    "La modification des données est donc désactivée et l'application est placée en mode consultation, " +
+    "et le restera jusqu'à la prochaine relance de l'application (même si la connexion à GitHub revient " +
+    "entre-temps).\n\n" +
     "Données locales disponibles : " +
     nbVins + " vin(s), " +
     nbBouteilles + " bouteille(s)."
@@ -3013,13 +3064,20 @@ function informerModeHorsLigne(){  //CHATGPT
 
 
 function appliquerModeEdition(){
-  const parametresUrl = new URLSearchParams(location.search);
-  if(parametresUrl.has("apercu")){
-    MODE_EDITION = false; // forçage de prévisualisation, indépendant du réglage et de ?edition
+  if(verrouConsultationForcee){
+    // Verrou absolu posé par un échec GitHub au lancement : on ignore volontairement l'URL et les
+    // réglages tant que l'app n'a pas été rechargée, pour ne jamais repasser silencieusement en édition.
+    MODE_EDITION = false;
+    document.body.classList.add("mode-consultation");
   }else{
-    MODE_EDITION = !limitationConsultationActive || parametresUrl.has("edition");
+    const parametresUrl = new URLSearchParams(location.search);
+    if(parametresUrl.has("apercu")){
+      MODE_EDITION = false; // forçage de prévisualisation, indépendant du réglage et de ?edition
+    }else{
+      MODE_EDITION = !limitationConsultationActive || parametresUrl.has("edition");
+    }
+    document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   }
-  document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
    "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique","fNoteIncertaine","btnQuantiteMoins","btnQuantitePlus","fRegionSelect","btnAppliquerRegion"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
@@ -3759,262 +3817,180 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
 }
 document.getElementById("closeConflitSync").addEventListener("click", ()=>document.getElementById("overlayConflitSync").classList.remove("show"));
 
-async function verifierGitHubAuLancement(){
-
+/* Charge cave.json depuis GitHub. Retourne toujours un résultat structuré, jamais une exception :
+   { ok:true, statut:200, distantes:[...], donneesDistantes:{...} }  → lecture réussie
+   { ok:true, statut:404, distantes:[], donneesDistantes:null }      → GitHub joignable, fichier absent
+                                                                        (première utilisation : ce n'est
+                                                                        PAS une panne)
+   { ok:false, motif:"..." }                                        → vraie panne (réseau, config
+                                                                        manquante, statut d'erreur) */
+async function chargerCaveDepuisGitHub(){
   const cfg = chargerConfig();
 
-  /* -------------------------------------------------------
-     GitHub non configuré
-     ------------------------------------------------------- */
-
   if(!cfg.user || !cfg.repo || !cfg.token){
-
-    logAjouter(
-      "Synchronisation au lancement impossible : " +
-      "configuration GitHub incomplète."
-    );
-
-    informerModeHorsLigne();
-    passerEnModeConsultationHorsLigne();
-
-    return false;
+    logAjouter("Chargement au lancement impossible : configuration GitHub incomplète.");
+    return { ok:false, motif:"GitHub non configuré (utilisateur/dépôt/jeton manquant)" };
   }
 
-
   try{
-
     const chemin = cfg.chemin || "cave.json";
     const branche = cfg.branche || "main";
-
-    const base =
-      `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/` +
-      `${encodeURIComponent(chemin)}`;
-
     const url =
-      base +
-      "?ref=" + encodeURIComponent(branche) +
-      "&_=" + Date.now();
+      `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}` +
+      "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now();
 
+    logAjouter("Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.");
 
-    logAjouter(
-      "Synchronisation automatique au lancement : " +
-      "tentative de récupération GitHub."
-    );
+    const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
 
-
-    const res = await githubAPI(
-      url,
-      cfg,
-      {
-        headers: {
-          "Accept": "application/vnd.github.raw+json"
-        }
-      }
-    );
-
-
-    /* -------------------------------------------------------
-       GitHub répond mais avec une erreur
-       ------------------------------------------------------- */
+    if(res.status === 404){
+      logAjouter("→ cave.json absent sur GitHub (première utilisation) : GitHub joignable, rien à charger.");
+      return { ok:true, statut:404, distantes:[], donneesDistantes:null };
+    }
 
     if(!res.ok){
-
-      throw new Error(
-        "GitHub a répondu avec le statut " + res.status
-      );
+      throw new Error("GitHub a répondu avec le statut " + res.status);
     }
-
-
-    /* -------------------------------------------------------
-       Lecture des données GitHub
-       ------------------------------------------------------- */
 
     const texte = await res.text();
-
     const data = JSON.parse(texte);
+    const distantes = Array.isArray(data.bottles) ? data.bottles : [];
 
-    const distantes = Array.isArray(data.bottles)
-      ? data.bottles
-      : [];
+    logAjouter(`→ Lecture réussie : ${distantes.length} vin(s) sur GitHub (maj=${data.maj || "inconnue"}, origine=${data.origine || "inconnue"}).`);
 
-
-    logAjouter(
-      `Synchronisation réussie : ${distantes.length} vin(s) ` +
-      `chargé(s) depuis GitHub.`
-    );
-
-
-    /* -------------------------------------------------------
-       GitHub devient la référence au lancement
-       ------------------------------------------------------- */
-
-    bottles = distantes;
-
-
-    /* -------------------------------------------------------
-       Mise à jour immédiate du localStorage
-       ------------------------------------------------------- */
-
-    sauvegarderBouteilles();
-
-
-    /* -------------------------------------------------------
-       Enregistrement de la version connue
-       ------------------------------------------------------- */
-
-    ecrireDerniereMajConnue(
-      data.maj || null,
-      data.origine || null
-    );
-
-
-    /* -------------------------------------------------------
-       Marquer la synchronisation comme propre
-       ------------------------------------------------------- */
-
-    marquerSynchronise();
-
-
-    /* -------------------------------------------------------
-       Mise à jour interface
-       ------------------------------------------------------- */
-
-    rafraichirTout();
-
-
-    /* -------------------------------------------------------
-       Enregistrer la date de synchronisation
-       ------------------------------------------------------- */
-
-    const cfgSauv = chargerConfig();
-
-    cfgSauv.derniereSync =
-      new Date().toLocaleString("fr-FR");
-
-    sauvegarderConfig(cfgSauv);
-
-
-    const statusEl =
-      document.getElementById("syncStatus");
-
-    if(statusEl){
-
-      statusEl.textContent =
-        "Chargé automatiquement depuis GitHub le " +
-        cfgSauv.derniereSync;
-    }
-
-
-    logAjouter(
-      "Données GitHub appliquées et localStorage mis à jour."
-    );
-
-
-    return true;
-
+    return { ok:true, statut:200, distantes, donneesDistantes:data };
 
   }catch(e){
-
-    /* -------------------------------------------------------
-       ÉCHEC RÉSEAU OU GITHUB
-       ------------------------------------------------------- */
-
-    logAjouter(
-      "Synchronisation automatique impossible : " +
-      (
-        e && e.message
-          ? e.message
-          : String(e)
-      )
-    );
-
-
-    const statusEl =
-      document.getElementById("syncStatus");
-
-    if(statusEl){
-
-      statusEl.textContent =
-        "GitHub inaccessible — utilisation des données locales en consultation.";
-    }
-
-
-    /* -------------------------------------------------------
-       Information utilisateur
-       ------------------------------------------------------- */
-
-    informerModeHorsLigne();
-
-
-    /* -------------------------------------------------------
-       Passage forcé en consultation
-       ------------------------------------------------------- */
-
-    passerEnModeConsultationHorsLigne();
-
-
-    return false;
+    const msg = e && e.message ? e.message : String(e);
+    logAjouter("Récupération de cave.json impossible : " + msg);
+    return { ok:false, motif:"cave.json : " + msg };
   }
 }
 
+/* Orchestre la synchronisation complète au lancement : cave.json ET réglages.
+   Règles :
+   - GitHub est considéré INJOIGNABLE si l'un OU l'autre des deux fichiers échoue pour une vraie raison
+     (réseau, statut d'erreur, config manquante) — un fichier simplement absent (404) ne compte pas
+     comme un échec. Dans ce cas : message bloquant + mode consultation forcé jusqu'à relance de l'app.
+   - Si GitHub est joignable et qu'il n'y a pas de modifications locales en attente (syncDirty=false),
+     la version GitHub devient la référence, comme avant.
+   - Si GitHub est joignable MAIS qu'il y a des modifications locales non envoyées : on ne les écrase
+     JAMAIS silencieusement. Si la version GitHub est réellement différente de la dernière connue, la
+     fenêtre de conflit habituelle (celle utilisée aussi au moment de l'envoi) est affichée pour laisser
+     choisir explicitement. Si la version GitHub n'a pas changé depuis la dernière synchro connue, ce
+     n'est pas un vrai conflit : les modifications locales sont simplement conservées telles quelles. */
+async function initialiserSynchronisationGitHub(){
+  const [resCave, resReglages] = await Promise.all([
+    chargerCaveDepuisGitHub(),
+    recupererReglagesDepuisGitHub()
+  ]);
 
-async function verifierGitHubAuLancement_OBSOLETE (){   //CHATGPT
-  const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token){
-    logAjouter("verifierGitHubAuLancement() : configuration GitHub incomplète, arrêt.");
+  const echecs = [];
+  if(!resCave.ok) echecs.push(resCave.motif);
+  if(!resReglages.ok) echecs.push(resReglages.motif);
+
+  if(echecs.length){
+    const motif = echecs.join(" · ");
+    logAjouter("→ GitHub considéré injoignable au lancement : " + motif);
+    const statusEl = document.getElementById("syncStatus");
+    if(statusEl) statusEl.textContent = "GitHub inaccessible (" + motif + ") — utilisation des données locales en consultation.";
+    informerModeHorsLigne(motif);
+    passerEnModeConsultationHorsLigne(motif);
     return;
   }
-  try{
-    const chemin = cfg.chemin || "cave.json";
-    const branche = cfg.branche || "main";
-    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}`;
-    const res = await githubAPI(base + "?ref=" + encodeURIComponent(branche) + "&_=" + Date.now(), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
-    logAjouter(`verifierGitHubAuLancement() : statut ${res.status} · syncDirty (avant)=${syncDirty} · bottles.length (local, avant)=${bottles.length}`);
-    if(!res.ok) return;
-    const texte = await res.text();
-    const data = JSON.parse(texte);
-    const distantes = data.bottles || [];
-    const origineDistante = data.origine || null;
-    logAjouter(`→ Distant : ${distantes.length} vin(s), maj=${data.maj}, origine=${origineDistante} · INSTANCE_ID local=${INSTANCE_ID}`);
 
-    function appliquerDistantes(msg){
-      logAjouter(`→ APPLICATION DES DONNÉES DISTANTES : le local (${bottles.length} vin(s)) va être remplacé par les ${distantes.length} vin(s) distant(s).`);
-      bottles = distantes;
+  logAjouter("→ GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.");
+
+  /* ---- Données (cave.json) ---- */
+  if(resCave.statut === 404){
+    logAjouter("→ Aucune cave enregistrée sur GitHub pour l'instant : les données locales sont conservées telles quelles.");
+  }else{
+    const donneesDistantes = resCave.donneesDistantes;
+    if(syncDirty){
+      const connue = lireDerniereMajConnue();
+      const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
+      if(estNonPriseEnCompte){
+        logAjouter("→ Conflit au lancement : modifications locales non envoyées ET version GitHub différente de la dernière connue. Fenêtre de conflit affichée.");
+        afficherConflitSync(resCave.distantes, donneesDistantes, ()=>{
+          bottles = resCave.distantes;
+          sauvegarderBouteilles();
+          ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
+          marquerSynchronise();
+          rafraichirTout();
+          const statusEl = document.getElementById("syncStatus");
+          if(statusEl) statusEl.textContent = "Version GitHub appliquée (conflit résolu au lancement).";
+          logAjouter("→ Conflit résolu au lancement : version GitHub appliquée, localStorage mis à jour.");
+        });
+      }else{
+        logAjouter("→ Modifications locales non envoyées, mais la version GitHub n'a pas changé depuis la dernière synchro connue : rien n'est écrasé.");
+      }
+    }else{
+      bottles = resCave.distantes;
       sauvegarderBouteilles();
+      ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
       marquerSynchronise();
-      ecrireDerniereMajConnue(data.maj || null, origineDistante);
-      rafraichirTout();
+
       const cfgSauv = chargerConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
       sauvegarderConfig(cfgSauv);
+
       const statusEl = document.getElementById("syncStatus");
-      if(statusEl) statusEl.textContent = "Récupéré automatiquement le " + cfgSauv.derniereSync;
-      toast(msg + ` — app v${VERSION}`);
-    }
+      if(statusEl) statusEl.textContent = "Chargé automatiquement depuis GitHub le " + cfgSauv.derniereSync;
 
-    // Seul critère retenu, volontairement neutre (jamais basé sur le nombre de vins ni sur qui a fait
-    // l'envoi) : cette sauvegarde distante correspond-elle à la dernière que cet appareil sait déjà
-    // avoir prise en compte (envoyée ou récupérée) ? Si oui, rien à faire. Si non — qu'elle vienne d'un
-    // autre appareil ou de cet appareil-ci à un autre moment —, il y a un doute réel, donc on pose la
-    // question plutôt que de décider (ou d'ignorer) à la place de l'utilisateur.
-    const connue = lireDerniereMajConnue();
-    const estNonPriseEnCompte = data.maj && (!connue || connue.maj !== data.maj);
-    logAjouter(`→ dernière maj connue=${connue ? connue.maj : "aucune"} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
-    if(!estNonPriseEnCompte){
-      logAjouter("→ Cette sauvegarde est déjà connue de cet appareil : rien à faire.");
-      return;
+      logAjouter("→ Données GitHub appliquées et localStorage mis à jour.");
     }
+  }
 
-    if(!syncDirty){
-      logAjouter("→ syncDirty=false localement : application AUTOMATIQUE et SILENCIEUSE des données distantes (aucune confirmation demandée).");
-      appliquerDistantes("Cave mise à jour depuis GitHub (modifiée ailleurs)");
-    }else{
-      logAjouter("→ syncDirty=true localement : affichage de la fenêtre de conflit avant toute application.");
-      afficherConflitSync(distantes, data, ()=>appliquerDistantes("Cave remplacée par la version GitHub"));
+  /* ---- Réglages ---- */
+  if(resReglages.data){
+    const distant = resReglages.data;
+    let changement = false;
+    let changementModeEdition = false;
+    if(typeof distant.avecPhoto === "boolean" && distant.avecPhoto !== avecPhoto){
+      avecPhoto = distant.avecPhoto;
+      document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+      changement = true;
     }
-  }catch(e){
-    logAjouter("verifierGitHubAuLancement() : ERREUR — " + (e && e.message ? e.message : String(e)));
-    // Échec silencieux (hors ligne, dépôt pas encore créé, etc.) : la cave locale reste utilisable, synchro manuelle toujours possible.
+    if(typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
+      questionChatGPT = distant.questionChatGPT;
+      changement = true;
+    }
+    if(typeof distant.questionAvisChatGPT === "string" && distant.questionAvisChatGPT && distant.questionAvisChatGPT !== questionAvisChatGPT){
+      questionAvisChatGPT = distant.questionAvisChatGPT;
+      changement = true;
+    }
+    if((distant.assistantIA === "claude" || distant.assistantIA === "chatgpt") && distant.assistantIA !== assistantIA){
+      assistantIA = distant.assistantIA;
+      majLibelleAssistant();
+      changement = true;
+    }
+    if(typeof distant.limitationConsultationActive === "boolean" && distant.limitationConsultationActive !== limitationConsultationActive){
+      limitationConsultationActive = distant.limitationConsultationActive;
+      changement = true;
+      changementModeEdition = true;
+    }
+    if(Array.isArray(distant.emplacementGaucheListe) && JSON.stringify(distant.emplacementGaucheListe) !== JSON.stringify(emplacementGaucheListe)){
+      emplacementGaucheListe = distant.emplacementGaucheListe;
+      construireSelectsEmplacement();
+      changement = true;
+    }
+    if(Array.isArray(distant.emplacementDroiteListe) && JSON.stringify(distant.emplacementDroiteListe) !== JSON.stringify(emplacementDroiteListe)){
+      emplacementDroiteListe = distant.emplacementDroiteListe;
+      construireSelectsEmplacement();
+      changement = true;
+    }
+    if(Array.isArray(distant.regionsListe) && JSON.stringify(distant.regionsListe) !== JSON.stringify(regionsListe)){
+      regionsListe = distant.regionsListe;
+      construireSelectRegionFiche();
+      construireSelectRegionsParametres();
+      changement = true;
+    }
+    if(changementModeEdition){ appliquerModeEdition(); majBoutonDernierEmplacement(); }
+    if(changement){
+      sauvegarderReglagesLocal();
+      renderGrille();
+      logAjouter("→ Réglages distants appliqués (au moins un changement détecté).");
+    }
   }
 }
 
@@ -4314,10 +4290,10 @@ async function restaurerVersion(sha, btn){
       sauvegarderBouteilles();
 
       // 2. Marquer l'état local comme modifié ("à sauvegarder")
-      marquerDirty();
+      marquerNonSynchronise();
 
       // 3. FIX CRITIQUE : Générer un nouvel horodatage du moment présent
-      // pour que verifierGitHubAuLancement() ne considère plus le fichier GitHub comme "plus récent".
+      // pour que initialiserSynchronisationGitHub() ne considère plus le fichier GitHub comme "plus récent".
       const nouvelleMajRestauration = new Date().toISOString();
       ecrireDerniereMajConnue(nouvelleMajRestauration, INSTANCE_ID);
 
@@ -4462,62 +4438,13 @@ construireSelectRegionFiche();
 construireSelectChampImport();
 majLibelleImportChamp();
 
-await verifierGitHubAuLancement(); // CHATGPT
+// Charge cave.json ET les réglages depuis GitHub. En cas de vraie panne (l'un des deux, ou les deux),
+// bascule en mode consultation forcé, verrouillé jusqu'à la prochaine relance de l'app (voir
+// initialiserSynchronisationGitHub). En cas de succès, applique les données et réglages distants selon
+// les règles décrites plus haut (jamais d'écrasement silencieux de modifications locales en attente).
+await initialiserSynchronisationGitHub();
 
 rafraichirTout();
-
-// Si une synchro GitHub est configurée, la préférence distante fait foi (cohérence entre appareils).
-recupererReglagesDepuisGitHub().then(distant=>{
-  let changement = false;
-  let changementModeEdition = false;
-  if(distant && typeof distant.avecPhoto === "boolean" && distant.avecPhoto !== avecPhoto){
-    avecPhoto = distant.avecPhoto;
-    document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
-    changement = true;
-  }
-  if(distant && typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
-    questionChatGPT = distant.questionChatGPT;
-    changement = true;
-  }
-  if(distant && typeof distant.questionAvisChatGPT === "string" && distant.questionAvisChatGPT && distant.questionAvisChatGPT !== questionAvisChatGPT){
-    questionAvisChatGPT = distant.questionAvisChatGPT;
-    changement = true;
-  }
-  if(distant && (distant.assistantIA === "claude" || distant.assistantIA === "chatgpt") && distant.assistantIA !== assistantIA){
-    assistantIA = distant.assistantIA;
-    majLibelleAssistant();
-    changement = true;
-  }
-  if(distant && typeof distant.limitationConsultationActive === "boolean" && distant.limitationConsultationActive !== limitationConsultationActive){
-    limitationConsultationActive = distant.limitationConsultationActive;
-    changement = true;
-    changementModeEdition = true;
-  }
-  if(distant && Array.isArray(distant.emplacementGaucheListe) && JSON.stringify(distant.emplacementGaucheListe) !== JSON.stringify(emplacementGaucheListe)){
-    emplacementGaucheListe = distant.emplacementGaucheListe;
-    construireSelectsEmplacement();
-    changement = true;
-  }
-  if(distant && Array.isArray(distant.emplacementDroiteListe) && JSON.stringify(distant.emplacementDroiteListe) !== JSON.stringify(emplacementDroiteListe)){
-    emplacementDroiteListe = distant.emplacementDroiteListe;
-    construireSelectsEmplacement();
-    changement = true;
-  }
-  if(distant && Array.isArray(distant.regionsListe) && JSON.stringify(distant.regionsListe) !== JSON.stringify(regionsListe)){
-    regionsListe = distant.regionsListe;
-    construireSelectRegionFiche();
-    construireSelectRegionsParametres();
-    changement = true;
-  }
-  if(changementModeEdition){ appliquerModeEdition(); majBoutonDernierEmplacement(); }
-  if(changement){
-    sauvegarderReglagesLocal();
-    renderGrille();
-  }
-});
-
-// CHATGPT verifierGitHubAuLancement();
-await verifierGitHubAuLancement(); // CHATGPT
 
 })();
 </script>

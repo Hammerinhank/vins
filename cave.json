@@ -563,7 +563,7 @@
       "appellation": "",
       "region": "Sud-Ouest",
       "pays": "France",
-      "couleur": "rouge",
+      "couleur": "liquoreux",
       "millesime": "2003",
       "cepages": "",
       "quantite": 1,
@@ -708,7 +708,7 @@
       "appellation": "",
       "region": "Hongrie",
       "pays": "France",
-      "couleur": "rouge",
+      "couleur": "liquoreux",
       "millesime": "1993",
       "cepages": "",
       "quantite": 1,
@@ -814,6 +814,6 @@
       "noteIncertaine": ""
     }
   ],
-  "maj": "2026-08-30T05:59:03.384Z",
-  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
+  "maj": "2026-08-30T06:14:12.088Z",
+  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

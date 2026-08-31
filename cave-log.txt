@@ -43,3 +43,41 @@
 [16:18:36] → Réponse de l'envoi (PUT) : statut 200
 [16:18:36] → SUCCÈS (réponse HTTP) : 49 vin(s)/91 bouteille(s) envoyé(s) (app v1.11.16).
 [16:18:37] → VÉRIFICATION post-envoi : GitHub contient maintenant 49 vin(s)/91 bouteille(s) — attendu 49 vin(s)/91 bouteille(s).
+[16:16:29] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 2358402).
+[16:16:29] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[16:16:30] → Lecture réussie : 49 vin(s) sur GitHub (maj=2026-08-31T13:48:16.462Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[16:16:30] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[16:16:30] → syncDirty=false — remplacement automatique : local=34 vin(s)/47 bouteille(s) → distant=49 vin(s)/91 bouteille(s) (maj=2026-08-31T13:48:16.462Z).
+[16:16:30] → Données GitHub appliquées (49 vin(s)) et localStorage mis à jour : ÉCHEC (stockage plein).
+[16:16:50] ouvrirFiche(49e1f8a1-227e-4890-ba1b-fff57a6dd41b) appelé — nom="Sancerre — Grande Cuvée" · numero=28 · photo: miniature=oui pendante=non fichier=images/49e1f8a1-227e-4890-ba1b-fff57a6dd41b.jpg
+[16:18:18] ouvrirFiche(49e1f8a1-227e-4890-ba1b-fff57a6dd41b) appelé — nom="Sancerre — Grande Cuvée" · numero=28 · photo: miniature=oui pendante=non fichier=images/49e1f8a1-227e-4890-ba1b-fff57a6dd41b.jpg
+[16:18:26] enregistrerFiche() appelé — ficheEnCours=49e1f8a1-227e-4890-ba1b-fff57a6dd41b · nom="Sancerre — Grande Cuvée" · pendante:vide · miniature:81867o · fichier:images/49e1f8a1-227e-4890-ba1b-fff57a6dd41b.jpg
+[16:18:26] → Vin existant mis à jour (id=49e1f8a1-227e-4890-ba1b-fff57a6dd41b) — photoMiniature=81867o · photoFichier=images/49e1f8a1-227e-4890-ba1b-fff57a6dd41b.jpg · photoPendingBase64=vide
+[16:18:30] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=49
+[16:18:31] → Lecture distante (avant envoi) : statut 200
+[16:18:31] → Contenu distant actuel : 49 vin(s), maj=2026-08-31T13:48:16.462Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=0409c752e3f83554d3f6760baad5da1b75223ad5
+[16:18:31] → dernière maj connue=2026-08-31T13:48:16.462Z · maj distante=2026-08-31T13:48:16.462Z · estNonPriseEnCompte=false
+[16:18:31] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[16:18:31] effectuerEnvoiVersGitHub() appelé — sha=0409c752e3f83554d3f6760baad5da1b75223ad5 · bottles.length=49
+[16:18:31] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[16:18:31] → Préparation du contenu à envoyer : 49 vin(s), 91 bouteille(s), maj=2026-08-31T14:18:31.956Z, 3301718 caractère(s)
+[16:18:36] → Réponse de l'envoi (PUT) : statut 200
+[16:18:36] → SUCCÈS (réponse HTTP) : 49 vin(s)/91 bouteille(s) envoyé(s) (app v1.11.16).
+[16:18:37] → VÉRIFICATION post-envoi : GitHub contient maintenant 49 vin(s)/91 bouteille(s) — attendu 49 vin(s)/91 bouteille(s).
+[16:18:38] sauvegarderLogSurGitHub() — log du 2026-08-31 déjà présent sur GitHub, complété (append) avec 2695 caractère(s) supplémentaire(s).
+[16:18:39] sauvegarderLogSurGitHub() — envoyé avec succès (cave-log.txt, 5550 caractère(s) au total pour aujourd'hui).
+[16:19:31] ouvrirFiche(49e1f8a1-227e-4890-ba1b-fff57a6dd41b) appelé — nom="Sancerre — Grande Cuvée" · numero=28 · photo: miniature=oui pendante=non fichier=images/49e1f8a1-227e-4890-ba1b-fff57a6dd41b.jpg
+[16:20:41] ouvrirFiche(583ed893-d0f9-49ae-9c7f-483a73af7fbc) appelé — nom="Quarts de Chaume" · numero=27 · photo: miniature=oui pendante=non fichier=images/583ed893-d0f9-49ae-9c7f-483a73af7fbc.jpg
+[16:20:57] enregistrerFiche() appelé — ficheEnCours=583ed893-d0f9-49ae-9c7f-483a73af7fbc · nom="Quarts de Chaume" · pendante:vide · miniature:76947o · fichier:images/583ed893-d0f9-49ae-9c7f-483a73af7fbc.jpg
+[16:20:57] → Vin existant mis à jour (id=583ed893-d0f9-49ae-9c7f-483a73af7fbc) — photoMiniature=76947o · photoFichier=images/583ed893-d0f9-49ae-9c7f-483a73af7fbc.jpg · photoPendingBase64=vide
+[16:21:05] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=49
+[16:21:06] → Lecture distante (avant envoi) : statut 200
+[16:21:07] → Contenu distant actuel : 49 vin(s), maj=2026-08-31T14:18:31.956Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=9045b3c245f51332def35029d3c18e8f33da13be
+[16:21:07] → dernière maj connue=2026-08-31T14:18:31.956Z · maj distante=2026-08-31T14:18:31.956Z · estNonPriseEnCompte=false
+[16:21:07] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[16:21:07] effectuerEnvoiVersGitHub() appelé — sha=9045b3c245f51332def35029d3c18e8f33da13be · bottles.length=49
+[16:21:07] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[16:21:07] → Préparation du contenu à envoyer : 49 vin(s), 91 bouteille(s), maj=2026-08-31T14:21:07.258Z, 3301711 caractère(s)
+[16:21:10] → Réponse de l'envoi (PUT) : statut 200
+[16:21:10] → SUCCÈS (réponse HTTP) : 49 vin(s)/91 bouteille(s) envoyé(s) (app v1.11.16).
+[16:21:11] → VÉRIFICATION post-envoi : GitHub contient maintenant 49 vin(s)/91 bouteille(s) — attendu 49 vin(s)/91 bouteille(s).

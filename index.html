@@ -498,23 +498,28 @@
     font-size:11px;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.05em;
     font-weight:600;margin:0 0 8px 0;
   }
-  .lien-emplacement-liste{display:flex;flex-direction:column;gap:6px;}
-  .lien-emplacement-ligne{display:flex;align-items:center;gap:8px;}
-  .lien-emplacement-chip{
+  .lien-emplacement-liste{display:flex;flex-direction:column;gap:8px;}
+  /* Une carte par emplacement lié : le nom ET le stepper qui modifie SON stock sont dans le même
+     encadré, pour qu'il n'y ait aucune ambiguïté sur ce que le − / + change. */
+  .lien-emplacement-carte{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--bg-panel-2);
+    border:1px solid var(--gold-soft);
+    border-radius:10px;
+    padding:7px 7px 7px 12px;
+  }
+  .lien-emplacement-nom{
     flex:1;min-width:0;text-align:left;cursor:pointer;
-    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
-    padding:8px 11px;border-radius:8px;font-size:13px;
+    background:none;border:none;color:var(--text);
+    font-size:13.5px;padding:4px 0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;
   }
-  .lien-emplacement-chip:active{transform:scale(.98);}
-  .lien-fleches{display:flex;gap:4px;flex:none;}
-  .lien-fleche-btn{
-    width:36px;height:36px;border-radius:8px;flex:none;
-    background:var(--gold);border:1px solid var(--gold);color:#1c1710;
-    font-size:15px;display:flex;align-items:center;justify-content:center;
+  .lien-emplacement-stepper{display:flex;align-items:center;gap:8px;flex:none;}
+  .lien-emplacement-nombre{
+    min-width:18px;text-align:center;
+    font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14.5px;color:var(--gold-soft);
   }
-  .lien-fleche-btn:disabled{opacity:.3;background:var(--bg-panel-2);border-color:var(--line);color:var(--text-muted);}
-  .lien-fleche-btn:active{transform:scale(.92);}
   .lien-emplacement-gestion{display:flex;gap:8px;margin-top:10px;}
   .lien-emplacement-gestion .btn{flex:1;justify-content:center;}
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
@@ -1445,8 +1450,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.4";
+const VERSION = "1.12.5";
 const HISTORY = [
+  { version:"1.12.5", date:"2026-08-31", notes:"Remplacé les flèches ⬅️/➡️ du panneau des emplacements liés par un stepper « − nombre + » — le même que celui déjà utilisé pour « Quantité en cave » dans la fiche, pour rester immédiatement reconnaissable. Surtout : le nom de l'emplacement et son stepper sont désormais dans une seule et même carte encadrée, pour qu'il n'y ait plus aucune ambiguïté sur ce que le − ou le + modifie — c'est toujours le stock de l'emplacement écrit dans cette carte-là, jamais celui d'ailleurs."},
   { version:"1.12.4", date:"2026-08-31", notes:"Réorganisation ergonomique de la zone des emplacements liés dans la fiche : au lieu de quatre boutons disposés selon l'ordre du code (et donc mal alignés), un panneau dédié liste chaque emplacement lié sur sa propre ligne, avec ses deux flèches d'échange (⬅️ faire venir / ➡️ envoyer) juste à côté — chacune grisée quand l'action n'a pas de sens (rien à faire venir si l'autre est vide, rien à envoyer si celui-ci l'est). En dessous, « Ajouter un emplacement » et « Délier » sont désormais sur la même ligne, à largeur égale. Simplifie au passage le fonctionnement : plus besoin de fenêtre de choix pour ces échanges, chaque emplacement a directement ses propres flèches."},
   { version:"1.12.3", date:"2026-08-31", notes:"Corrigé : le bouton « Déplacer une bouteille » de la 1.12.2 (jamais livrée) ne fonctionnait que dans un sens (sortir de la fiche ouverte). Remplacé par deux boutons indépendants — « ➡️ Envoyer une bouteille » et « ⬅️ Faire venir une bouteille » — disponibles dans chacune des deux fiches liées, pour sortir une bouteille vers l'autre emplacement ou en faire venir une depuis l'autre emplacement, sans jamais avoir à changer de fiche. Le total de bouteilles ne change jamais dans les deux cas."},
   { version:"1.12.2", date:"2026-08-31", notes:"Nouveau bouton « ↔️ Déplacer une bouteille » dans la fiche, visible uniquement sur les vins ayant un autre emplacement lié (et seulement s'il y a du stock à déplacer depuis ici) : décrémente cet emplacement et incrémente l'autre en un geste, le nombre total de bouteilles ne changeant jamais. S'il y a plus de deux emplacements liés, une fenêtre demande vers lequel déplacer."},
@@ -1900,8 +1906,10 @@ document.getElementById("closeChoixEmplacement").addEventListener("click", ()=>d
 /* Met à jour, dans la fiche ouverte, l'information sur le(s) autre(s) emplacement(s) liés à ce vin et la
    visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche (ajout ou édition). */
 /* Met à jour, dans la fiche ouverte, le panneau listant le(s) autre(s) emplacement(s) liés à ce vin — une
-   ligne par emplacement, chacune avec son propre couple de flèches d'échange (⬅️ faire venir depuis lui,
-   ➡️ lui envoyer) — et la visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche. */
+   carte par emplacement, avec son nom et un stepper (− nombre +) qui modifie DIRECTEMENT le stock de CET
+   emplacement (le stock de la fiche ouverte s'ajuste en retour, pour que le total ne bouge jamais). Même
+   stepper que celui de « Quantité en cave » plus haut, pour rester immédiatement reconnaissable. Et la
+   visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche. */
 function majZoneLienEmplacement(){
   const panel = document.getElementById("lienEmplacementPanel");
   const liste = document.getElementById("lienEmplacementListe");
@@ -1918,22 +1926,23 @@ function majZoneLienEmplacement(){
   liste.innerHTML = freres.map(f=>{
     const stockLa = Number(f.quantite)||0;
     return `
-    <div class="lien-emplacement-ligne">
-      <button type="button" class="lien-emplacement-chip" data-ouvrir="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement, pour en modifier la quantité ou l'emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")} · ${stockLa} bouteille(s)</button>
-      <div class="lien-fleches action-edition">
-        <button type="button" class="lien-fleche-btn" data-faire-venir="${f.id}"${stockLa<=0?" disabled":""} data-tt-titre="Faire venir une bouteille" data-tt-desc="Retire une bouteille de cet emplacement et l'ajoute à celui de la fiche ouverte.">⬅️</button>
-        <button type="button" class="lien-fleche-btn" data-envoyer="${f.id}"${stockIci<=0?" disabled":""} data-tt-titre="Envoyer une bouteille" data-tt-desc="Retire une bouteille de la fiche ouverte et l'ajoute à cet emplacement.">➡️</button>
+    <div class="lien-emplacement-carte">
+      <button type="button" class="lien-emplacement-nom" data-ouvrir="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")}</button>
+      <div class="lien-emplacement-stepper action-edition">
+        <button type="button" class="qty-btn-fiche" data-retirer="${f.id}"${stockLa<=0?" disabled":""} data-tt-titre="Retirer une bouteille d'ici" data-tt-desc="Retire une bouteille de cet emplacement et l'ajoute à celui de la fiche ouverte.">−</button>
+        <span class="lien-emplacement-nombre">${stockLa}</span>
+        <button type="button" class="qty-btn-fiche" data-ajouter="${f.id}"${stockIci<=0?" disabled":""} data-tt-titre="Ajouter une bouteille ici" data-tt-desc="Retire une bouteille de la fiche ouverte et l'ajoute à cet emplacement.">+</button>
       </div>
     </div>`;
   }).join("");
   liste.querySelectorAll("[data-ouvrir]").forEach(btn=>{
     btn.addEventListener("click", ()=>ouvrirFiche(btn.dataset.ouvrir));
   });
-  liste.querySelectorAll("[data-faire-venir]").forEach(btn=>{
-    btn.addEventListener("click", ()=>deplacerBouteilleVers(btn.dataset.faireVenir, ficheEnCours));
+  liste.querySelectorAll("[data-retirer]").forEach(btn=>{
+    btn.addEventListener("click", ()=>deplacerBouteilleVers(btn.dataset.retirer, ficheEnCours));
   });
-  liste.querySelectorAll("[data-envoyer]").forEach(btn=>{
-    btn.addEventListener("click", ()=>deplacerBouteilleVers(ficheEnCours, btn.dataset.envoyer));
+  liste.querySelectorAll("[data-ajouter]").forEach(btn=>{
+    btn.addEventListener("click", ()=>deplacerBouteilleVers(ficheEnCours, btn.dataset.ajouter));
   });
   panel.style.display = "block";
   btnDelier.style.display = "inline-flex";

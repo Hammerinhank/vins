@@ -489,8 +489,16 @@
   }
   .emplacement-icon-btn:disabled{opacity:.35;}
   .lien-emplacement-info{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px;
     font-size:12px;color:var(--gold-soft);margin:8px 0 0 0;line-height:1.4;
   }
+  .lien-emplacement-chip{
+    display:inline-block;
+    background:rgba(232,206,122,.15);
+    border:1px solid var(--gold-soft);color:var(--gold-soft);
+    padding:4px 10px;border-radius:999px;font-size:12px;cursor:pointer;
+  }
+  .lien-emplacement-chip:active{transform:scale(.96);}
   .lien-emplacement-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
@@ -943,7 +951,7 @@
             </select>
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
-          <p class="lien-emplacement-info" id="lienEmplacementInfo" style="display:none;"></p>
+          <div class="lien-emplacement-info" id="lienEmplacementInfo" style="display:none;"></div>
           <div class="lien-emplacement-actions">
             <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un autre emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un autre emplacement</button>
             <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier cet emplacement</button>
@@ -1417,8 +1425,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.0";
+const VERSION = "1.12.1";
 const HISTORY = [
+  { version:"1.12.1", date:"2026-08-31", notes:"Dans la fiche d'un vin lié, « Également en cave à : … » n'était qu'un texte informatif, sans moyen d'accéder à la fiche de l'autre emplacement (notamment gênant quand il est encore à 0 bouteille). Chaque emplacement listé est désormais un bouton cliquable qui ouvre directement sa fiche."},
   { version:"1.12.0", date:"2026-08-31", notes:"Nouvelle fonctionnalité : un même vin peut désormais être réparti sur plusieurs emplacements (ex. Maison + Garage), avec une seule fiche « logique » pour tout sauf l'emplacement et la quantité. Dans la fiche, bouton « 🔗 Ajouter un autre emplacement » (crée une deuxième fiche synchronisée) et « ✂️ Délier cet emplacement » (rompt le lien). Modifier n'importe quel champ partagé (nom, couleur, région, notes, prix, photo, numéro…) sur l'une des fiches liées le recopie aussitôt sur l'autre. Partout où l'emplacement n'entre pas en jeu — grille par défaut, regroupement par couleur/région, recherche, statistiques, rapport PDF — les fiches liées fusionnent en une seule carte avec la quantité totale et les emplacements listés à la suite (« Maison + Garage »). Seul le regroupement « par emplacement » les sépare à nouveau. Marquer une bouteille comme bue (ou annuler) depuis une carte fusionnée demande explicitement de quel emplacement il s'agit. Supprimer une fiche liée ne supprime que cet emplacement (et sa photo distante uniquement si l'autre fiche ne l'utilise plus) — le vin reste consultable ailleurs."},
   { version:"1.11.16", date:"2026-08-31", notes:"L'heure affichée dans les messages (toasts, bannières, fenêtres de confirmation) est désormais une horloge vivante, mise à jour chaque seconde tant que le message reste visible — plus juste qu'une heure figée pour une capture d'écran prise après l'apparition du message. Seule exception inévitable : une alerte bloquante native (alert()) gèle l'exécution JavaScript tant qu'elle est ouverte, donc son heure reste celle de son apparition (déjà exacte à ce moment-là)."},
   { version:"1.11.15", date:"2026-08-31", notes:"Tous les messages affichés par l'app (toasts, alertes bloquantes, fenêtres de confirmation, fenêtre de conflit GitHub, bannières de mode consultation et de stockage plein) affichent désormais l'heure exacte avec les secondes, discrètement mais lisiblement. Objectif : qu'une simple capture d'écran suffise toujours à situer précisément un événement dans le temps, y compris parmi plusieurs actions rapprochées à la même minute — l'horloge du téléphone n'affichant que les minutes."},
@@ -1871,11 +1880,17 @@ function majZoneLienEmplacement(){
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
   if(!freres.length){
     zoneInfo.style.display = "none";
+    zoneInfo.innerHTML = "";
     btnDelier.style.display = "none";
     return;
   }
-  zoneInfo.textContent = "🔗 Également en cave à : " + freres.map(f=>`${f.emplacement||"(sans emplacement)"} (${Number(f.quantite)||0} bouteille(s))`).join(", ");
-  zoneInfo.style.display = "block";
+  zoneInfo.innerHTML = "🔗 Également en cave à :" + freres.map(f=>
+    `<button type="button" class="lien-emplacement-chip" data-id="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement, pour en modifier la quantité ou l'emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")} (${Number(f.quantite)||0} bouteille(s))</button>`
+  ).join("");
+  zoneInfo.querySelectorAll("[data-id]").forEach(btn=>{
+    btn.addEventListener("click", ()=>ouvrirFiche(btn.dataset.id));
+  });
+  zoneInfo.style.display = "flex";
   btnDelier.style.display = "inline-flex";
 }
 

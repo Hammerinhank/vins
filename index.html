@@ -1380,8 +1380,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.8";
+const VERSION = "1.11.9";
 const HISTORY = [
+  { version:"1.11.9", date:"2026-08-31", notes:"Protection du jeton GitHub contre un stockage local saturé : sauvegarderConfig() et sauvegarderReglagesLocal() n'avaient aucun filet de sécurité (contrairement à sauvegarderBouteilles()) — une saturation y provoquait une exception non interceptée qui interrompait le clic sur « Enregistrer les identifiants » en plein milieu, sans aucun retour visuel. Elles utilisent désormais la même bannière permanente que le reste de l'app. Ajout d'un second garde-fou indépendant : si le champ Jeton est vide au moment d'enregistrer alors qu'un jeton existait déjà, une confirmation explicite est demandée avant de l'effacer, pour ne jamais l'écraser par accident."},
   { version:"1.11.8", date:"2026-08-31", notes:"Champ Recherche : ajout d'une petite croix qui apparaît dès qu'il contient du texte et le vide en un appui ; encadré d'un très fin liseré jaune pour mieux le repérer ; et rendu insensible aux accents dans les deux sens (« duchene » retrouve désormais « Duchêne », et inversement)."},
   { version:"1.11.7", date:"2026-08-31", notes:"Corrigé : quand le stockage local est plein, l'avertissement affiché n'était qu'un toast de 2,2 s aussitôt écrasé par le toast de succès de l'action en cours (« Vin enregistré », etc.) — d'où un message quasi invisible. Remplacé par une bannière permanente, qui reste affichée jusqu'à ce qu'une sauvegarde locale réussisse de nouveau ou qu'un envoi vers GitHub aboutisse."},
   { version:"1.11.6", date:"2026-08-31", notes:"Le nombre de vins affiché en haut à gauche de la page principale (« · X vin(s) », sous « Bouteilles en cave ») passe en blanc au lieu d'un gris terne peu lisible sur le fond sombre."},
@@ -1974,7 +1975,20 @@ function chargerConfig(){
   }catch(e){ return {}; }
 }
 function sauvegarderConfig(cfg){
-  localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
+  // IMPORTANT : sans ce try/catch, un stockage saturé provoquait une exception non interceptée qui
+  // interrompait en plein milieu la fonction appelante (ex. le clic sur « Enregistrer les identifiants »)
+  // — le bouton ne redonnait alors aucun retour visuel, laissant croire à tort que le jeton n'avait pas
+  // été pris en compte ou avait été perdu. En réalité, un localStorage.setItem() qui échoue n'efface
+  // jamais la valeur déjà enregistrée à cette clé (il est atomique : soit il écrit tout, soit rien) —
+  // mais il fallait quand même le signaler clairement plutôt que de laisser l'action échouer en silence.
+  try{
+    localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
+    masquerBanniereStockagePlein();
+    return true;
+  }catch(e){
+    afficherBanniereStockagePlein();
+    return false;
+  }
 }
 
 /* ---- Réglages (ex. « Avec photo »), persistants localement ET sur GitHub ---- */
@@ -1985,7 +1999,14 @@ function chargerReglagesLocal(){
   }catch(e){ return {}; }
 }
 function sauvegarderReglagesLocal(){
-  localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+  try{
+    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+    masquerBanniereStockagePlein();
+    return true;
+  }catch(e){
+    afficherBanniereStockagePlein();
+    return false;
+  }
 }
 async function pousserReglagesVersGitHub(){
   const cfg = chargerConfig();
@@ -4243,11 +4264,26 @@ function lireChampsConfig(){
   };
 }
 document.getElementById("btnSaveCfg").addEventListener("click", function(){
+  const btn = this;
   const cfg = lireChampsConfig();
   const existant = chargerConfig();
   cfg.derniereSync = existant.derniereSync || "";
-  sauvegarderConfig(cfg);
-  feedbackBouton(this, "✓ Enregistré");
+  // Garde-fou : si le champ Jeton est vide mais qu'un jeton était déjà enregistré sur cet appareil, on ne
+  // l'efface jamais sans confirmation explicite — un champ vide ici est bien plus souvent un oubli ou un
+  // souci d'affichage passager qu'une vraie volonté de supprimer le jeton.
+  if(!cfg.token && existant.token){
+    demanderConfirmation(
+      "Effacer le jeton enregistré ?",
+      "Le champ Jeton d'accès est vide, mais un jeton était déjà enregistré sur cet appareil. Si tu continues, il sera définitivement effacé et la synchronisation GitHub cessera de fonctionner tant que tu n'en saisis pas un nouveau.",
+      ()=>{
+        const ok = sauvegarderConfig(cfg);
+        feedbackBouton(btn, ok ? "✓ Enregistré (jeton effacé)" : "⚠ Échec");
+      }
+    );
+    return;
+  }
+  const ok = sauvegarderConfig(cfg);
+  feedbackBouton(btn, ok ? "✓ Enregistré" : "⚠ Échec — stockage plein");
 });
 
 async function githubAPI(url, cfg, options){

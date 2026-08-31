@@ -137,7 +137,7 @@
   }
   .stat-card .val{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--gold-soft);}
   .stat-card .lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
-  .stat-vins-sub{text-transform:none;letter-spacing:normal;color:var(--text-faint);}
+  .stat-vins-sub{text-transform:none;letter-spacing:normal;color:#fff;}
   .stat-repartition{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
   .stat-repartition .chip{
     display:flex;align-items:center;gap:5px;
@@ -1365,8 +1365,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.5";
+const VERSION = "1.11.6";
 const HISTORY = [
+  { version:"1.11.6", date:"2026-08-31", notes:"Le nombre de vins affiché en haut à gauche de la page principale (« · X vin(s) », sous « Bouteilles en cave ») passe en blanc au lieu d'un gris terne peu lisible sur le fond sombre."},
   { version:"1.11.5", date:"2026-08-31", notes:"Corrigé la faute « Licoreux » en « Liquoreux » dans le texte par défaut codé en dur de la question d'identification par photo, à la source du besoin de confirmation ajouté en 1.11.3. L'IA devrait désormais répondre directement avec l'orthographe correcte, sans plus déclencher la question de confirmation pour ce cas précis."},
   { version:"1.11.4", date:"2026-08-31", notes:"Ajout d'un appui long sur le N° d'un vin dans la liste : quand il est marqué en vert, l'appui long le ramène directement au marquage jaune (le vin reste marqué, sans repasser par « non marqué »). Sans effet si le vin n'est pas marqué ou déjà marqué en jaune — dans ces cas, seul l'appui simple habituel fait défiler le repère."},
   { version:"1.11.3", date:"2026-08-31", notes:"Corrigé : une couleur extraite d'une réponse IA mais ne correspondant à aucune couleur connue de l'app (ex. « Licoreux », faute présente dans le texte par défaut codé en dur, contre « Liquoreux » dans la liste des couleurs) était ignorée en silence, sans jamais l'indiquer. L'app propose désormais explicitement la couleur connue la plus proche (si elle est plausible) et ne l'applique que si c'est confirmé ; sinon la couleur de la fiche reste inchangée et un message l'indique clairement."},

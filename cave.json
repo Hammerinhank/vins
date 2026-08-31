@@ -801,7 +801,7 @@
       "appellation": "",
       "region": "Ontario (Niagara)",
       "pays": "France",
-      "couleur": "rouge",
+      "couleur": "liquoreux",
       "millesime": "",
       "cepages": "",
       "quantite": 1,
@@ -1129,6 +1129,6 @@
       "photoFichier": "images/1cf07e60-163b-4727-9dd5-b2c65059c017.jpg"
     }
   ],
-  "maj": "2026-08-31T08:05:57.935Z",
+  "maj": "2026-08-31T08:07:52.166Z",
   "origine": "bdd3462f-a0c3-4357-88f4-b6e3793d2fda"
 }

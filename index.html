@@ -954,6 +954,8 @@
           <div class="lien-emplacement-info" id="lienEmplacementInfo" style="display:none;"></div>
           <div class="lien-emplacement-actions">
             <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un autre emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un autre emplacement</button>
+            <button type="button" class="btn btn-sm btn-gold action-edition" id="btnEnvoyerBouteille" style="display:none;" data-tt-titre="Envoyer une bouteille" data-tt-desc="Retire une bouteille de cet emplacement et l'ajoute à l'autre emplacement lié — le nombre total de bouteilles ne change pas.">➡️ Envoyer une bouteille</button>
+            <button type="button" class="btn btn-sm btn-gold action-edition" id="btnFaireVenirBouteille" style="display:none;" data-tt-titre="Faire venir une bouteille" data-tt-desc="Retire une bouteille de l'autre emplacement lié et l'ajoute à celui-ci — le nombre total de bouteilles ne change pas.">⬅️ Faire venir une bouteille</button>
             <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier cet emplacement</button>
           </div>
         </div>
@@ -1425,8 +1427,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.1";
+const VERSION = "1.12.3";
 const HISTORY = [
+  { version:"1.12.3", date:"2026-08-31", notes:"Corrigé : le bouton « Déplacer une bouteille » de la 1.12.2 (jamais livrée) ne fonctionnait que dans un sens (sortir de la fiche ouverte). Remplacé par deux boutons indépendants — « ➡️ Envoyer une bouteille » et « ⬅️ Faire venir une bouteille » — disponibles dans chacune des deux fiches liées, pour sortir une bouteille vers l'autre emplacement ou en faire venir une depuis l'autre emplacement, sans jamais avoir à changer de fiche. Le total de bouteilles ne change jamais dans les deux cas."},
+  { version:"1.12.2", date:"2026-08-31", notes:"Nouveau bouton « ↔️ Déplacer une bouteille » dans la fiche, visible uniquement sur les vins ayant un autre emplacement lié (et seulement s'il y a du stock à déplacer depuis ici) : décrémente cet emplacement et incrémente l'autre en un geste, le nombre total de bouteilles ne changeant jamais. S'il y a plus de deux emplacements liés, une fenêtre demande vers lequel déplacer."},
   { version:"1.12.1", date:"2026-08-31", notes:"Dans la fiche d'un vin lié, « Également en cave à : … » n'était qu'un texte informatif, sans moyen d'accéder à la fiche de l'autre emplacement (notamment gênant quand il est encore à 0 bouteille). Chaque emplacement listé est désormais un bouton cliquable qui ouvre directement sa fiche."},
   { version:"1.12.0", date:"2026-08-31", notes:"Nouvelle fonctionnalité : un même vin peut désormais être réparti sur plusieurs emplacements (ex. Maison + Garage), avec une seule fiche « logique » pour tout sauf l'emplacement et la quantité. Dans la fiche, bouton « 🔗 Ajouter un autre emplacement » (crée une deuxième fiche synchronisée) et « ✂️ Délier cet emplacement » (rompt le lien). Modifier n'importe quel champ partagé (nom, couleur, région, notes, prix, photo, numéro…) sur l'une des fiches liées le recopie aussitôt sur l'autre. Partout où l'emplacement n'entre pas en jeu — grille par défaut, regroupement par couleur/région, recherche, statistiques, rapport PDF — les fiches liées fusionnent en une seule carte avec la quantité totale et les emplacements listés à la suite (« Maison + Garage »). Seul le regroupement « par emplacement » les sépare à nouveau. Marquer une bouteille comme bue (ou annuler) depuis une carte fusionnée demande explicitement de quel emplacement il s'agit. Supprimer une fiche liée ne supprime que cet emplacement (et sa photo distante uniquement si l'autre fiche ne l'utilise plus) — le vin reste consultable ailleurs."},
   { version:"1.11.16", date:"2026-08-31", notes:"L'heure affichée dans les messages (toasts, bannières, fenêtres de confirmation) est désormais une horloge vivante, mise à jour chaque seconde tant que le message reste visible — plus juste qu'une heure figée pour une capture d'écran prise après l'apparition du message. Seule exception inévitable : une alerte bloquante native (alert()) gèle l'exécution JavaScript tant qu'elle est ouverte, donc son heure reste celle de son apparition (déjà exacte à ce moment-là)."},
@@ -1850,9 +1854,16 @@ function demanderChoixEmplacement(idsLies, contexte, onChoisi){
   const candidats = idsLies
     .map(id=>bottles.find(b=>b.id===id))
     .filter(Boolean)
-    .filter(b=> contexte === "annulerBue" ? (Number(b.quantiteBue)||0) > 0 : (Number(b.quantite)||0) > 0);
+    .filter(b=>{
+      if(contexte === "annulerBue") return (Number(b.quantiteBue)||0) > 0;
+      if(contexte === "envoyer") return true; // une destination peut légitimement être à 0 bouteille
+      return (Number(b.quantite)||0) > 0; // "bue" et "faireVenir" : il faut du stock à l'origine
+    });
   if(!candidats.length){ toast("Aucun emplacement disponible pour cette action"); return; }
-  document.getElementById("choixEmplacementTitre").innerHTML = `Quel emplacement ? <span class="heure-message">${heureAvecSecondes()}</span>`;
+  const titre = contexte === "envoyer" ? "Vers quel emplacement ?"
+    : contexte === "faireVenir" ? "Depuis quel emplacement ?"
+    : "Quel emplacement ?";
+  document.getElementById("choixEmplacementTitre").innerHTML = `${titre} <span class="heure-message">${heureAvecSecondes()}</span>`;
   const conteneur = document.getElementById("choixEmplacementListe");
   conteneur.innerHTML = candidats.map(b=>{
     const detail = contexte === "annulerBue"
@@ -1876,12 +1887,16 @@ document.getElementById("closeChoixEmplacement").addEventListener("click", ()=>d
 function majZoneLienEmplacement(){
   const zoneInfo = document.getElementById("lienEmplacementInfo");
   const btnDelier = document.getElementById("btnDelierEmplacement");
+  const btnEnvoyer = document.getElementById("btnEnvoyerBouteille");
+  const btnFaireVenir = document.getElementById("btnFaireVenirBouteille");
   const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
   if(!freres.length){
     zoneInfo.style.display = "none";
     zoneInfo.innerHTML = "";
     btnDelier.style.display = "none";
+    btnEnvoyer.style.display = "none";
+    btnFaireVenir.style.display = "none";
     return;
   }
   zoneInfo.innerHTML = "🔗 Également en cave à :" + freres.map(f=>
@@ -1892,6 +1907,11 @@ function majZoneLienEmplacement(){
   });
   zoneInfo.style.display = "flex";
   btnDelier.style.display = "inline-flex";
+  // Envoyer : possible seulement s'il y a du stock ICI à envoyer ailleurs.
+  btnEnvoyer.style.display = (Number(b.quantite)||0) > 0 ? "inline-flex" : "none";
+  // Faire venir : possible seulement si AU MOINS UN autre emplacement lié a du stock à faire venir.
+  const auMoinsUnFrereAvecStock = freres.some(f=>(Number(f.quantite)||0) > 0);
+  btnFaireVenir.style.display = auMoinsUnFrereAvecStock ? "inline-flex" : "none";
 }
 
 /* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */
@@ -4158,6 +4178,56 @@ document.getElementById("btnDelierEmplacement").addEventListener("click", ()=>{
       toast("Emplacement délié");
     }
   );
+});
+
+/* Déplace une bouteille d'une fiche liée vers une autre (peu importe laquelle des deux est actuellement
+   ouverte) : décrémente l'origine, incrémente la destination — le nombre total de bouteilles ne change
+   jamais. Rafraîchit la fiche ouverte si elle est concernée, qu'elle soit l'origine ou la destination. */
+function deplacerBouteilleVers(sourceId, destId){
+  const source = bottles.find(x=>x.id===sourceId);
+  const dest = bottles.find(x=>x.id===destId);
+  if(!source || !dest) return;
+  if((Number(source.quantite)||0) <= 0){ toast("Aucune bouteille à déplacer depuis cet emplacement"); return; }
+  source.quantite = Math.max(0, (Number(source.quantite)||0) - 1);
+  dest.quantite = (Number(dest.quantite)||0) + 1;
+  sauvegarderBouteilles();
+  logAjouter(`deplacerBouteilleVers — 1 bouteille déplacée de ${source.id} (${source.emplacement||"?"}, désormais ${source.quantite}) vers ${dest.id} (${dest.emplacement||"?"}, désormais ${dest.quantite}). Total inchangé.`);
+  toast(`Bouteille déplacée vers ${dest.emplacement||"l'autre emplacement"}`);
+  if(ficheEnCours === sourceId || ficheEnCours === destId){
+    const courant = bottles.find(x=>x.id===ficheEnCours);
+    document.getElementById("fQuantite").value = courant.quantite;
+    majZoneLienEmplacement();
+  }
+  rafraichirTout();
+}
+/* Sortir une bouteille de la fiche ouverte, vers un autre emplacement lié (choix demandé s'il y en a plusieurs). */
+document.getElementById("btnEnvoyerBouteille").addEventListener("click", ()=>{
+  if(!ficheEnCours) return;
+  const source = bottles.find(x=>x.id===ficheEnCours);
+  if(!source || !source.lienId) return;
+  const freres = bottles.filter(x=>x.lienId===source.lienId && x.id!==source.id);
+  if(!freres.length) return;
+  if((Number(source.quantite)||0) <= 0){ toast("Aucune bouteille à déplacer depuis cet emplacement"); return; }
+  if(freres.length === 1){
+    deplacerBouteilleVers(source.id, freres[0].id);
+  }else{
+    demanderChoixEmplacement(freres.map(f=>f.id), "envoyer", destId=>deplacerBouteilleVers(source.id, destId));
+  }
+});
+/* Faire venir une bouteille vers la fiche ouverte, depuis un autre emplacement lié qui en a (choix demandé
+   s'il y en a plusieurs avec du stock). Symétrique de « Envoyer » — même fonction sous-jacente, source et
+   destination inversées. */
+document.getElementById("btnFaireVenirBouteille").addEventListener("click", ()=>{
+  if(!ficheEnCours) return;
+  const dest = bottles.find(x=>x.id===ficheEnCours);
+  if(!dest || !dest.lienId) return;
+  const freresAvecStock = bottles.filter(x=>x.lienId===dest.lienId && x.id!==dest.id && (Number(x.quantite)||0) > 0);
+  if(!freresAvecStock.length){ toast("Aucune bouteille disponible dans l'autre emplacement"); return; }
+  if(freresAvecStock.length === 1){
+    deplacerBouteilleVers(freresAvecStock[0].id, dest.id);
+  }else{
+    demanderChoixEmplacement(freresAvecStock.map(f=>f.id), "faireVenir", sourceId=>deplacerBouteilleVers(sourceId, dest.id));
+  }
 });
 
 /* ---- Régions proposées (champ Région de la fiche) : liste construite via « Init » depuis les fiches

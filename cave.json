@@ -30,8 +30,8 @@
       "etiquette": "- Monogramme « Fh » sur médaillon doré en forme de losange\n- FICHET\n- VINS DE BOURGOGNE\n- CRÉMANT DE BOURGOGNE\n- Appellation d'Origine Protégée\n- Brut Tradition\n- Frise dorée décorative en bas d'étiquette\n\nAucun millésime n'apparaît sur l'étiquette (cohérent avec un Crémant \"Brut Tradition\", généralement non millésimé).",
       "noteNumerique": 82,
       "noteIncertaine": "",
-      "marque": true,
-      "marqueCouleur": "jaune",
+      "marque": false,
+      "marqueCouleur": "",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
       "quantiteIci": 12
     },
@@ -1542,12 +1542,12 @@
       "etiquette": "- Monogramme « Fh » sur médaillon doré en forme de losange\n- FICHET\n- VINS DE BOURGOGNE\n- CRÉMANT DE BOURGOGNE\n- Appellation d'Origine Protégée\n- Brut Tradition\n- Frise dorée décorative en bas d'étiquette\n\nAucun millésime n'apparaît sur l'étiquette (cohérent avec un Crémant \"Brut Tradition\", généralement non millésimé).",
       "noteNumerique": 82,
       "noteIncertaine": "",
-      "marque": true,
-      "marqueCouleur": "jaune",
+      "marque": false,
+      "marqueCouleur": "",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
       "quantiteIci": 1
     }
   ],
-  "maj": "2026-08-31T22:08:50.381Z",
+  "maj": "2026-08-31T22:13:19.511Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

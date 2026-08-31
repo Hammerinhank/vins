@@ -1327,8 +1327,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.92";
+const VERSION = "1.10.93";
 const HISTORY = [
+  { version:"1.10.93", date:"2026-08-31", notes:"Nettoyage : suppression de 5 fonctions jamais appelées nulle part dans le fichier (code mort) — restaurerVersion_OBSOLETE (doublon complet de restaurerVersion, déjà remplacée), decoderContenuBase64Utf8 et meilleureImageDisponible (plus utilisées depuis le passage aux réponses GitHub « raw »), reduireTousLesChampsAgrandis (logique équivalente déjà réalisée en ligne ailleurs), masquerBanniereConsultation (sans utilité tant que le mode consultation forcé reste verrouillé pour toute la session). Aucun changement de comportement — uniquement du code désormais inatteignable en moins."},
   { version:"1.10.92", date:"2026-08-31", notes:"Ajout d'un bandeau orange bien visible dans la fenêtre intermédiaire « Photo copiée » (affichée par « Identifier avec l'assistant IA ») rappelant de ne pas oublier de coller l'image dans la requête — avec le nom de l'assistant réellement sélectionné (Claude ou ChatGPT)."},
   { version:"1.10.91", date:"2026-08-31", notes:"Corrigé : le filtre « Filtrer par marquage » (et les autres critères de sélection de la barre d'outils — filtre couleur, chips En cave/Historique/Toutes, À boire maintenant) ne survivaient pas à un rechargement, contrairement au regroupement et au tri déjà persistés. Les quatre sont maintenant enregistrés localement et synchronisés sur GitHub à chaque changement, exactement comme le regroupement et le tri. Seul le texte de recherche reste volontairement non conservé, pour éviter qu'une ancienne recherche ne fasse croire à tort que des vins ont disparu au prochain lancement."},
   { version:"1.10.90", date:"2026-08-31", notes:"Corrigé un problème de lisibilité dans la fenêtre d'aperçu du texte par défaut (boutons Init) : la zone de texte n'était pas enveloppée comme les autres champs et affichait donc du texte clair sur fond blanc (au lieu du fond sombre habituel) — illisible. Elle a maintenant le même fond que les autres champs de l'application."},
@@ -1608,17 +1609,14 @@ function feedbackBouton(btn, label){
   setTimeout(()=>{ btn.textContent = original; btn.disabled = false; }, 2000);
 }
 
-/* ---- Bannière permanente de mode consultation forcé (reste affichée tant que le verrou est actif) ---- */
+/* ---- Bannière permanente de mode consultation forcé (reste affichée tant que le verrou est actif) ----
+   Pas de fonction symétrique pour la masquer : le verrou est permanent pour la session (voir plus haut),
+   donc la bannière n'a jamais besoin de disparaître avant la relance complète de l'application. ---- */
 function afficherBanniereConsultation(message){
   const b = document.getElementById("consultationBanner");
   if(!b) return;
   b.textContent = "📵 Mode consultation — " + message + " · données locales utilisées · relance l'application pour réessayer.";
   b.style.display = "block";
-}
-function masquerBanniereConsultation(){
-  const b = document.getElementById("consultationBanner");
-  if(!b) return;
-  b.style.display = "none";
 }
 
 /* ---- Infobulle « post-it » (nom + description au survol prolongé, jamais sur appareil tactile) ----
@@ -1817,9 +1815,6 @@ function bouteillesPourExportGitHub(){
 }
 function meilleureMiniature(b){
   return b.photoMiniature || b.photo || "";
-}
-function meilleureImageDisponible(b){
-  return b.photoPendingBase64 || b.photoMiniature || b.photo || "";
 }
 async function obtenirPhotoDepuisGitHub(cheminFichier){
   const cfg = chargerConfig();
@@ -3832,11 +3827,6 @@ function lireDerniereMajConnue(){
 function ecrireDerniereMajConnue(maj, origine){
   try{ localStorage.setItem(LS_DERNIERE_MAJ_CONNUE, JSON.stringify({ maj, origine })); }catch(e){}
 }
-/* Décode le contenu base64 (UTF-8) renvoyé par l'API GitHub par défaut (format JSON, pas « raw »). */
-function decoderContenuBase64Utf8(base64){
-  return decodeURIComponent(escape(atob(base64.replace(/\n/g, ""))));
-}
-
 /* Point d'entrée du bouton/badge d'envoi : vérifie d'abord qu'aucune version distante plus récente,
    faite ailleurs, n'est passée inaperçue ici avant d'écraser — sans changer quoi que ce soit au
    comportement habituel quand tout est cohérent (cas normal, très large majorité des envois). */
@@ -4456,52 +4446,6 @@ async function listerVersionsSauvegardees(limite, btn){
 document.getElementById("btnListerVersions30").addEventListener("click", function(){ listerVersionsSauvegardees(30, this); });
 document.getElementById("btnListerVersions5").addEventListener("click", function(){ listerVersionsSauvegardees(5, this); });
 
-/* Restaure la cave locale à une version passée (identifiée par le sha du commit GitHub), après
-   confirmation — utilise le cache rempli pendant le listing, ou récupère à nouveau si besoin. */
-async function restaurerVersion_OBSOLETE (sha, btn){
-  demanderConfirmation(
-    "Restaurer cette version",
-    "Remplacer la cave actuelle par cette version sauvegardée ? Toute modification locale non envoyée sur GitHub sera perdue.",
-    async ()=>{
-      btn.disabled = true;
-      logAjouter(`restaurerVersion(${sha}) confirmé — bottles.length (avant)=${bottles.length} · syncDirty (avant)=${syncDirty}`);
-      let distantes = cacheVersions[sha];
-      if(!distantes){
-        const cfg = chargerConfig();
-        const chemin = cfg.chemin || "cave.json";
-        try{
-          const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${sha}`;
-          const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
-          if(!res.ok) throw new Error("Échec HTTP " + res.status);
-          const texte = await res.text();
-          const data = JSON.parse(texte);
-          distantes = Array.isArray(data.bottles) ? data.bottles : [];
-          cacheVersions[sha] = distantes;
-        }catch(e){
-          journalAjouter("ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
-          logAjouter("→ ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
-          toast("Échec de la restauration — voir le journal");
-          btn.disabled = false;
-          return;
-        }
-      }
-      bottles = distantes;
-      sauvegarderBouteilles();
-      rafraichirTout();
-      logAjouter(`→ Restauration appliquée — bottles.length (après)=${bottles.length} · syncDirty (après)=${syncDirty} · badge=${document.getElementById("versionBadge").textContent}`);
-      journalAjouter(`Cave restaurée depuis la version ${sha.slice(0,7)} (${distantes.length} vin(s)).`);
-      toast(`Cave restaurée sur cet appareil — app v${VERSION}`);
-      demanderConfirmation(
-        "Envoyer cette version restaurée ?",
-        "La cave a été restaurée sur cet appareil, mais GitHub a toujours son ancien contenu tant que tu n'envoies pas. Envoyer cette version restaurée vers GitHub maintenant ?",
-        ()=>envoyerDirectementVersGitHub()
-      );
-      btn.disabled = false;
-    }
-  );
-}
-
-
 /* Restaurer une version passée (identifiée par le sha du commit GitHub), après confirmation — utilise le cache rempli pendant le listing, ou récupère à nouveau si besoin. */
 async function restaurerVersion(sha, btn){
   demanderConfirmation(
@@ -4583,9 +4527,6 @@ function agrandirChamp(el){
 function reduireChamp(el){
   el.classList.remove("champ-agrandi");
   el.style.removeProperty("--champ-agrandi-hauteur");
-}
-function reduireTousLesChampsAgrandis(){
-  document.querySelectorAll(".champ-agrandi").forEach(reduireChamp);
 }
 function basculerAgrandissement(el){
   if(el.classList.contains("champ-agrandi")) reduireChamp(el); else agrandirChamp(el);

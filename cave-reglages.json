@@ -21,9 +21,10 @@
     "Alsace",
     "Bordeaux",
     "Bourgogne",
-    "Canada",
     "Champagne",
     "Hongrie",
+    "Loire",
+    "Ontario (Niagara)",
     "Provence",
     "Sud-Ouest",
     "Val de Loire",
@@ -35,5 +36,5 @@
   "filtreCouleur": "toutes",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-08-31T10:55:09.155Z"
+  "maj": "2026-08-31T14:17:48.534Z"
 }

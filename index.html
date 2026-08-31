@@ -685,8 +685,15 @@
     padding:10px 18px;border-radius:999px;font-size:13px;
     box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;
     transition:opacity .2s ease;
+    display:flex;align-items:baseline;gap:8px;
   }
   .toast.show{opacity:1;}
+  .heure-message{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
 
   /* ---------- Agrandissement à l'appui long (tous champs texte) : grandit sur place, même élément,
      sans changer de position ni recouvrir le reste de la page. ---------- */
@@ -1053,7 +1060,7 @@
 <div class="overlay" id="overlayConflitSync">
   <div class="modal conflit-sync-box">
     <div class="modal-header">
-      <h2>Version différente sur GitHub</h2>
+      <h2 id="conflitSyncTitre">Version différente sur GitHub</h2>
       <button class="modal-close" id="closeConflitSync" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
@@ -1380,8 +1387,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.13";
+const VERSION = "1.11.16";
 const HISTORY = [
+  { version:"1.11.16", date:"2026-08-31", notes:"L'heure affichée dans les messages (toasts, bannières, fenêtres de confirmation) est désormais une horloge vivante, mise à jour chaque seconde tant que le message reste visible — plus juste qu'une heure figée pour une capture d'écran prise après l'apparition du message. Seule exception inévitable : une alerte bloquante native (alert()) gèle l'exécution JavaScript tant qu'elle est ouverte, donc son heure reste celle de son apparition (déjà exacte à ce moment-là)."},
+  { version:"1.11.15", date:"2026-08-31", notes:"Tous les messages affichés par l'app (toasts, alertes bloquantes, fenêtres de confirmation, fenêtre de conflit GitHub, bannières de mode consultation et de stockage plein) affichent désormais l'heure exacte avec les secondes, discrètement mais lisiblement. Objectif : qu'une simple capture d'écran suffise toujours à situer précisément un événement dans le temps, y compris parmi plusieurs actions rapprochées à la même minute — l'horloge du téléphone n'affichant que les minutes."},
+  { version:"1.11.14", date:"2026-08-31", notes:"Analyse d'un log détaillé transmis par l'utilisateur : le mécanisme partagé de confirmation (demanderConfirmation, utilisé par une dizaine d'actions dans l'app — restaurer une version, envoyer vers GitHub, supprimer un vin…) n'écrivait jusqu'ici RIEN dans le log — ni son affichage, ni l'issue (Confirmer/Annuler/fermeture). C'était un point aveugle qui a rendu un incident réel (une fenêtre « Envoyer la version restaurée ? » dont l'issue restait inconnue) impossible à élucider avec certitude. Corrigé à la racine : chaque affichage et chaque bouton pressé sur N'IMPORTE QUELLE fenêtre de confirmation de l'app est désormais journalisé, avec un avertissement explicite si jamais le callback attendu se révélait déjà vide au moment de confirmer."},
   { version:"1.11.13", date:"2026-08-31", notes:"Sauvegarde automatique du log de diagnostic (page Log 📜) sur GitHub à chaque envoi réussi, dans un fichier dédié cave-log.txt totalement séparé de cave.json et cave-reglages.json (jamais lu par l'app, aucun effet de bord possible sur la synchronisation). Un seul fichier regroupe tout le log d'une même journée : les envois successifs du même jour y sont ajoutés à la suite (append) ; s'il date d'un autre jour, on repart de zéro. Au lancement, si ce fichier date d'un jour différent d'aujourd'hui, il est supprimé automatiquement pour éviter toute inflation avec le temps. Objectif : disposer d'une copie de secours du log consultable sur GitHub, même si la page Log locale a été perdue (rechargement, fermeture de l'app…)."},
   { version:"1.11.12", date:"2026-08-31", notes:"Investigation d'un incident de restauration (retour à 47 bouteilles au lieu de ~90 après une restauration + envoi pourtant confirmés). Bug réel trouvé et corrigé : restaurerVersion() affectait bottles = distantes directement, partageant la même référence que le cache des versions — toute modification ultérieure aurait pu corrompre silencieusement le cache. Corrigé par une copie profonde. Journalisation considérablement enrichie (comptes exacts vins/bouteilles à chaque étape de restauration, d'envoi et de synchronisation au lancement) et tout échec d'envoi vers GitHub affiche désormais une alerte bloquante (impossible à manquer, contrairement à un toast) au lieu d'un simple message discret. Ajout d'une vérification automatique juste après chaque envoi réussi : l'app relit immédiatement ce que GitHub contient et alerte en cas de divergence avec ce qui devait être envoyé."},
   { version:"1.11.11", date:"2026-08-31", notes:"Trois ajustements. PDF « Vins en cave par région » : la couleur apparaît maintenant entre parenthèses même quand une région n'a qu'une seule couleur (ex. « Bourgogne (Rouge) ») ; seule exception, quand le nom de la couleur est identique à celui de la région (ex. région et couleur « Champagne »), pour éviter la redondance « Champagne (Champagne) ». Les boutons en bas à droite de chaque carte de vin (avis IA, photo, Détails) sont maintenant plus espacés pour limiter les appuis sur le mauvais bouton. La croix qui vide le champ de recherche a une zone cliquable nettement plus grande."},
@@ -1745,12 +1755,36 @@ function euro(n){
 function escapeHtml(s){
   return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+/* Heure locale avec secondes (jamais la date : elle n'apporte rien ici et alourdirait l'affichage) —
+   utilisée dans tous les messages de l'app (toasts, alertes, fenêtres de confirmation, bannières) pour
+   qu'une capture d'écran suffise toujours à situer précisément un événement dans le temps, y compris
+   parmi plusieurs actions rapprochées à la même minute (l'horloge du téléphone n'affiche pas les
+   secondes). */
+function heureAvecSecondes(){
+  return new Date().toLocaleTimeString("fr-FR");
+}
+/* Fait vivre l'horloge affichée dans tous les messages (toasts, bannières, fenêtres de confirmation) :
+   une capture d'écran prise à n'importe quel moment reflète ainsi l'heure réelle de la capture, et pas
+   seulement l'heure à laquelle le message est apparu — important en particulier pour les bannières et
+   fenêtres qui peuvent rester affichées un moment. Seule exception, incontournable : une alerte
+   bloquante native (alert()) fige entièrement l'exécution JavaScript tant qu'elle n'est pas fermée, y
+   compris cette horloge — son heure reste donc celle de son apparition, ce qui reste exact puisqu'elle
+   s'affiche immédiatement au moment de l'appel. */
+setInterval(()=>{
+  document.querySelectorAll(".heure-message").forEach(el => { el.textContent = heureAvecSecondes(); });
+}, 1000);
 function toast(msg){
   const t = document.getElementById("toast");
-  t.textContent = msg;
+  t.innerHTML = `<span>${escapeHtml(msg)}</span><span class="heure-message">${heureAvecSecondes()}</span>`;
   t.classList.add("show");
   clearTimeout(toast._t);
   toast._t = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+/* Alerte bloquante native, horodatée en préfixe — mêmes garanties de visibilité qu'un alert() natif classique
+   (impossible à manquer, doit être fermée explicitement), mais toujours situable dans le temps à la
+   seconde près à partir d'une simple capture d'écran. */
+function alerteHorodatee(message){
+  alert(`[${heureAvecSecondes()}] ` + message);
 }
 function feedbackBouton(btn, label){
   const original = btn.textContent;
@@ -1765,7 +1799,7 @@ function feedbackBouton(btn, label){
 function afficherBanniereConsultation(message){
   const b = document.getElementById("consultationBanner");
   if(!b) return;
-  b.textContent = "📵 Mode consultation — " + message + " · données locales utilisées · relance l'application pour réessayer.";
+  b.innerHTML = `📵 Mode consultation — ${escapeHtml(message)} · données locales utilisées · relance l'application pour réessayer. <span class="heure-message">${heureAvecSecondes()}</span>`;
   b.style.display = "block";
 }
 
@@ -1775,11 +1809,12 @@ function afficherBanniereConsultation(message){
    avertissement en quelques millisecondes avant qu'on ait pu le lire. Cette bannière reste affichée
    jusqu'à ce qu'une sauvegarde locale réussisse de nouveau, ou qu'un envoi vers GitHub aboutisse (le
    risque immédiat de perte est alors levé, même si le stockage local reste plein pour les modifications
-   suivantes). */
+   suivantes). L'heure affichée se met à jour à chaque nouvel échec, pour savoir si le problème est
+   encore d'actualité ou déjà ancien. */
 function afficherBanniereStockagePlein(){
   const b = document.getElementById("stockagePleinBanner");
   if(!b) return;
-  b.textContent = "⚠️ Stockage local plein — cette modification n'a pas pu être enregistrée sur cet appareil (elle reste seulement en mémoire). Envoie vers GitHub dès que possible pour ne rien perdre, puis retire des photos pour libérer de la place.";
+  b.innerHTML = `⚠️ Stockage local plein — cette modification n'a pas pu être enregistrée sur cet appareil (elle reste seulement en mémoire). Envoie vers GitHub dès que possible pour ne rien perdre, puis retire des photos pour libérer de la place. <span class="heure-message">${heureAvecSecondes()}</span>`;
   b.style.display = "block";
 }
 function masquerBanniereStockagePlein(){
@@ -1854,15 +1889,30 @@ if(TOOLTIP_SUPPORTE){
 
 /* ---- Confirmation (fenêtre intégrée, pas de confirm() natif) ---- */
 let confirmCallback = null;
+let confirmTitreCourant = "";
+/* Journalise systématiquement l'affichage et l'issue de CHAQUE fenêtre de confirmation de l'app (elles
+   passent toutes par ici — restaurer une version, envoyer vers GitHub, supprimer un vin, etc.). Avant ce
+   correctif, rien n'indiquait dans le log si une fenêtre avait seulement été affichée, ou si elle avait
+   réellement été confirmée / annulée / fermée sans choix — un point aveugle qui a rendu un incident réel
+   impossible à élucider avec certitude. */
 function demanderConfirmation(titre, message, onOui){
-  document.getElementById("confirmTitre").textContent = titre;
+  document.getElementById("confirmTitre").innerHTML = `${escapeHtml(titre)} <span class="heure-message">${heureAvecSecondes()}</span>`;
   document.getElementById("confirmMessage").textContent = message;
   confirmCallback = onOui;
+  confirmTitreCourant = titre;
+  logAjouter(`demanderConfirmation() affichée — titre="${titre}"`);
   document.getElementById("overlayConfirm").classList.add("show");
 }
-document.getElementById("closeConfirm").addEventListener("click", ()=>document.getElementById("overlayConfirm").classList.remove("show"));
-document.getElementById("btnConfirmNon").addEventListener("click", ()=>document.getElementById("overlayConfirm").classList.remove("show"));
+document.getElementById("closeConfirm").addEventListener("click", ()=>{
+  logAjouter(`→ Fenêtre de confirmation « ${confirmTitreCourant} » fermée via ✕ (sans confirmer, callback NON exécuté).`);
+  document.getElementById("overlayConfirm").classList.remove("show");
+});
+document.getElementById("btnConfirmNon").addEventListener("click", ()=>{
+  logAjouter(`→ Fenêtre de confirmation « ${confirmTitreCourant} » : Annuler (callback NON exécuté).`);
+  document.getElementById("overlayConfirm").classList.remove("show");
+});
 document.getElementById("btnConfirmOui").addEventListener("click", ()=>{
+  logAjouter(`→ Fenêtre de confirmation « ${confirmTitreCourant} » : Confirmer (callback exécuté${confirmCallback ? "" : " — ATTENTION : confirmCallback était déjà vide !"}).`);
   document.getElementById("overlayConfirm").classList.remove("show");
   if(confirmCallback) confirmCallback();
   confirmCallback = null;
@@ -3788,7 +3838,7 @@ function informerModeHorsLigne(motif){  //CHATGPT
     0
   );
 
-  alert(
+  alerteHorodatee(
     "Connexion à GitHub impossible" + (motif ? " (" + motif + ")" : "") + ".\n\n" +
     "L'application fonctionne avec les données enregistrées localement sur cet appareil.\n\n" +
     "Ces données peuvent ne pas être aussi récentes que celles enregistrées sur GitHub.\n\n" +
@@ -4487,7 +4537,7 @@ async function envoyerDirectementVersGitHub(){
   if(!cfg.user || !cfg.repo || !cfg.token){
     logAjouter("→ ARRÊT : configuration GitHub incomplète.");
     toast("Renseigne utilisateur, dépôt et jeton");
-    alert("⚠️ Envoi impossible\n\nLa configuration GitHub (utilisateur, dépôt ou jeton) est incomplète. Rien n'a été envoyé.");
+    alerteHorodatee("⚠️ Envoi impossible\n\nLa configuration GitHub (utilisateur, dépôt ou jeton) est incomplète. Rien n'a été envoyé.");
     marquerErreurSynchro();
     return;
   }
@@ -4505,7 +4555,7 @@ async function envoyerDirectementVersGitHub(){
   }catch(err){
     logAjouter("→ ERREUR pendant la lecture du sha : " + (err && err.message ? err.message : String(err)));
     if(statusEl) statusEl.textContent = "Échec de la vérification : " + err.message;
-    alert("⚠️ Envoi impossible\n\nÉchec pendant la vérification préalable sur GitHub : " + (err && err.message ? err.message : String(err)) + "\n\nRien n'a été envoyé — cette cave (" + bottles.length + " vin(s)) reste seulement sur cet appareil. Réessaie dès que possible.");
+    alerteHorodatee("⚠️ Envoi impossible\n\nÉchec pendant la vérification préalable sur GitHub : " + (err && err.message ? err.message : String(err)) + "\n\nRien n'a été envoyé — cette cave (" + bottles.length + " vin(s)) reste seulement sur cet appareil. Réessaie dès que possible.");
     marquerErreurSynchro();
     return;
   }
@@ -4573,7 +4623,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
       logAjouter(`→ VÉRIFICATION post-envoi : GitHub contient maintenant ${verifBottles.length} vin(s)/${totalVerifie} bouteille(s) — attendu ${bouteillesAEnvoyer.length} vin(s)/${totalBouteillesEnvoyees} bouteille(s).`);
       if(verifBottles.length !== bouteillesAEnvoyer.length || totalVerifie !== totalBouteillesEnvoyees){
         logAjouter("→ ⚠️ DIVERGENCE DÉTECTÉE entre ce qui a été envoyé et ce que GitHub renvoie juste après !");
-        alert(
+        alerteHorodatee(
           "⚠️ Alerte — vérification après envoi\n\n" +
           `Ce qui devait être envoyé : ${bouteillesAEnvoyer.length} vin(s), ${totalBouteillesEnvoyees} bouteille(s).\n` +
           `Ce que GitHub contient maintenant : ${verifBottles.length} vin(s), ${totalVerifie} bouteille(s).\n\n` +
@@ -4591,7 +4641,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     logAjouter("→ ERREUR pendant l'envoi effectif : " + (err && err.message ? err.message : String(err)));
     statusEl.textContent = "Échec de l'envoi : " + err.message;
     journalAjouter("ERREUR (envoi) : " + (err && err.message ? err.message : String(err)));
-    alert(
+    alerteHorodatee(
       "⚠️ Échec de l'envoi vers GitHub\n\n" +
       "Erreur : " + (err && err.message ? err.message : String(err)) + "\n\n" +
       "Rien n'a été envoyé — la version sur GitHub n'a pas changé. Cette cave (" + bottles.length + " vin(s)) reste seulement sur cet appareil tant que l'envoi n'a pas réussi. Réessaie dès que possible."
@@ -4614,6 +4664,7 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
   const totalDistant = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const dateDistante = donneesDistantes.maj ? new Date(donneesDistantes.maj).toLocaleString("fr-FR") : "date inconnue";
   logAjouter(`afficherConflitSync() affichée — local=${bottles.length} vin(s)/${totalLocal} bouteille(s) · distant=${distantes.length} vin(s)/${totalDistant} bouteille(s) (${dateDistante}).`);
+  document.getElementById("conflitSyncTitre").innerHTML = `Version différente sur GitHub <span class="heure-message">${heureAvecSecondes()}</span>`;
   document.getElementById("conflitSyncExplication").textContent =
     "Une version différente existe sur GitHub, et cet appareil a ici des modifications pas encore envoyées. Cette version distante peut venir d'un envoi fait ailleurs aujourd'hui, mais aussi tout simplement d'une session précédente sur un autre navigateur ou appareil — ce n'est pas forcément récent ni concurrent.";
   document.getElementById("conflitSyncDetailLocal").innerHTML =

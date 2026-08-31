@@ -176,12 +176,12 @@
   .toolbar textarea{flex:1 1 160px;min-width:120px;}
   .toolbar select{flex:0 0 auto;}
   .recherche-wrap{position:relative;flex:1 1 160px;min-width:120px;display:flex;}
-  .recherche-wrap textarea{border-color:#F5D90A;padding-right:30px;}
+  .recherche-wrap textarea{border-color:#F5D90A;padding-right:40px;}
   .btn-effacer-recherche{
     display:none;
-    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    position:absolute;right:4px;top:50%;transform:translateY(-50%);
     background:none;border:none;color:var(--text-muted);
-    font-size:17px;line-height:1;padding:4px 6px;cursor:pointer;
+    font-size:19px;line-height:1;padding:9px 11px;cursor:pointer;
   }
   .btn-effacer-recherche.visible{display:block;}
   .btn-effacer-recherche:hover{color:var(--text);}
@@ -342,7 +342,7 @@
   }
   .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:14px;text-align:center;}
   .qty-control button:disabled{opacity:.3;}
-  .footer-actions{display:flex;align-items:center;gap:6px;}
+  .footer-actions{display:flex;align-items:center;gap:14px;}
   .icon-photo-btn{
     width:30px;height:30px;border-radius:50%;flex:none;
     border:1px solid var(--line);background:var(--bg-panel-2);
@@ -1380,8 +1380,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.10";
+const VERSION = "1.11.11";
 const HISTORY = [
+  { version:"1.11.11", date:"2026-08-31", notes:"Trois ajustements. PDF « Vins en cave par région » : la couleur apparaît maintenant entre parenthèses même quand une région n'a qu'une seule couleur (ex. « Bourgogne (Rouge) ») ; seule exception, quand le nom de la couleur est identique à celui de la région (ex. région et couleur « Champagne »), pour éviter la redondance « Champagne (Champagne) ». Les boutons en bas à droite de chaque carte de vin (avis IA, photo, Détails) sont maintenant plus espacés pour limiter les appuis sur le mauvais bouton. La croix qui vide le champ de recherche a une zone cliquable nettement plus grande."},
   { version:"1.11.10", date:"2026-08-31", notes:"Les bandeaux de regroupement (couleur, région, emplacement) affichent désormais à la fois le nombre de vins et le nombre de bouteilles en cave de chaque groupe (au lieu du seul nombre de vins), dans une teinte dorée lumineuse avec un léger halo pour être bien lisibles."},
   { version:"1.11.9", date:"2026-08-31", notes:"Protection du jeton GitHub contre un stockage local saturé : sauvegarderConfig() et sauvegarderReglagesLocal() n'avaient aucun filet de sécurité (contrairement à sauvegarderBouteilles()) — une saturation y provoquait une exception non interceptée qui interrompait le clic sur « Enregistrer les identifiants » en plein milieu, sans aucun retour visuel. Elles utilisent désormais la même bannière permanente que le reste de l'app. Ajout d'un second garde-fou indépendant : si le champ Jeton est vide au moment d'enregistrer alors qu'un jeton existait déjà, une confirmation explicite est demandée avant de l'effacer, pour ne jamais l'écraser par accident."},
   { version:"1.11.8", date:"2026-08-31", notes:"Champ Recherche : ajout d'une petite croix qui apparaît dès qu'il contient du texte et le vide en un appui ; encadré d'un très fin liseré jaune pour mieux le repérer ; et rendu insensible aux accents dans les deux sens (« duchene » retrouve désormais « Duchêne », et inversement)."},
@@ -3563,6 +3564,13 @@ function pdfChaineVersOctets(pdf){
    plusieurs couleurs, elle est éclatée en une rubrique par couleur présente (ordre canonique des
    couleurs de l'app), avec pour titre « Région (Couleur) » au lieu de « Région » seule. Cette même
    structure alimente à la fois l'aperçu HTML dans la page et le contenu du PDF généré. */
+/* Regroupe les vins actuellement en cave par région (même libellé « Région non renseignée » que le
+   regroupement de la grille principale, pour rester cohérent), puis construit les rubriques du rapport :
+   une rubrique par couleur présente dans chaque région — y compris quand une seule couleur y figure, son
+   nom apparaît quand même entre parenthèses — sauf dans le seul cas où le libellé de la couleur est
+   exactement le nom de la région (ex. région « Champagne » + couleur « Champagne »), pour éviter une
+   parenthèse redondante du type « Champagne (Champagne) ». Cette même structure alimente à la fois
+   l'aperçu HTML dans la page et le contenu du PDF généré. */
 function construireRapportVinsParRegion(){
   const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
   const parRegion = {};
@@ -3580,15 +3588,13 @@ function construireRapportVinsParRegion(){
   const rubriques = [];
   regions.forEach(region=>{
     const vinsRegion = parRegion[region];
-    const couleursPresentes = new Set(vinsRegion.map(b=>b.couleur || "autre"));
-    if(couleursPresentes.size <= 1){
-      rubriques.push({ titre: region, vins: vinsRegion });
-    }else{
-      COULEURS.forEach(c=>{
-        const vinsCouleur = vinsRegion.filter(b=>(b.couleur||"autre") === c.key);
-        if(vinsCouleur.length) rubriques.push({ titre: `${region} (${c.label})`, vins: vinsCouleur });
-      });
-    }
+    COULEURS.forEach(c=>{
+      const vinsCouleur = vinsRegion.filter(b=>(b.couleur||"autre") === c.key);
+      if(!vinsCouleur.length) return;
+      const redondant = c.label.toLowerCase() === region.toLowerCase();
+      const titre = redondant ? region : `${region} (${c.label})`;
+      rubriques.push({ titre, vins: vinsCouleur });
+    });
   });
 
   return { enCave, parRegion, regions, rubriques, totalGeneral };

@@ -622,7 +622,7 @@
     border:1px solid var(--orange);
     color:#F0C48A;
     font-size:13px;font-weight:600;line-height:1.4;
-    padding:10px 12px;border-radius:8px;margin:0 0 12px 0;
+    padding:10px 12px;border-radius:8px;margin:0;
   }
   .verif-photo-img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:var(--bg-panel-2);display:block;}
 
@@ -1070,9 +1070,9 @@
       <button class="modal-close" id="closeVerifPhoto" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
     </div>
     <div class="modal-body">
-      <p class="bandeau-orange" id="bandeauCollerImage">⚠️ N'oublie pas de coller l'image dans la requête ChatGPT !</p>
       <p class="verif-photo-note">Voici la photo qui vient d'être copiée dans le presse-papier — vérifie qu'elle correspond bien avant d'ouvrir ChatGPT (colle-la avec Cmd+V une fois là-bas).</p>
       <img id="verifPhotoImg" class="verif-photo-img" alt="Photo copiée dans le presse-papier">
+      <p class="bandeau-orange" id="bandeauCollerImage">⚠️ N'oublie pas de coller l'image dans la requête ChatGPT !</p>
       <div class="modal-actions" style="justify-content:center;">
         <button class="btn btn-ghost" id="btnAnnulerVerifPhoto" type="button" data-tt-titre="Annuler" data-tt-desc="Annule l'identification et ferme cette fenêtre.">Annuler</button>
         <button class="btn btn-gold" id="btnOuvrirChatGPT" type="button" data-tt-titre="Ouvrir l'assistant IA" data-tt-desc="Ouvre l'assistant IA choisi dans un nouvel onglet, pour y coller la photo copiée.">Ouvrir ChatGPT</button>
@@ -1365,8 +1365,12 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.1";
+const VERSION = "1.11.5";
 const HISTORY = [
+  { version:"1.11.5", date:"2026-08-31", notes:"Corrigé la faute « Licoreux » en « Liquoreux » dans le texte par défaut codé en dur de la question d'identification par photo, à la source du besoin de confirmation ajouté en 1.11.3. L'IA devrait désormais répondre directement avec l'orthographe correcte, sans plus déclencher la question de confirmation pour ce cas précis."},
+  { version:"1.11.4", date:"2026-08-31", notes:"Ajout d'un appui long sur le N° d'un vin dans la liste : quand il est marqué en vert, l'appui long le ramène directement au marquage jaune (le vin reste marqué, sans repasser par « non marqué »). Sans effet si le vin n'est pas marqué ou déjà marqué en jaune — dans ces cas, seul l'appui simple habituel fait défiler le repère."},
+  { version:"1.11.3", date:"2026-08-31", notes:"Corrigé : une couleur extraite d'une réponse IA mais ne correspondant à aucune couleur connue de l'app (ex. « Licoreux », faute présente dans le texte par défaut codé en dur, contre « Liquoreux » dans la liste des couleurs) était ignorée en silence, sans jamais l'indiquer. L'app propose désormais explicitement la couleur connue la plus proche (si elle est plausible) et ne l'applique que si c'est confirmé ; sinon la couleur de la fiche reste inchangée et un message l'indique clairement."},
+  { version:"1.11.2", date:"2026-08-31", notes:"Repositionné le bandeau orange « N'oublie pas de coller l'image… » dans la fenêtre « Photo copiée » : il apparaît maintenant sous la photo et au-dessus des boutons, au lieu d'être placé avant la photo."},
   { version:"1.11.1", date:"2026-08-31", notes:"Le liseré orange du badge, pendant le scrutin périodique (toutes les 10 s) de la mise à jour publiée, reste désormais affiché au moins 0,3 seconde même si la réponse du réseau revient plus vite — pour rester visible à l'œil au lieu de flasher trop brièvement."},
   { version:"1.11.0", date:"2026-08-31", notes:"Le repère personnel d'un vin (marquage sur son N° dans la liste) a désormais deux couleurs. La séquence de clic sur le N° devient : non marqué → marqué jaune → marqué vert → non marqué. Un vin marqué avant cette mise à jour est traité comme jaune (comportement inchangé pour lui). Les deux couleurs n'ont aucun autre effet dans l'app : un vin reste simplement « marqué » ou « non marqué » pour tout le reste (filtre « Filtrer par marquage », etc.), quelle que soit sa couleur de marquage."},
   { version:"1.10.99", date:"2026-08-31", notes:"Le liseré orange qui entoure brièvement le badge de version pendant la vérification périodique (toutes les 10 s, lors d'un appui long pour forcer un rechargement) est maintenant plus épais (3 px au lieu de 1 px) et d'un orange plus vif, pour être bien visible à chaque flash."},
@@ -1548,7 +1552,7 @@ let marqueFicheCourante = false; // état "marqué" du vin actuellement ouvert d
 let marqueFicheCouleur = "jaune"; // couleur du repère quand marqué : "jaune" ou "vert" — sans effet si marqueFicheCourante est false
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
-const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute "couleur : " suivi de la couleur du vin, en utilisant l'un des mot clef suivant : "Rouge", "Blanc", "Rosé", "Champagne","Crémant","CIdre",,"Licoreux", "Autre".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible .`;
+const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute "couleur : " suivi de la couleur du vin, en utilisant l'un des mot clef suivant : "Rouge", "Blanc", "Rosé", "Champagne","Crémant","CIdre",,"Liquoreux", "Autre".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible .`;
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par deux lignes séparées, au format exact : « Note : X/5 » (ta note sur 5) et « Prix : Y € » (un prix indicatif au détail).";
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
@@ -2137,7 +2141,7 @@ function carteBouteille(b){
       <div data-action="ouvrir">
         <div class="bottle-title-row">
           <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
-          ${b.numero ? `<span class="numero-badge${classeMarque}" data-action="toggleMarque" data-tt-titre="Marquer / démarquer" data-tt-desc="Toucher pour faire défiler le repère de ce vin : non marqué → jaune → vert → non marqué.">N°${b.numero}</span>` : ""}
+          ${b.numero ? `<span class="numero-badge${classeMarque}" data-action="toggleMarque" data-tt-titre="Marquer / démarquer" data-tt-desc="Toucher pour faire défiler le repère de ce vin : non marqué → jaune → vert → non marqué. Appui long quand il est vert : revient directement au jaune.">N°${b.numero}</span>` : ""}
         </div>
         ${sousTitre ? `<div class="bottle-sub">${escapeHtml(sousTitre)}</div>` : ""}
         <div class="bottle-meta-row">
@@ -2211,7 +2215,14 @@ function renderGrille(){
     const btnAvisCard = card.querySelector('[data-action="voirAvis"]');
     if(btnAvisCard) btnAvisCard.addEventListener("click", e=>{ e.stopPropagation(); ouvrirAvisPourVin(id); });
     const btnMarque = card.querySelector('[data-action="toggleMarque"]');
-    if(btnMarque) btnMarque.addEventListener("click", e=>{ e.stopPropagation(); basculerMarque(id); });
+    if(btnMarque){
+      attacherAppuiLong(btnMarque, ()=>ramenerMarqueJauneSiVert(id));
+      btnMarque.addEventListener("click", e=>{
+        e.stopPropagation();
+        if(btnMarque._appuiLongDeclenche){ btnMarque._appuiLongDeclenche = false; return; } // déjà traité par l'appui long
+        basculerMarque(id);
+      });
+    }
   });
 }
 
@@ -2270,6 +2281,51 @@ function basculerMarque(id){
   sauvegarderBouteilles();
   rafraichirTout();
 }
+/* Raccourci d'appui long sur le N° d'un vin : s'il est actuellement marqué en vert, ramène directement
+   le repère au jaune (le vin reste marqué, seule la couleur change) — sans repasser par « non marqué ».
+   Sans effet si le vin n'est pas marqué, ou déjà marqué en jaune. */
+function ramenerMarqueJauneSiVert(id){
+  const b = bottles.find(x=>x.id===id);
+  if(!b || !b.marque || b.marqueCouleur !== "vert") return;
+  b.marqueCouleur = "jaune";
+  sauvegarderBouteilles();
+  rafraichirTout();
+  toast("Vin marqué (jaune)");
+}
+/* Attache un appui long (souris et tactile, 500 ms sans déplacement de plus de 10 px — mêmes seuils que
+   les autres appuis longs de l'app) à un élément : déclenche callback() au bout du délai, et pose un
+   drapeau sur l'élément (_appuiLongDeclenche) que le gestionnaire de clic normal de ce même élément doit
+   vérifier en premier, pour ignorer le clic qui suivrait immanquablement le relâchement. */
+function attacherAppuiLong(el, callback){
+  const DUREE = 500, TOLERANCE = 10;
+  let timer = null, depart = null;
+  function demarrer(x, y){
+    el._appuiLongDeclenche = false;
+    depart = { x, y };
+    timer = setTimeout(()=>{
+      el._appuiLongDeclenche = true;
+      timer = null;
+      if(navigator.vibrate) navigator.vibrate(15);
+      callback();
+    }, DUREE);
+  }
+  function deplacer(x, y){
+    if(!depart) return;
+    if(Math.abs(x-depart.x) > TOLERANCE || Math.abs(y-depart.y) > TOLERANCE) annuler();
+  }
+  function annuler(){
+    if(timer){ clearTimeout(timer); timer = null; }
+    depart = null;
+  }
+  el.addEventListener("touchstart", e=>{ const t=e.touches[0]; demarrer(t.clientX, t.clientY); }, { passive:true });
+  el.addEventListener("touchmove", e=>{ const t=e.touches[0]; deplacer(t.clientX, t.clientY); }, { passive:true });
+  el.addEventListener("touchend", annuler, { passive:true });
+  el.addEventListener("touchcancel", annuler, { passive:true });
+  el.addEventListener("mousedown", e=>demarrer(e.clientX, e.clientY));
+  el.addEventListener("mousemove", e=>deplacer(e.clientX, e.clientY));
+  el.addEventListener("mouseup", annuler);
+  el.addEventListener("mouseleave", annuler);
+}
 
 /* ===================== FICHE (AJOUT / ÉDITION) ===================== */
 function construireChoixCouleur(){
@@ -2306,6 +2362,62 @@ function trouverCouleurParTexte(texte){
     const label = normaliser(c.label);
     return cherche === cle || cherche === label || cherche.startsWith(label) || label.startsWith(cherche);
   }) || null;
+}
+/* Distance de Levenshtein (nombre minimal d'ajouts/suppressions/substitutions d'un caractère pour passer
+   d'une chaîne à l'autre) — sert uniquement à suggérer la couleur connue la plus proche d'un texte non
+   reconnu (ex. une faute de frappe dans la réponse de l'IA), jamais à l'appliquer automatiquement. */
+function distanceLevenshtein(a, b){
+  a = a || ""; b = b || "";
+  const m = a.length, n = b.length;
+  if(m === 0) return n;
+  if(n === 0) return m;
+  const d = [];
+  for(let i=0;i<=m;i++) d.push([i]);
+  for(let j=1;j<=n;j++) d[0][j] = j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cout = a[i-1] === b[j-1] ? 0 : 1;
+      d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+cout);
+    }
+  }
+  return d[m][n];
+}
+/* Trouve la couleur connue dont le libellé est le plus proche d'un texte non reconnu par
+   trouverCouleurParTexte(). Utilisée uniquement pour PROPOSER une suggestion à confirmer explicitement
+   (voir traiterCouleurExtraite) — jamais pour appliquer une couleur sans confirmation. */
+function trouverCouleurLaPlusProche(texte){
+  if(!texte) return null;
+  const normaliser = t => t.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cherche = normaliser(texte);
+  if(!cherche) return null;
+  let meilleur = null, meilleureDistance = Infinity;
+  COULEURS.forEach(c=>{
+    const d = distanceLevenshtein(cherche, normaliser(c.label));
+    if(d < meilleureDistance){ meilleureDistance = d; meilleur = c; }
+  });
+  return meilleur ? { couleur: meilleur, distance: meilleureDistance } : null;
+}
+/* Applique la couleur extraite d'une réponse IA à la fiche : correspondance exacte trouvée → appliquée
+   directement (comportement inchangé). Texte présent mais aucune correspondance exacte → au lieu de
+   l'ignorer silencieusement, propose explicitement la couleur connue la plus proche et n'applique que si
+   l'utilisateur confirme ; sinon la couleur de la fiche n'est pas modifiée. */
+function traiterCouleurExtraite(couleurTexte, couleurTrouvee){
+  if(!couleurTexte) return;
+  if(couleurTrouvee){ selectionnerCouleur(couleurTrouvee.key); return; }
+  const suggestion = trouverCouleurLaPlusProche(couleurTexte);
+  const SEUIL_DISTANCE_PLAUSIBLE = 3; // au-delà, le texte est trop différent pour que la suggestion ait un sens
+  if(suggestion && suggestion.distance <= SEUIL_DISTANCE_PLAUSIBLE){
+    demanderConfirmation(
+      "Couleur non reconnue",
+      `La couleur extraite « ${couleurTexte} » ne correspond à aucune couleur connue de l'app. La plus proche est « ${suggestion.couleur.label} ». L'utiliser pour ce vin ? Sinon, la couleur de la fiche n'est pas modifiée.`,
+      ()=>{
+        selectionnerCouleur(suggestion.couleur.key);
+        toast(`Couleur appliquée : ${suggestion.couleur.label}`);
+      }
+    );
+  }else{
+    toast(`Couleur « ${couleurTexte} » non reconnue — laissée inchangée`);
+  }
 }
 
 const starPicker = document.getElementById("starPicker");
@@ -2910,14 +3022,14 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
     // Met à jour la fiche déjà ouverte (celle depuis laquelle « Appliquer la réponse à ce vin » a été touché) —
     // ne crée rien de nouveau, ne ferme ni ne rouvre la fiche. Un champ resté vide dans la vérification
     // (rien d'extrait pour lui) ne touche pas à la valeur déjà présente sur la fiche — jamais d'écrasement
-    // par du vide. Une couleur extraite mais non reconnue n'est pas appliquée non plus, plutôt que de
-    // deviner au hasard.
+    // par du vide. Une couleur extraite mais non reconnue déclenche une question explicite (voir
+    // traiterCouleurExtraite) plutôt que d'être ignorée en silence ou appliquée au hasard.
     logAjouter("→ Branche MISE À JOUR (fiche déjà ouverte conservée).");
     if(nom) document.getElementById("fNom").value = nom;
     if(domaine) document.getElementById("fDomaine").value = domaine;
     if(millesime) document.getElementById("fMillesime").value = millesime;
     if(region) document.getElementById("fRegion").value = region;
-    if(couleurTrouvee) selectionnerCouleur(couleurTrouvee.key);
+    traiterCouleurExtraite(couleurTexte, couleurTrouvee);
     if(etiquette) document.getElementById("fEtiquette").value = etiquette;
     if(etiquette || region) document.getElementById("ficheSectionBasse").open = true;
     logAjouter(`→ Après application — fNom="${document.getElementById("fNom").value}" · fDomaine="${document.getElementById("fDomaine").value}" · fRegion="${document.getElementById("fRegion").value}" · couleur=${couleurSelectionnee()} · ${etatPhotoPourLog()}`);
@@ -2933,7 +3045,7 @@ document.getElementById("btnConfirmerVerifTexte").addEventListener("click", ()=>
   document.getElementById("fDomaine").value = domaine;
   if(millesime) document.getElementById("fMillesime").value = millesime;
   document.getElementById("fRegion").value = region;
-  if(couleurTrouvee) selectionnerCouleur(couleurTrouvee.key);
+  traiterCouleurExtraite(couleurTexte, couleurTrouvee);
   document.getElementById("fEtiquette").value = etiquette;
 
   if(saisiePhotoDataUrl){

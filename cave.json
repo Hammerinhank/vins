@@ -1004,7 +1004,7 @@
       "appellation": "",
       "region": "Alsace",
       "pays": "France",
-      "couleur": "rouge",
+      "couleur": "blanc",
       "millesime": "2024",
       "cepages": "",
       "quantite": 1,
@@ -1114,6 +1114,6 @@
       "photoFichier": "images/1cf07e60-163b-4727-9dd5-b2c65059c017.jpg"
     }
   ],
-  "maj": "2026-08-31T06:19:56.390Z",
+  "maj": "2026-08-31T06:48:53.104Z",
   "origine": "bdd3462f-a0c3-4357-88f4-b6e3793d2fda"
 }

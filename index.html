@@ -262,6 +262,9 @@
   .numero-badge.numero-badge-marque{
     background:#F5D90A;border-color:#C9A227;color:#1c1710;font-weight:600;
   }
+  .numero-badge.numero-badge-marque-vert{
+    background:#39FF14;border-color:#1FAE00;color:#0a1a05;font-weight:600;
+  }
   .bottle-sub{font-size:12px;color:var(--text-muted);}
   .bottle-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;}
   .bottle-meta-row .millesime{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--gold-soft);}
@@ -539,8 +542,13 @@
   .numero-fiche-badge.marque{
     background:#F5D90A;border-color:#C9A227;
   }
+  .numero-fiche-badge.marque.marque-vert{
+    background:#39FF14;border-color:#1FAE00;
+  }
   .numero-fiche-badge.marque .numero-fiche-valeur{color:#1c1710;border-bottom-color:#1c1710;}
   .numero-fiche-badge.marque .numero-fiche-note{color:#3a2e00;}
+  .numero-fiche-badge.marque.marque-vert .numero-fiche-valeur{color:#0a1a05;border-bottom-color:#0a1a05;}
+  .numero-fiche-badge.marque.marque-vert .numero-fiche-note{color:#0a2e0a;}
   .numero-fiche-valeur{
     font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:var(--gold-soft);
     cursor:pointer;border-bottom:1px dashed var(--gold);
@@ -1357,8 +1365,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.99";
+const VERSION = "1.11.0";
 const HISTORY = [
+  { version:"1.11.0", date:"2026-08-31", notes:"Le repère personnel d'un vin (marquage sur son N° dans la liste) a désormais deux couleurs. La séquence de clic sur le N° devient : non marqué → marqué jaune → marqué vert → non marqué. Un vin marqué avant cette mise à jour est traité comme jaune (comportement inchangé pour lui). Les deux couleurs n'ont aucun autre effet dans l'app : un vin reste simplement « marqué » ou « non marqué » pour tout le reste (filtre « Filtrer par marquage », etc.), quelle que soit sa couleur de marquage."},
   { version:"1.10.99", date:"2026-08-31", notes:"Le liseré orange qui entoure brièvement le badge de version pendant la vérification périodique (toutes les 10 s, lors d'un appui long pour forcer un rechargement) est maintenant plus épais (3 px au lieu de 1 px) et d'un orange plus vif, pour être bien visible à chaque flash."},
   { version:"1.10.98", date:"2026-08-31", notes:"Mise à jour du texte par défaut codé en dur de la question d'identification par photo : demande désormais explicitement la couleur du vin (« couleur : » suivie de Rouge/Blanc/Rosé/Champagne/Crémant/Cidre/Liquoreux/Autre), en plus de nom/domaine/millésime/région/étiquette déjà demandés. Accessible via le bouton « Init » à côté du champ, comme avant."},
   { version:"1.10.97", date:"2026-08-31", notes:"« Identifier avec ChatGPT/Claude » et « Appliquer la réponse à ce vin » reconnaissent désormais aussi le mot-clé « Couleur : » dans la réponse copiée. La valeur trouvée est proposée dans la fenêtre de vérification puis, si elle correspond à l'une des couleurs connues de l'app (insensible à la casse et aux accents — ex. « Rosé », « blanc », « Crémant »…), sélectionnée automatiquement dans la fiche. Une couleur extraite mais non reconnue n'est jamais appliquée au hasard."},
@@ -1534,7 +1543,8 @@ let photoEnCoursFichier = "";    // chemin du fichier déjà envoyé dans le dé
 let photoSupprimee = false;
 let noteChoisie = 0;
 let numeroFicheCourant = null;   // numéro proposé/en cours pour la fiche ouverte (ajout ou édition), appliqué seulement à l'enregistrement
-let marqueFicheCourante = false; // état "marqué" (repère jaune) du vin actuellement ouvert dans la fiche, pour l'affichage du badge N°
+let marqueFicheCourante = false; // état "marqué" du vin actuellement ouvert dans la fiche, pour l'affichage du badge N°
+let marqueFicheCouleur = "jaune"; // couleur du repère quand marqué : "jaune" ou "vert" — sans effet si marqueFicheCourante est false
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
 const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute "couleur : " suivi de la couleur du vin, en utilisant l'un des mot clef suivant : "Rouge", "Blanc", "Rosé", "Champagne","Crémant","CIdre",,"Licoreux", "Autre".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible .`;
@@ -1767,6 +1777,7 @@ function afficherNumeroFiche(){
   document.getElementById("numeroFicheValeur").textContent = "N° " + numeroFicheCourant;
   document.getElementById("numeroFicheValeur").style.display = "";
   document.getElementById("numeroFicheBadge").classList.toggle("marque", marqueFicheCourante);
+  document.getElementById("numeroFicheBadge").classList.toggle("marque-vert", marqueFicheCourante && marqueFicheCouleur === "vert");
   const input = document.getElementById("numeroFicheInput");
   input.style.display = "none";
   input.classList.remove("conflit");
@@ -2099,6 +2110,7 @@ function carteBouteille(b){
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
   const quantite = Number(b.quantite)||0;
   const quantiteBue = Number(b.quantiteBue)||0;
+  const classeMarque = b.marque ? (b.marqueCouleur === "vert" ? " numero-badge-marque-vert" : " numero-badge-marque") : "";
   const tags = [];
   if(ap) tags.push({ text: libelleApogee(ap), cls: "apogee-"+ap });
   if(b.region) tags.push({ text: b.region });
@@ -2124,7 +2136,7 @@ function carteBouteille(b){
       <div data-action="ouvrir">
         <div class="bottle-title-row">
           <div class="bottle-title">${escapeHtml(b.nom || "Sans nom")}</div>
-          ${b.numero ? `<span class="numero-badge${b.marque?' numero-badge-marque':''}" data-action="toggleMarque" data-tt-titre="Marquer / démarquer" data-tt-desc="Toucher pour marquer ce vin d'un repère (utile pour le retrouver facilement dans la liste).">N°${b.numero}</span>` : ""}
+          ${b.numero ? `<span class="numero-badge${classeMarque}" data-action="toggleMarque" data-tt-titre="Marquer / démarquer" data-tt-desc="Toucher pour faire défiler le repère de ce vin : non marqué → jaune → vert → non marqué.">N°${b.numero}</span>` : ""}
         </div>
         ${sousTitre ? `<div class="bottle-sub">${escapeHtml(sousTitre)}</div>` : ""}
         <div class="bottle-meta-row">
@@ -2233,16 +2245,29 @@ function annulerBue(id){
   rafraichirTout();
   toast("Annulé — bouteille remise en cave");
 }
-/* Marque/démarque un vin (repère personnel affiché en jaune sur son N°, dans la liste et dans la fiche).
+/* Fait défiler le repère d'un vin (affiché en couleur sur son N°, dans la liste et dans la fiche) selon la
+   séquence : non marqué → marqué jaune → marqué vert → non marqué. Les deux couleurs de marquage n'ont
+   aucun autre effet dans l'app : b.marque reste le seul indicateur booléen utilisé pour filtrer les vins
+   marqués/non marqués (« Filtrer par marquage »), quelle que soit la couleur affichée.
    Persisté immédiatement comme les autres actions directes depuis la liste (marquer une bouteille comme
    bue, etc.) : sauvegardé localement tout de suite, et envoyé sur GitHub au prochain « Envoyer ». */
 function basculerMarque(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
-  b.marque = !b.marque;
+  if(!b.marque){
+    b.marque = true;
+    b.marqueCouleur = "jaune";
+    toast("Vin marqué (jaune)");
+  }else if(b.marqueCouleur !== "vert"){
+    b.marqueCouleur = "vert";
+    toast("Vin marqué (vert)");
+  }else{
+    b.marque = false;
+    b.marqueCouleur = "";
+    toast("Vin démarqué");
+  }
   sauvegarderBouteilles();
   rafraichirTout();
-  toast(b.marque ? "Vin marqué" : "Vin démarqué");
 }
 
 /* ===================== FICHE (AJOUT / ÉDITION) ===================== */
@@ -2327,6 +2352,7 @@ function ouvrirAjout(){
   logAjouter("ouvrirAjout() appelé — ficheEnCours va passer à null, titre → « Ajouter un vin ».");
   ficheEnCours = null;
   marqueFicheCourante = false;
+  marqueFicheCouleur = "jaune";
   viderFormulaire();
   numeroFicheCourant = prochainNumero();
   afficherNumeroFiche();
@@ -2361,6 +2387,7 @@ function ouvrirFiche(id){
   document.getElementById("btnAppliquerReponseFiche").classList.remove("suggestion-verte");
   ficheEnCours = id;
   marqueFicheCourante = !!b.marque;
+  marqueFicheCouleur = b.marqueCouleur === "vert" ? "vert" : "jaune";
   numeroFicheCourant = b.numero || prochainNumero();
   afficherNumeroFiche();
   document.getElementById("ficheSectionBasse").open = false;
@@ -2533,6 +2560,7 @@ function enregistrerFiche(){
     boireA: document.getElementById("fBoireA").value,
     note: noteChoisie,
     marque: marqueFicheCourante,
+    marqueCouleur: marqueFicheCourante ? marqueFicheCouleur : "",
     noteNumerique: document.getElementById("fNoteNumerique").value !== "" ? parseFloat(document.getElementById("fNoteNumerique").value) : "",
     noteIncertaine: document.getElementById("fNoteIncertaine").value.trim() === "?" ? "?" : "",
     etiquette: document.getElementById("fEtiquette").value.trim(),
@@ -2630,6 +2658,7 @@ document.getElementById("btnPhotoChoisieNroTemp").addEventListener("click", ()=>
   document.getElementById("photoInput").value = "";
   document.getElementById("fNom").value = "N° " + numeroFicheCourant;
   marqueFicheCourante = true; // repère jaune automatique, pour retrouver facilement ces vins « à compléter »
+  marqueFicheCouleur = "jaune";
   enregistrerFiche();
 });
 document.getElementById("btnChargerPhoto").addEventListener("click", function(){

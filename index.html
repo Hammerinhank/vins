@@ -1365,8 +1365,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.0";
+const VERSION = "1.11.1";
 const HISTORY = [
+  { version:"1.11.1", date:"2026-08-31", notes:"Le liseré orange du badge, pendant le scrutin périodique (toutes les 10 s) de la mise à jour publiée, reste désormais affiché au moins 0,3 seconde même si la réponse du réseau revient plus vite — pour rester visible à l'œil au lieu de flasher trop brièvement."},
   { version:"1.11.0", date:"2026-08-31", notes:"Le repère personnel d'un vin (marquage sur son N° dans la liste) a désormais deux couleurs. La séquence de clic sur le N° devient : non marqué → marqué jaune → marqué vert → non marqué. Un vin marqué avant cette mise à jour est traité comme jaune (comportement inchangé pour lui). Les deux couleurs n'ont aucun autre effet dans l'app : un vin reste simplement « marqué » ou « non marqué » pour tout le reste (filtre « Filtrer par marquage », etc.), quelle que soit sa couleur de marquage."},
   { version:"1.10.99", date:"2026-08-31", notes:"Le liseré orange qui entoure brièvement le badge de version pendant la vérification périodique (toutes les 10 s, lors d'un appui long pour forcer un rechargement) est maintenant plus épais (3 px au lieu de 1 px) et d'un orange plus vif, pour être bien visible à chaque flash."},
   { version:"1.10.98", date:"2026-08-31", notes:"Mise à jour du texte par défaut codé en dur de la question d'identification par photo : demande désormais explicitement la couleur du vin (« couleur : » suivie de Rouge/Blanc/Rosé/Champagne/Crémant/Cidre/Liquoreux/Autre), en plus de nom/domaine/millésime/région/étiquette déjà demandés. Accessible via le bouton « Init » à côté du champ, comme avant."},
@@ -3963,6 +3964,7 @@ async function verifierNouvelleVersionDisponible(){
   logAjouter(`[Phase 2 — lente] Une v${versionDepot} existe sur le dépôt (tu as la v${VERSION}) — scrutin de l'URL publiée pour savoir quand elle devient disponible.`);
   const DELAI_ENTRE_TENTATIVES = 10000;
   const DUREE_MAX = 120000;
+  const DUREE_MIN_LISERE = 300; // le liseré orange reste affiché au moins ce temps, même si la réponse revient plus vite
   const debut = Date.now();
   const monId = ++rechargementEnCoursId;
 
@@ -3972,9 +3974,17 @@ async function verifierNouvelleVersionDisponible(){
     parametresUrl.set("_", Date.now());
     const urlFraiche = location.pathname + "?" + parametresUrl.toString() + location.hash;
     badge.classList.add("verification-en-cours"); // liseré orange le temps de la requête réseau elle-même
+    const debutRequete = Date.now();
+    // Le liseré doit rester visible au moins DUREE_MIN_LISERE, même si la réponse revient plus vite
+    // (fréquent : la réponse du réseau peut arriver en quelques dizaines de ms, trop vite pour être vue).
+    async function attendreMinimumLisere(){
+      const ecoule = Date.now() - debutRequete;
+      if(ecoule < DUREE_MIN_LISERE) await new Promise(resolve => setTimeout(resolve, DUREE_MIN_LISERE - ecoule));
+    }
     try{
       const reponse = await fetch(urlFraiche, { cache: "no-store" });
       const texte = await reponse.text();
+      await attendreMinimumLisere();
       badge.classList.remove("verification-en-cours");
       const correspondance = texte.match(/const VERSION\s*=\s*"([^"]+)"/);
       const versionServeur = correspondance ? correspondance[1] : null;
@@ -3991,6 +4001,7 @@ async function verifierNouvelleVersionDisponible(){
         return;
       }
     }catch(e){
+      await attendreMinimumLisere();
       badge.classList.remove("verification-en-cours");
       logAjouter("[Phase 2] → Échec réseau ponctuel, on continue les tentatives suivantes.");
     }

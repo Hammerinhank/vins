@@ -13,7 +13,7 @@
       "couleur": "cremant",
       "millesime": "",
       "cepages": "",
-      "quantite": 13,
+      "quantite": 12,
       "prixUnitaire": 9,
       "dateAchat": "",
       "lieuAchat": "",
@@ -1490,7 +1490,7 @@
       "couleur": "cremant",
       "millesime": "",
       "cepages": "",
-      "quantite": 0,
+      "quantite": 1,
       "prixUnitaire": 9,
       "dateAchat": "",
       "lieuAchat": "",
@@ -1508,10 +1508,10 @@
       "noteNumerique": 82,
       "noteIncertaine": "",
       "marque": true,
-      "marqueCouleur": "jaune",
+      "marqueCouleur": "vert",
       "lienId": "c303eb43-6cde-4485-9759-f388bb0b8e00"
     }
   ],
-  "maj": "2026-08-31T16:26:05.546Z",
+  "maj": "2026-08-31T16:46:47.077Z",
   "origine": "bdd3462f-a0c3-4357-88f4-b6e3793d2fda"
 }

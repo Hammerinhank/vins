@@ -1468,8 +1468,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.7";
+const VERSION = "1.12.8";
 const HISTORY = [
+  { version:"1.12.8", date:"2026-08-31", notes:"CORRECTIF CRITIQUE : la 1.12.7 laissait par erreur un reliquat de code (référence à labelQuantite/noteTotalLien, supprimés de la page) en fin de majZoneLienEmplacement() — dès qu'une fiche liée à un autre emplacement était ouverte, une exception silencieuse interrompait ouvrirFiche() avant l'affichage de la fenêtre, rendant le bouton « Détails » inopérant sur ces fiches. Corrigé, et vérifié cette fois avec un vrai test dans un DOM simulé (pas seulement une vérification de syntaxe) : ouverture d'un vin simple et d'un vin lié, dans les deux cas la fiche s'ouvre correctement."},
   { version:"1.12.7", date:"2026-08-31", notes:"Reprise complète de la clarification précédente, jugée pas satisfaisante. Le champ « Quantité en cave » redevient strictement identique, que la fiche soit simple ou liée — plus aucun changement de libellé ni de note. À la place, un nouvel encadré « Pour cet emplacement » apparaît en tête du panneau, au-dessus des autres emplacements liés : il recopie en lecture seule le nom et la quantité de la fiche ouverte (bordure neutre, pas dorée, pour bien le distinguer des cartes actionnables) — sans aucun +/-, puisque toute modification directe passe par les champs Emplacement et Quantité en cave habituels. Ce chiffre ne bouge ici que par ricochet, quand un transfert est déclenché depuis l'une des cartes des autres emplacements juste en dessous."},
   { version:"1.12.6", date:"2026-08-31", notes:"Levé une ambiguïté sur un vin à plusieurs emplacements : le champ « Quantité en cave » de la fiche était déjà propre à cet emplacement précis (ajouter/retirer là ne touche que son propre quota, jamais un total) — mais rien ne le précisait. Le libellé devient « Quantité en cave (à cet emplacement) » dès que la fiche est liée, et une note juste en dessous affiche le total du vin tous emplacements confondus, pour que les deux chiffres cohabitent sans confusion possible."},
   { version:"1.12.5", date:"2026-08-31", notes:"Remplacé les flèches ⬅️/➡️ du panneau des emplacements liés par un stepper « − nombre + » — le même que celui déjà utilisé pour « Quantité en cave » dans la fiche, pour rester immédiatement reconnaissable. Surtout : le nom de l'emplacement et son stepper sont désormais dans une seule et même carte encadrée, pour qu'il n'y ait plus aucune ambiguïté sur ce que le − ou le + modifie — c'est toujours le stock de l'emplacement écrit dans cette carte-là, jamais celui d'ailleurs."},
@@ -1974,13 +1975,6 @@ function majZoneLienEmplacement(){
   });
   panel.style.display = "block";
   btnDelier.style.display = "inline-flex";
-  // Ce vin a plusieurs emplacements : le champ ci-dessus ne compte QUE celui de cette fiche (ajouter/
-  // retirer ici ne touche que son propre quota) — on le précise dans le libellé, et on affiche le total
-  // tous emplacements confondus juste en dessous, pour qu'aucun des deux chiffres ne soit ambigu.
-  const totalTousEmplacements = stockIci + freres.reduce((s,f)=>s+(Number(f.quantite)||0), 0);
-  labelQuantite.textContent = "Quantité en cave (à cet emplacement)";
-  noteTotalLien.textContent = `Total du vin, tous emplacements confondus : ${totalTousEmplacements} bouteille(s)`;
-  noteTotalLien.style.display = "block";
 }
 
 /* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */

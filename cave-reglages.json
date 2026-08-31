@@ -30,11 +30,11 @@
     "Val de Loire",
     "Vallée du Rhône"
   ],
-  "groupBy": "region",
+  "groupBy": "aucun",
   "sortKey": "ajout_desc",
   "filtreStatut": "cave",
   "filtreCouleur": "toutes",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-08-31T21:46:12.621Z"
+  "maj": "2026-08-31T21:46:28.489Z"
 }

@@ -488,18 +488,35 @@
     border-radius:8px;font-size:16px;text-align:center;padding:0;
   }
   .emplacement-icon-btn:disabled{opacity:.35;}
-  .lien-emplacement-info{
-    display:flex;flex-wrap:wrap;align-items:center;gap:6px;
-    font-size:12px;color:var(--gold-soft);margin:8px 0 0 0;line-height:1.4;
+  .lien-emplacement-panel{
+    margin-top:10px;padding:10px 12px 11px 12px;
+    background:rgba(232,206,122,.07);
+    border:1px solid rgba(232,206,122,.35);
+    border-radius:10px;
   }
+  .lien-emplacement-titre{
+    font-size:11px;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.05em;
+    font-weight:600;margin:0 0 8px 0;
+  }
+  .lien-emplacement-liste{display:flex;flex-direction:column;gap:6px;}
+  .lien-emplacement-ligne{display:flex;align-items:center;gap:8px;}
   .lien-emplacement-chip{
-    display:inline-block;
-    background:rgba(232,206,122,.15);
-    border:1px solid var(--gold-soft);color:var(--gold-soft);
-    padding:4px 10px;border-radius:999px;font-size:12px;cursor:pointer;
+    flex:1;min-width:0;text-align:left;cursor:pointer;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    padding:8px 11px;border-radius:8px;font-size:13px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  .lien-emplacement-chip:active{transform:scale(.96);}
-  .lien-emplacement-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .lien-emplacement-chip:active{transform:scale(.98);}
+  .lien-fleches{display:flex;gap:4px;flex:none;}
+  .lien-fleche-btn{
+    width:36px;height:36px;border-radius:8px;flex:none;
+    background:var(--gold);border:1px solid var(--gold);color:#1c1710;
+    font-size:15px;display:flex;align-items:center;justify-content:center;
+  }
+  .lien-fleche-btn:disabled{opacity:.3;background:var(--bg-panel-2);border-color:var(--line);color:var(--text-muted);}
+  .lien-fleche-btn:active{transform:scale(.92);}
+  .lien-emplacement-gestion{display:flex;gap:8px;margin-top:10px;}
+  .lien-emplacement-gestion .btn{flex:1;justify-content:center;}
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -951,12 +968,13 @@
             </select>
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
-          <div class="lien-emplacement-info" id="lienEmplacementInfo" style="display:none;"></div>
-          <div class="lien-emplacement-actions">
-            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un autre emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un autre emplacement</button>
-            <button type="button" class="btn btn-sm btn-gold action-edition" id="btnEnvoyerBouteille" style="display:none;" data-tt-titre="Envoyer une bouteille" data-tt-desc="Retire une bouteille de cet emplacement et l'ajoute à l'autre emplacement lié — le nombre total de bouteilles ne change pas.">➡️ Envoyer une bouteille</button>
-            <button type="button" class="btn btn-sm btn-gold action-edition" id="btnFaireVenirBouteille" style="display:none;" data-tt-titre="Faire venir une bouteille" data-tt-desc="Retire une bouteille de l'autre emplacement lié et l'ajoute à celui-ci — le nombre total de bouteilles ne change pas.">⬅️ Faire venir une bouteille</button>
-            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier cet emplacement</button>
+          <div class="lien-emplacement-panel" id="lienEmplacementPanel" style="display:none;">
+            <p class="lien-emplacement-titre">🔗 Également en cave à</p>
+            <div class="lien-emplacement-liste" id="lienEmplacementListe"></div>
+          </div>
+          <div class="lien-emplacement-gestion">
+            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un emplacement</button>
+            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier</button>
           </div>
         </div>
 
@@ -1427,8 +1445,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.3";
+const VERSION = "1.12.4";
 const HISTORY = [
+  { version:"1.12.4", date:"2026-08-31", notes:"Réorganisation ergonomique de la zone des emplacements liés dans la fiche : au lieu de quatre boutons disposés selon l'ordre du code (et donc mal alignés), un panneau dédié liste chaque emplacement lié sur sa propre ligne, avec ses deux flèches d'échange (⬅️ faire venir / ➡️ envoyer) juste à côté — chacune grisée quand l'action n'a pas de sens (rien à faire venir si l'autre est vide, rien à envoyer si celui-ci l'est). En dessous, « Ajouter un emplacement » et « Délier » sont désormais sur la même ligne, à largeur égale. Simplifie au passage le fonctionnement : plus besoin de fenêtre de choix pour ces échanges, chaque emplacement a directement ses propres flèches."},
   { version:"1.12.3", date:"2026-08-31", notes:"Corrigé : le bouton « Déplacer une bouteille » de la 1.12.2 (jamais livrée) ne fonctionnait que dans un sens (sortir de la fiche ouverte). Remplacé par deux boutons indépendants — « ➡️ Envoyer une bouteille » et « ⬅️ Faire venir une bouteille » — disponibles dans chacune des deux fiches liées, pour sortir une bouteille vers l'autre emplacement ou en faire venir une depuis l'autre emplacement, sans jamais avoir à changer de fiche. Le total de bouteilles ne change jamais dans les deux cas."},
   { version:"1.12.2", date:"2026-08-31", notes:"Nouveau bouton « ↔️ Déplacer une bouteille » dans la fiche, visible uniquement sur les vins ayant un autre emplacement lié (et seulement s'il y a du stock à déplacer depuis ici) : décrémente cet emplacement et incrémente l'autre en un geste, le nombre total de bouteilles ne changeant jamais. S'il y a plus de deux emplacements liés, une fenêtre demande vers lequel déplacer."},
   { version:"1.12.1", date:"2026-08-31", notes:"Dans la fiche d'un vin lié, « Également en cave à : … » n'était qu'un texte informatif, sans moyen d'accéder à la fiche de l'autre emplacement (notamment gênant quand il est encore à 0 bouteille). Chaque emplacement listé est désormais un bouton cliquable qui ouvre directement sa fiche."},
@@ -1850,20 +1869,16 @@ function fusionnerParLien(list){
    action (marquer une bue / annuler une bue) doit être appliquée, quand elle est déclenchée depuis une
    carte fusionnée. contexte détermine à la fois le sous-titre affiché sur chaque bouton et le filtrage
    des candidats (inutile de proposer un emplacement sans aucune bue à annuler, par exemple). */
+/* Affiche un choix simple (un bouton par emplacement lié) pour savoir de quel emplacement précis une
+   action (marquer une bue / annuler une bue) doit être appliquée, quand elle est déclenchée depuis une
+   carte fusionnée dans la grille. */
 function demanderChoixEmplacement(idsLies, contexte, onChoisi){
   const candidats = idsLies
     .map(id=>bottles.find(b=>b.id===id))
     .filter(Boolean)
-    .filter(b=>{
-      if(contexte === "annulerBue") return (Number(b.quantiteBue)||0) > 0;
-      if(contexte === "envoyer") return true; // une destination peut légitimement être à 0 bouteille
-      return (Number(b.quantite)||0) > 0; // "bue" et "faireVenir" : il faut du stock à l'origine
-    });
+    .filter(b=> contexte === "annulerBue" ? (Number(b.quantiteBue)||0) > 0 : (Number(b.quantite)||0) > 0);
   if(!candidats.length){ toast("Aucun emplacement disponible pour cette action"); return; }
-  const titre = contexte === "envoyer" ? "Vers quel emplacement ?"
-    : contexte === "faireVenir" ? "Depuis quel emplacement ?"
-    : "Quel emplacement ?";
-  document.getElementById("choixEmplacementTitre").innerHTML = `${titre} <span class="heure-message">${heureAvecSecondes()}</span>`;
+  document.getElementById("choixEmplacementTitre").innerHTML = `Quel emplacement ? <span class="heure-message">${heureAvecSecondes()}</span>`;
   const conteneur = document.getElementById("choixEmplacementListe");
   conteneur.innerHTML = candidats.map(b=>{
     const detail = contexte === "annulerBue"
@@ -1884,34 +1899,44 @@ function demanderChoixEmplacement(idsLies, contexte, onChoisi){
 document.getElementById("closeChoixEmplacement").addEventListener("click", ()=>document.getElementById("overlayChoixEmplacement").classList.remove("show"));
 /* Met à jour, dans la fiche ouverte, l'information sur le(s) autre(s) emplacement(s) liés à ce vin et la
    visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche (ajout ou édition). */
+/* Met à jour, dans la fiche ouverte, le panneau listant le(s) autre(s) emplacement(s) liés à ce vin — une
+   ligne par emplacement, chacune avec son propre couple de flèches d'échange (⬅️ faire venir depuis lui,
+   ➡️ lui envoyer) — et la visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche. */
 function majZoneLienEmplacement(){
-  const zoneInfo = document.getElementById("lienEmplacementInfo");
+  const panel = document.getElementById("lienEmplacementPanel");
+  const liste = document.getElementById("lienEmplacementListe");
   const btnDelier = document.getElementById("btnDelierEmplacement");
-  const btnEnvoyer = document.getElementById("btnEnvoyerBouteille");
-  const btnFaireVenir = document.getElementById("btnFaireVenirBouteille");
   const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
   if(!freres.length){
-    zoneInfo.style.display = "none";
-    zoneInfo.innerHTML = "";
+    panel.style.display = "none";
+    liste.innerHTML = "";
     btnDelier.style.display = "none";
-    btnEnvoyer.style.display = "none";
-    btnFaireVenir.style.display = "none";
     return;
   }
-  zoneInfo.innerHTML = "🔗 Également en cave à :" + freres.map(f=>
-    `<button type="button" class="lien-emplacement-chip" data-id="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement, pour en modifier la quantité ou l'emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")} (${Number(f.quantite)||0} bouteille(s))</button>`
-  ).join("");
-  zoneInfo.querySelectorAll("[data-id]").forEach(btn=>{
-    btn.addEventListener("click", ()=>ouvrirFiche(btn.dataset.id));
+  const stockIci = Number(b.quantite)||0;
+  liste.innerHTML = freres.map(f=>{
+    const stockLa = Number(f.quantite)||0;
+    return `
+    <div class="lien-emplacement-ligne">
+      <button type="button" class="lien-emplacement-chip" data-ouvrir="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement, pour en modifier la quantité ou l'emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")} · ${stockLa} bouteille(s)</button>
+      <div class="lien-fleches action-edition">
+        <button type="button" class="lien-fleche-btn" data-faire-venir="${f.id}"${stockLa<=0?" disabled":""} data-tt-titre="Faire venir une bouteille" data-tt-desc="Retire une bouteille de cet emplacement et l'ajoute à celui de la fiche ouverte.">⬅️</button>
+        <button type="button" class="lien-fleche-btn" data-envoyer="${f.id}"${stockIci<=0?" disabled":""} data-tt-titre="Envoyer une bouteille" data-tt-desc="Retire une bouteille de la fiche ouverte et l'ajoute à cet emplacement.">➡️</button>
+      </div>
+    </div>`;
+  }).join("");
+  liste.querySelectorAll("[data-ouvrir]").forEach(btn=>{
+    btn.addEventListener("click", ()=>ouvrirFiche(btn.dataset.ouvrir));
   });
-  zoneInfo.style.display = "flex";
+  liste.querySelectorAll("[data-faire-venir]").forEach(btn=>{
+    btn.addEventListener("click", ()=>deplacerBouteilleVers(btn.dataset.faireVenir, ficheEnCours));
+  });
+  liste.querySelectorAll("[data-envoyer]").forEach(btn=>{
+    btn.addEventListener("click", ()=>deplacerBouteilleVers(ficheEnCours, btn.dataset.envoyer));
+  });
+  panel.style.display = "block";
   btnDelier.style.display = "inline-flex";
-  // Envoyer : possible seulement s'il y a du stock ICI à envoyer ailleurs.
-  btnEnvoyer.style.display = (Number(b.quantite)||0) > 0 ? "inline-flex" : "none";
-  // Faire venir : possible seulement si AU MOINS UN autre emplacement lié a du stock à faire venir.
-  const auMoinsUnFrereAvecStock = freres.some(f=>(Number(f.quantite)||0) > 0);
-  btnFaireVenir.style.display = auMoinsUnFrereAvecStock ? "inline-flex" : "none";
 }
 
 /* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */
@@ -4182,7 +4207,9 @@ document.getElementById("btnDelierEmplacement").addEventListener("click", ()=>{
 
 /* Déplace une bouteille d'une fiche liée vers une autre (peu importe laquelle des deux est actuellement
    ouverte) : décrémente l'origine, incrémente la destination — le nombre total de bouteilles ne change
-   jamais. Rafraîchit la fiche ouverte si elle est concernée, qu'elle soit l'origine ou la destination. */
+   jamais. Rafraîchit la fiche ouverte si elle est concernée, qu'elle soit l'origine ou la destination.
+   Appelée directement par les flèches ⬅️/➡️ de chaque ligne du panneau (voir majZoneLienEmplacement) —
+   chaque emplacement lié a les siennes, plus besoin de fenêtre de choix pour cette action. */
 function deplacerBouteilleVers(sourceId, destId){
   const source = bottles.find(x=>x.id===sourceId);
   const dest = bottles.find(x=>x.id===destId);
@@ -4200,35 +4227,6 @@ function deplacerBouteilleVers(sourceId, destId){
   }
   rafraichirTout();
 }
-/* Sortir une bouteille de la fiche ouverte, vers un autre emplacement lié (choix demandé s'il y en a plusieurs). */
-document.getElementById("btnEnvoyerBouteille").addEventListener("click", ()=>{
-  if(!ficheEnCours) return;
-  const source = bottles.find(x=>x.id===ficheEnCours);
-  if(!source || !source.lienId) return;
-  const freres = bottles.filter(x=>x.lienId===source.lienId && x.id!==source.id);
-  if(!freres.length) return;
-  if((Number(source.quantite)||0) <= 0){ toast("Aucune bouteille à déplacer depuis cet emplacement"); return; }
-  if(freres.length === 1){
-    deplacerBouteilleVers(source.id, freres[0].id);
-  }else{
-    demanderChoixEmplacement(freres.map(f=>f.id), "envoyer", destId=>deplacerBouteilleVers(source.id, destId));
-  }
-});
-/* Faire venir une bouteille vers la fiche ouverte, depuis un autre emplacement lié qui en a (choix demandé
-   s'il y en a plusieurs avec du stock). Symétrique de « Envoyer » — même fonction sous-jacente, source et
-   destination inversées. */
-document.getElementById("btnFaireVenirBouteille").addEventListener("click", ()=>{
-  if(!ficheEnCours) return;
-  const dest = bottles.find(x=>x.id===ficheEnCours);
-  if(!dest || !dest.lienId) return;
-  const freresAvecStock = bottles.filter(x=>x.lienId===dest.lienId && x.id!==dest.id && (Number(x.quantite)||0) > 0);
-  if(!freresAvecStock.length){ toast("Aucune bouteille disponible dans l'autre emplacement"); return; }
-  if(freresAvecStock.length === 1){
-    deplacerBouteilleVers(freresAvecStock[0].id, dest.id);
-  }else{
-    demanderChoixEmplacement(freresAvecStock.map(f=>f.id), "faireVenir", sourceId=>deplacerBouteilleVers(sourceId, dest.id));
-  }
-});
 
 /* ---- Régions proposées (champ Région de la fiche) : liste construite via « Init » depuis les fiches
    existantes, persistante comme les autres réglages (locale + GitHub). ---- */

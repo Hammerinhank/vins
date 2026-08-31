@@ -175,6 +175,16 @@
   }
   .toolbar textarea{flex:1 1 160px;min-width:120px;}
   .toolbar select{flex:0 0 auto;}
+  .recherche-wrap{position:relative;flex:1 1 160px;min-width:120px;display:flex;}
+  .recherche-wrap textarea{border-color:#F5D90A;padding-right:30px;}
+  .btn-effacer-recherche{
+    display:none;
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--text-muted);
+    font-size:17px;line-height:1;padding:4px 6px;cursor:pointer;
+  }
+  .btn-effacer-recherche.visible{display:block;}
+  .btn-effacer-recherche:hover{color:var(--text);}
   .btn{
     border:1px solid var(--line);
     background:var(--bg-panel-2);
@@ -765,7 +775,10 @@
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="toolbar">
-  <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)" data-tt-titre="Recherche" data-tt-desc="Filtre la liste par nom, domaine ou numéro de vin."></textarea>
+  <div class="recherche-wrap">
+    <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)" data-tt-titre="Recherche" data-tt-desc="Filtre la liste par nom, domaine ou numéro de vin, insensible aux accents."></textarea>
+    <button type="button" class="btn-effacer-recherche" id="btnEffacerRecherche" data-tt-titre="Effacer la recherche" data-tt-desc="Vide le champ de recherche.">✕</button>
+  </div>
   <select id="filtreCouleurSel" data-tt-titre="Filtrer par couleur" data-tt-desc="N'affiche que les vins de la couleur choisie.">
     <option value="toutes">Toutes couleurs</option>
     <option value="rouge">Rouge</option>
@@ -1367,8 +1380,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.7";
+const VERSION = "1.11.8";
 const HISTORY = [
+  { version:"1.11.8", date:"2026-08-31", notes:"Champ Recherche : ajout d'une petite croix qui apparaît dès qu'il contient du texte et le vide en un appui ; encadré d'un très fin liseré jaune pour mieux le repérer ; et rendu insensible aux accents dans les deux sens (« duchene » retrouve désormais « Duchêne », et inversement)."},
   { version:"1.11.7", date:"2026-08-31", notes:"Corrigé : quand le stockage local est plein, l'avertissement affiché n'était qu'un toast de 2,2 s aussitôt écrasé par le toast de succès de l'action en cours (« Vin enregistré », etc.) — d'où un message quasi invisible. Remplacé par une bannière permanente, qui reste affichée jusqu'à ce qu'une sauvegarde locale réussisse de nouveau ou qu'un envoi vers GitHub aboutisse."},
   { version:"1.11.6", date:"2026-08-31", notes:"Le nombre de vins affiché en haut à gauche de la page principale (« · X vin(s) », sous « Bouteilles en cave ») passe en blanc au lieu d'un gris terne peu lisible sur le fond sombre."},
   { version:"1.11.5", date:"2026-08-31", notes:"Corrigé la faute « Licoreux » en « Liquoreux » dans le texte par défaut codé en dur de la question d'identification par photo, à la source du besoin de confirmation ajouté en 1.11.3. L'IA devrait désormais répondre directement avec l'orthographe correcte, sans plus déclencher la question de confirmation pour ce cas précis."},
@@ -2068,14 +2082,17 @@ function bouteillesFiltrees(){
   if(recherche.trim()){
     const brut = recherche.trim();
     // Une recherche purement numérique cherche UNIQUEMENT sur le N°, de façon exacte (4 ne doit remonter
-    // ni 14 ni 45, ni un nom/domaine contenant accessoirement ce chiffre). Sinon, recherche texte habituelle.
+    // ni 14 ni 45, ni un nom/domaine contenant accessoirement ce chiffre). Sinon, recherche texte habituelle,
+    // insensible à la casse ET aux accents dans les deux sens (« duchene » retrouve « Duchêne », et
+    // inversement) via normalisation Unicode (NFD) qui sépare les lettres de leurs diacritiques.
     if(/^\d+$/.test(brut)){
       const qNombre = parseInt(brut, 10);
       list = list.filter(b => b.numero === qNombre);
     }else{
-      const q = brut.toLowerCase();
+      const normaliser = t => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const q = normaliser(brut);
       list = list.filter(b => [b.nom,b.domaine,b.appellation,b.region,b.cepages,b.commentaire]
-        .some(v => v!=null && String(v).toLowerCase().includes(q)));
+        .some(v => v!=null && normaliser(v).includes(q)));
     }
   }
   list.sort((a,b)=>{
@@ -3120,7 +3137,23 @@ function sauvegarderEtPousserReglages(){
     if(!ok && chargerConfig().token) toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
   });
 }
-document.getElementById("rechercheInput").addEventListener("input", e=>{ recherche = e.target.value; renderGrille(); });
+function majBoutonEffacerRecherche(){
+  const btn = document.getElementById("btnEffacerRecherche");
+  if(btn) btn.classList.toggle("visible", !!document.getElementById("rechercheInput").value);
+}
+document.getElementById("rechercheInput").addEventListener("input", e=>{
+  recherche = e.target.value;
+  majBoutonEffacerRecherche();
+  renderGrille();
+});
+document.getElementById("btnEffacerRecherche").addEventListener("click", ()=>{
+  const champ = document.getElementById("rechercheInput");
+  champ.value = "";
+  recherche = "";
+  majBoutonEffacerRecherche();
+  renderGrille();
+  champ.focus();
+});
 document.getElementById("filtreCouleurSel").addEventListener("change", e=>{
   filtreCouleur = e.target.value;
   renderGrille();

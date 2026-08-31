@@ -498,6 +498,7 @@
     font-size:11px;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.05em;
     font-weight:600;margin:0 0 8px 0;
   }
+  .lien-emplacement-titre-autres{margin-top:12px;}
   .lien-emplacement-liste{display:flex;flex-direction:column;gap:8px;}
   /* Une carte par emplacement lié : le nom ET le stepper qui modifie SON stock sont dans le même
      encadré, pour qu'il n'y ait aucune ambiguïté sur ce que le − / + change. */
@@ -508,12 +509,24 @@
     border-radius:10px;
     padding:7px 7px 7px 12px;
   }
+  /* Carte de l'emplacement de LA FICHE OUVERTE : bordure neutre (pas dorée) pour bien la distinguer des
+     cartes actionnables ci-dessous — celle-ci est une simple recopie en lecture seule, jamais un bouton. */
+  .lien-emplacement-carte-lecture-seule{
+    border-color:var(--line);
+    background:var(--bg-panel);
+  }
+  .lien-emplacement-carte-lecture-seule .lien-emplacement-nombre{padding:0 6px;}
   .lien-emplacement-nom{
     flex:1;min-width:0;text-align:left;cursor:pointer;
     background:none;border:none;color:var(--text);
     font-size:13.5px;padding:4px 0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;
+  }
+  .lien-emplacement-nom-statique{
+    flex:1;min-width:0;color:var(--text);
+    font-size:13.5px;padding:4px 0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .lien-emplacement-stepper{display:flex;align-items:center;gap:8px;flex:none;}
   .lien-emplacement-nombre{
@@ -522,9 +535,6 @@
   }
   .lien-emplacement-gestion{display:flex;gap:8px;margin-top:10px;}
   .lien-emplacement-gestion .btn{flex:1;justify-content:center;}
-  .quantite-totale-lien{
-    font-size:11.5px;color:var(--gold-soft);margin:5px 0 0 0;line-height:1.3;
-  }
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -941,13 +951,12 @@
 
         <div class="field-row">
           <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM" data-tt-titre="Millésime" data-tt-desc="Année de récolte du vin (ou « NM » si non millésimé)."></textarea></div>
-          <div class="field"><label id="labelQuantiteEnCave">Quantité en cave</label>
+          <div class="field"><label>Quantité en cave</label>
             <div class="quantite-row">
               <button type="button" class="qty-btn-fiche" id="btnQuantiteMoins" aria-label="Diminuer la quantité" data-tt-titre="Diminuer la quantité" data-tt-desc="Réduit d'une unité le nombre de bouteilles en cave pour ce vin.">−</button>
               <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off" data-tt-titre="Quantité en cave" data-tt-desc="Nombre de bouteilles actuellement en cave pour ce vin.">
               <button type="button" class="qty-btn-fiche" id="btnQuantitePlus" aria-label="Augmenter la quantité" data-tt-titre="Augmenter la quantité" data-tt-desc="Ajoute une unité au nombre de bouteilles en cave pour ce vin.">+</button>
             </div>
-            <p class="quantite-totale-lien" id="quantiteTotaleLien" style="display:none;"></p>
             <datalist id="fQuantiteListe">
               <option value="0"></option>
               <option value="1"></option>
@@ -978,7 +987,12 @@
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
           <div class="lien-emplacement-panel" id="lienEmplacementPanel" style="display:none;">
-            <p class="lien-emplacement-titre">🔗 Également en cave à</p>
+            <p class="lien-emplacement-titre">Pour cet emplacement</p>
+            <div class="lien-emplacement-carte lien-emplacement-carte-lecture-seule">
+              <span class="lien-emplacement-nom-statique" id="lienEmplacementNomCourant" data-tt-titre="Cet emplacement" data-tt-desc="Simple recopie du champ Emplacement ci-dessus — pour le modifier, utilise ce champ, pas cet encadré.">—</span>
+              <span class="lien-emplacement-nombre" id="lienEmplacementNombreCourant" data-tt-titre="Quantité à cet emplacement" data-tt-desc="Recopie de « Quantité en cave » ci-dessus. Pour la faire varier par transfert plutôt qu'en la modifiant directement, utilise les − / + des autres emplacements ci-dessous.">—</span>
+            </div>
+            <p class="lien-emplacement-titre lien-emplacement-titre-autres">🔗 Également en cave à</p>
             <div class="lien-emplacement-liste" id="lienEmplacementListe"></div>
           </div>
           <div class="lien-emplacement-gestion">
@@ -1454,8 +1468,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.6";
+const VERSION = "1.12.7";
 const HISTORY = [
+  { version:"1.12.7", date:"2026-08-31", notes:"Reprise complète de la clarification précédente, jugée pas satisfaisante. Le champ « Quantité en cave » redevient strictement identique, que la fiche soit simple ou liée — plus aucun changement de libellé ni de note. À la place, un nouvel encadré « Pour cet emplacement » apparaît en tête du panneau, au-dessus des autres emplacements liés : il recopie en lecture seule le nom et la quantité de la fiche ouverte (bordure neutre, pas dorée, pour bien le distinguer des cartes actionnables) — sans aucun +/-, puisque toute modification directe passe par les champs Emplacement et Quantité en cave habituels. Ce chiffre ne bouge ici que par ricochet, quand un transfert est déclenché depuis l'une des cartes des autres emplacements juste en dessous."},
   { version:"1.12.6", date:"2026-08-31", notes:"Levé une ambiguïté sur un vin à plusieurs emplacements : le champ « Quantité en cave » de la fiche était déjà propre à cet emplacement précis (ajouter/retirer là ne touche que son propre quota, jamais un total) — mais rien ne le précisait. Le libellé devient « Quantité en cave (à cet emplacement) » dès que la fiche est liée, et une note juste en dessous affiche le total du vin tous emplacements confondus, pour que les deux chiffres cohabitent sans confusion possible."},
   { version:"1.12.5", date:"2026-08-31", notes:"Remplacé les flèches ⬅️/➡️ du panneau des emplacements liés par un stepper « − nombre + » — le même que celui déjà utilisé pour « Quantité en cave » dans la fiche, pour rester immédiatement reconnaissable. Surtout : le nom de l'emplacement et son stepper sont désormais dans une seule et même carte encadrée, pour qu'il n'y ait plus aucune ambiguïté sur ce que le − ou le + modifie — c'est toujours le stock de l'emplacement écrit dans cette carte-là, jamais celui d'ailleurs."},
   { version:"1.12.4", date:"2026-08-31", notes:"Réorganisation ergonomique de la zone des emplacements liés dans la fiche : au lieu de quatre boutons disposés selon l'ordre du code (et donc mal alignés), un panneau dédié liste chaque emplacement lié sur sa propre ligne, avec ses deux flèches d'échange (⬅️ faire venir / ➡️ envoyer) juste à côté — chacune grisée quand l'action n'a pas de sens (rien à faire venir si l'autre est vide, rien à envoyer si celui-ci l'est). En dessous, « Ajouter un emplacement » et « Délier » sont désormais sur la même ligne, à largeur égale. Simplifie au passage le fonctionnement : plus besoin de fenêtre de choix pour ces échanges, chaque emplacement a directement ses propres flèches."},
@@ -1919,19 +1934,23 @@ function majZoneLienEmplacement(){
   const panel = document.getElementById("lienEmplacementPanel");
   const liste = document.getElementById("lienEmplacementListe");
   const btnDelier = document.getElementById("btnDelierEmplacement");
-  const labelQuantite = document.getElementById("labelQuantiteEnCave");
-  const noteTotalLien = document.getElementById("quantiteTotaleLien");
+  const nomCourant = document.getElementById("lienEmplacementNomCourant");
+  const nombreCourant = document.getElementById("lienEmplacementNombreCourant");
   const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
   if(!freres.length){
     panel.style.display = "none";
     liste.innerHTML = "";
     btnDelier.style.display = "none";
-    labelQuantite.textContent = "Quantité en cave";
-    noteTotalLien.style.display = "none";
     return;
   }
   const stockIci = Number(b.quantite)||0;
+  // Encadré du haut : simple recopie en lecture seule de l'emplacement et de la quantité de LA FICHE
+  // OUVERTE (le champ Emplacement ci-dessus reste l'unique endroit pour modifier le nom ; le champ
+  // Quantité en cave ci-dessus reste l'unique endroit pour modifier son nombre directement — ce chiffre ne
+  // varie ici que par ricochet, quand un transfert est déclenché depuis une des cartes ci-dessous).
+  nomCourant.textContent = b.emplacement || "(sans emplacement)";
+  nombreCourant.textContent = stockIci;
   liste.innerHTML = freres.map(f=>{
     const stockLa = Number(f.quantite)||0;
     return `

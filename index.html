@@ -488,6 +488,10 @@
     border-radius:8px;font-size:16px;text-align:center;padding:0;
   }
   .emplacement-icon-btn:disabled{opacity:.35;}
+  .lien-emplacement-info{
+    font-size:12px;color:var(--gold-soft);margin:8px 0 0 0;line-height:1.4;
+  }
+  .lien-emplacement-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -608,6 +612,12 @@
   .confirm-box{max-width:340px;border-radius:16px;}
   .confirm-box .modal-body{text-align:center;padding-top:22px;}
   .confirm-box p{font-size:14.5px;color:var(--text-muted);}
+  .choix-emplacement-btn{
+    display:block;width:100%;margin-bottom:8px;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    padding:11px 14px;border-radius:10px;font-size:14px;text-align:left;
+  }
+  .choix-emplacement-btn:active{transform:scale(.98);}
 
   /* conflit de synchronisation */
   .conflit-sync-box{max-width:460px;border-radius:16px;}
@@ -933,6 +943,11 @@
             </select>
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
+          <p class="lien-emplacement-info" id="lienEmplacementInfo" style="display:none;"></p>
+          <div class="lien-emplacement-actions">
+            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un autre emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un autre emplacement</button>
+            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier cet emplacement</button>
+          </div>
         </div>
 
         <div class="fiche-actions-bue" id="ficheActionsBue"></div>
@@ -1168,6 +1183,21 @@
   </div>
 </div>
 
+<!-- Modal choix de l'emplacement, quand une action (marquer une bue, annuler une bue) est déclenchée
+     depuis une carte fusionnant plusieurs vins liés (voir CHAMPS_PARTAGES_LIEN / fusionnerParLien) -->
+<div class="overlay" id="overlayChoixEmplacement">
+  <div class="modal confirm-box">
+    <div class="modal-header">
+      <h2 id="choixEmplacementTitre">Quel emplacement ?</h2>
+      <button class="modal-close" id="closeChoixEmplacement" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans rien faire.">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="panel-note">Ce vin est réparti sur plusieurs emplacements — choisis lequel.</p>
+      <div id="choixEmplacementListe"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Page paramètres / saisie rapide -->
 <div class="page-parametres" id="pageParametres" style="display:none;">
   <div class="page-top-sticky">
@@ -1387,8 +1417,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.16";
+const VERSION = "1.12.0";
 const HISTORY = [
+  { version:"1.12.0", date:"2026-08-31", notes:"Nouvelle fonctionnalité : un même vin peut désormais être réparti sur plusieurs emplacements (ex. Maison + Garage), avec une seule fiche « logique » pour tout sauf l'emplacement et la quantité. Dans la fiche, bouton « 🔗 Ajouter un autre emplacement » (crée une deuxième fiche synchronisée) et « ✂️ Délier cet emplacement » (rompt le lien). Modifier n'importe quel champ partagé (nom, couleur, région, notes, prix, photo, numéro…) sur l'une des fiches liées le recopie aussitôt sur l'autre. Partout où l'emplacement n'entre pas en jeu — grille par défaut, regroupement par couleur/région, recherche, statistiques, rapport PDF — les fiches liées fusionnent en une seule carte avec la quantité totale et les emplacements listés à la suite (« Maison + Garage »). Seul le regroupement « par emplacement » les sépare à nouveau. Marquer une bouteille comme bue (ou annuler) depuis une carte fusionnée demande explicitement de quel emplacement il s'agit. Supprimer une fiche liée ne supprime que cet emplacement (et sa photo distante uniquement si l'autre fiche ne l'utilise plus) — le vin reste consultable ailleurs."},
   { version:"1.11.16", date:"2026-08-31", notes:"L'heure affichée dans les messages (toasts, bannières, fenêtres de confirmation) est désormais une horloge vivante, mise à jour chaque seconde tant que le message reste visible — plus juste qu'une heure figée pour une capture d'écran prise après l'apparition du message. Seule exception inévitable : une alerte bloquante native (alert()) gèle l'exécution JavaScript tant qu'elle est ouverte, donc son heure reste celle de son apparition (déjà exacte à ce moment-là)."},
   { version:"1.11.15", date:"2026-08-31", notes:"Tous les messages affichés par l'app (toasts, alertes bloquantes, fenêtres de confirmation, fenêtre de conflit GitHub, bannières de mode consultation et de stockage plein) affichent désormais l'heure exacte avec les secondes, discrètement mais lisiblement. Objectif : qu'une simple capture d'écran suffise toujours à situer précisément un événement dans le temps, y compris parmi plusieurs actions rapprochées à la même minute — l'horloge du téléphone n'affichant que les minutes."},
   { version:"1.11.14", date:"2026-08-31", notes:"Analyse d'un log détaillé transmis par l'utilisateur : le mécanisme partagé de confirmation (demanderConfirmation, utilisé par une dizaine d'actions dans l'app — restaurer une version, envoyer vers GitHub, supprimer un vin…) n'écrivait jusqu'ici RIEN dans le log — ni son affichage, ni l'issue (Confirmer/Annuler/fermeture). C'était un point aveugle qui a rendu un incident réel (une fenêtre « Envoyer la version restaurée ? » dont l'issue restait inconnue) impossible à élucider avec certitude. Corrigé à la racine : chaque affichage et chaque bouton pressé sur N'IMPORTE QUELLE fenêtre de confirmation de l'app est désormais journalisé, avec un avertissement explicite si jamais le callback attendu se révélait déjà vide au moment de confirmer."},
@@ -1737,6 +1768,117 @@ function uuid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "id-"+Date.now()+"-"+Math.random().toString(16).slice(2);
 }
+
+/* ===================== VINS LIÉS (même vin réparti sur plusieurs emplacements) =====================
+   Deux fiches (ou plus) partageant le même lienId représentent le MÊME vin réparti physiquement sur
+   plusieurs emplacements : tout est partagé entre elles sauf l'emplacement et la quantité (en cave et
+   bue), propres à chacune. Dès qu'on emplacement n'a aucune importance (grille par défaut, regroupement
+   par couleur/région, recherche, stats, PDF), les fiches liées fusionnent en une seule carte affichant la
+   quantité totale et les emplacements à la suite. Seul le regroupement « par emplacement » les sépare. */
+const CHAMPS_PARTAGES_LIEN = [
+  "nom","domaine","pays","couleur","millesime","region","appellation","cepages",
+  "prixUnitaire","dateAchat","lieuAchat","boireDe","boireA","note","noteNumerique",
+  "noteIncertaine","etiquette","commentaire","marque","marqueCouleur","numero",
+  "photoMiniature","photoFichier"
+  // photoPendingBase64 volontairement exclu : c'est une photo pleine résolution pas encore envoyée sur
+  // GitHub, propre à cet appareil — la dupliquer entre fiches liées doublerait inutilement l'espace
+  // utilisé en local (voir l'historique des incidents de stockage saturé). Une fois envoyée, c'est
+  // photoFichier/photoMiniature (légers) qui se propagent normalement.
+];
+/* Recopie les champs partagés d'une fiche vers toutes les autres fiches liées à elle (même lienId) —
+   appelé après chaque enregistrement d'une fiche. Sans effet si la fiche n'est liée à aucune autre. */
+function propagerVersLiens(id){
+  const source = bottles.find(b=>b.id===id);
+  if(!source || !source.lienId) return;
+  let nbPropages = 0;
+  bottles.forEach(b=>{
+    if(b.id !== id && b.lienId === source.lienId){
+      CHAMPS_PARTAGES_LIEN.forEach(champ=>{ b[champ] = source[champ]; });
+      nbPropages++;
+    }
+  });
+  if(nbPropages) logAjouter(`propagerVersLiens(${id}) — champs partagés recopiés vers ${nbPropages} fiche(s) liée(s) (lienId=${source.lienId}).`);
+}
+/* Retire le lienId de toute fiche dont le groupe de lien ne contient plus qu'elle-même (après une
+   suppression ou un délien) — un « lien » à un seul élément n'a pas de sens et redeviendrait trompeur. */
+function nettoyerLiensOrphelins(){
+  const comptes = {};
+  bottles.forEach(b=>{ if(b.lienId) comptes[b.lienId] = (comptes[b.lienId]||0) + 1; });
+  bottles.forEach(b=>{ if(b.lienId && comptes[b.lienId] <= 1) b.lienId = ""; });
+}
+/* Fusionne les fiches liées entre elles en une seule carte virtuelle par groupe de lien : quantités (en
+   cave et bues) additionnées, emplacement affiché comme "Lieu A + Lieu B". Les champs partagés sont pris
+   sur la première fiche rencontrée (synchronisés de toute façon par propagerVersLiens à chaque
+   enregistrement). Une fiche non liée, ou dont l'unique fiche liée a été retirée par un filtre appliqué
+   avant cette fusion, traverse la fonction inchangée — jamais d'erreur si le lien est incomplet. */
+function fusionnerParLien(list){
+  const dejaTraites = new Set();
+  const resultat = [];
+  list.forEach(b=>{
+    if(!b.lienId){ resultat.push(b); return; }
+    if(dejaTraites.has(b.lienId)) return;
+    dejaTraites.add(b.lienId);
+    const liees = list.filter(x=>x.lienId === b.lienId);
+    if(liees.length <= 1){ resultat.push(b); return; }
+    const quantiteTotale = liees.reduce((s,x)=>s+(Number(x.quantite)||0), 0);
+    const quantiteBueTotale = liees.reduce((s,x)=>s+(Number(x.quantiteBue)||0), 0);
+    const emplacements = liees.map(x=>x.emplacement || "(sans emplacement)").join(" + ");
+    resultat.push(Object.assign({}, liees[0], {
+      quantite: quantiteTotale,
+      quantiteBue: quantiteBueTotale,
+      emplacement: emplacements,
+      _lienFusion: true,
+      _idsLies: liees.map(x=>x.id)
+    }));
+  });
+  return resultat;
+}
+/* Affiche un choix simple (un bouton par emplacement lié) pour savoir de quel emplacement précis une
+   action (marquer une bue / annuler une bue) doit être appliquée, quand elle est déclenchée depuis une
+   carte fusionnée. contexte détermine à la fois le sous-titre affiché sur chaque bouton et le filtrage
+   des candidats (inutile de proposer un emplacement sans aucune bue à annuler, par exemple). */
+function demanderChoixEmplacement(idsLies, contexte, onChoisi){
+  const candidats = idsLies
+    .map(id=>bottles.find(b=>b.id===id))
+    .filter(Boolean)
+    .filter(b=> contexte === "annulerBue" ? (Number(b.quantiteBue)||0) > 0 : (Number(b.quantite)||0) > 0);
+  if(!candidats.length){ toast("Aucun emplacement disponible pour cette action"); return; }
+  document.getElementById("choixEmplacementTitre").innerHTML = `Quel emplacement ? <span class="heure-message">${heureAvecSecondes()}</span>`;
+  const conteneur = document.getElementById("choixEmplacementListe");
+  conteneur.innerHTML = candidats.map(b=>{
+    const detail = contexte === "annulerBue"
+      ? `${Number(b.quantiteBue)||0} bue(s)`
+      : `${Number(b.quantite)||0} en cave`;
+    return `<button type="button" class="choix-emplacement-btn" data-id="${b.id}">${escapeHtml(b.emplacement||"(sans emplacement)")} — ${detail}</button>`;
+  }).join("");
+  conteneur.querySelectorAll("[data-id]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      logAjouter(`demanderChoixEmplacement(${contexte}) — choix : ${btn.dataset.id}`);
+      document.getElementById("overlayChoixEmplacement").classList.remove("show");
+      onChoisi(btn.dataset.id);
+    });
+  });
+  logAjouter(`demanderChoixEmplacement(${contexte}) affichée — ${candidats.length} candidat(s) : ${candidats.map(c=>c.id).join(", ")}`);
+  document.getElementById("overlayChoixEmplacement").classList.add("show");
+}
+document.getElementById("closeChoixEmplacement").addEventListener("click", ()=>document.getElementById("overlayChoixEmplacement").classList.remove("show"));
+/* Met à jour, dans la fiche ouverte, l'information sur le(s) autre(s) emplacement(s) liés à ce vin et la
+   visibilité du bouton « Délier ». Appelée à chaque ouverture de fiche (ajout ou édition). */
+function majZoneLienEmplacement(){
+  const zoneInfo = document.getElementById("lienEmplacementInfo");
+  const btnDelier = document.getElementById("btnDelierEmplacement");
+  const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
+  const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
+  if(!freres.length){
+    zoneInfo.style.display = "none";
+    btnDelier.style.display = "none";
+    return;
+  }
+  zoneInfo.textContent = "🔗 Également en cave à : " + freres.map(f=>`${f.emplacement||"(sans emplacement)"} (${Number(f.quantite)||0} bouteille(s))`).join(", ");
+  zoneInfo.style.display = "block";
+  btnDelier.style.display = "inline-flex";
+}
+
 /* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */
 function obtenirInstanceId(){
   try{
@@ -2197,7 +2339,9 @@ function libelleApogee(st){
 
 /* ===================== RENDU : STATS ===================== */
 function renderStats(){
-  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
+  // Fusion des vins liés (voir fusionnerParLien) : un vin réparti sur plusieurs emplacements ne doit
+  // compter qu'une fois dans « X vin(s) », pas une fois par emplacement.
+  const enCave = fusionnerParLien(bottles.filter(b=>(Number(b.quantite)||0) > 0));
   const totalBouteilles = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const valeurTotale = enCave.reduce((s,b)=> s + ((Number(b.prixUnitaire)||0) * (Number(b.quantite)||0)), 0);
   const aBoire = enCave.filter(b=>statutApogee(b)==="now").reduce((s,b)=>s+(Number(b.quantite)||0),0);
@@ -2230,8 +2374,9 @@ function renderStats(){
 /* ===================== FILTRAGE / TRI / GROUPEMENT ===================== */
 function bouteillesFiltrees(){
   let list = bottles.slice();
-  if(filtreStatut === "cave") list = list.filter(b=>(Number(b.quantite)||0) > 0);
-  else if(filtreStatut === "bue") list = list.filter(b=>(Number(b.quantiteBue)||0) > 0);
+  // Filtres sur des champs partagés entre fiches liées (couleur, marque, apogée, recherche) : sans risque
+  // à appliquer avant la fusion des vins liés ci-dessous, puisque deux fiches liées partagent forcément
+  // la même valeur pour ces champs (propagation automatique à chaque enregistrement, voir propagerVersLiens).
   if(filtreCouleur !== "toutes") list = list.filter(b=>b.couleur===filtreCouleur);
   if(filtreMarque === "marques") list = list.filter(b=>!!b.marque);
   else if(filtreMarque === "non_marques") list = list.filter(b=>!b.marque);
@@ -2252,6 +2397,13 @@ function bouteillesFiltrees(){
         .some(v => v!=null && normaliser(v).includes(q)));
     }
   }
+  // Fusion des vins liés (même vin réparti sur plusieurs emplacements) en une seule carte virtuelle, sauf
+  // quand le regroupement se fait justement par emplacement (là, chaque emplacement doit rester visible
+  // séparément). DOIT avoir lieu avant le filtre par statut cave/bue ci-dessous : sinon un vin dont une
+  // seule des fiches liées a du stock (ou a été bue) pourrait être exclu à tort.
+  if(groupBy !== "emplacement") list = fusionnerParLien(list);
+  if(filtreStatut === "cave") list = list.filter(b=>(Number(b.quantite)||0) > 0);
+  else if(filtreStatut === "bue") list = list.filter(b=>(Number(b.quantiteBue)||0) > 0);
   list.sort((a,b)=>{
     switch(sortKey){
       case "nom_asc": return (a.nom||"").localeCompare(b.nom||"", "fr");
@@ -2334,7 +2486,7 @@ function carteBouteille(b){
     : `<span class="qty-lecture">${quantite} en cave</span>`;
 
   return `
-  <div class="bottle-card${photoVisible?' avec-photo':''}" data-id="${b.id}">
+  <div class="bottle-card${photoVisible?' avec-photo':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
     ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">
@@ -2401,10 +2553,19 @@ function renderGrille(){
     card.querySelectorAll('[data-action="ouvrir"]').forEach(el=>{
       el.addEventListener("click", ()=>ouvrirFiche(id));
     });
+    const idsLies = card.dataset.lienIds ? card.dataset.lienIds.split(",").filter(Boolean) : [];
     const btnBue = card.querySelector('[data-action="bue"]');
-    if(btnBue) btnBue.addEventListener("click", e=>{ e.stopPropagation(); marquerBue(id); });
+    if(btnBue) btnBue.addEventListener("click", e=>{
+      e.stopPropagation();
+      if(idsLies.length > 1) demanderChoixEmplacement(idsLies, "bue", idChoisi=>marquerBue(idChoisi));
+      else marquerBue(id);
+    });
     const btnAnnulerBueCard = card.querySelector('[data-action="annulerBue"]');
-    if(btnAnnulerBueCard) btnAnnulerBueCard.addEventListener("click", e=>{ e.stopPropagation(); annulerBue(id); });
+    if(btnAnnulerBueCard) btnAnnulerBueCard.addEventListener("click", e=>{
+      e.stopPropagation();
+      if(idsLies.length > 1) demanderChoixEmplacement(idsLies, "annulerBue", idChoisi=>annulerBue(idChoisi));
+      else annulerBue(id);
+    });
     const btnPhoto = card.querySelector('[data-action="togglePhoto"]');
     if(btnPhoto){
       btnPhoto.addEventListener("click", e=>{
@@ -2676,6 +2837,7 @@ function ouvrirAjout(){
   document.getElementById("ficheActionsBue").innerHTML = "";
   document.getElementById("ficheActionSupprimer").innerHTML = "";
   document.getElementById("ficheSectionBasse").open = false;
+  majZoneLienEmplacement();
   document.getElementById("overlayFiche").classList.add("show");
 }
 
@@ -2720,6 +2882,7 @@ function ouvrirFiche(id){
   document.getElementById("fDateAchat").value = b.dateAchat||"";
   document.getElementById("fLieuAchat").value = b.lieuAchat||"";
   document.getElementById("fEmplacement").value = b.emplacement||"";
+  majZoneLienEmplacement();
   document.getElementById("fBoireDe").value = b.boireDe||"";
   document.getElementById("fBoireA").value = b.boireA||"";
   document.getElementById("fEtiquette").value = b.etiquette||"";
@@ -2762,14 +2925,21 @@ function ouvrirFiche(id){
     btnSupprimer.setAttribute("data-tt-titre", "Supprimer");
     btnSupprimer.setAttribute("data-tt-desc", "Supprime définitivement ce vin de la cave, après confirmation.");
     btnSupprimer.addEventListener("click", ()=>{
-      demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?`, ()=>{
+      const freresLies = b.lienId ? bottles.filter(x=>x.lienId===b.lienId && x.id!==id) : [];
+      const messageSuppl = freresLies.length
+        ? ` Ce vin reste par ailleurs en cave à : ${freresLies.map(f=>f.emplacement||"(sans emplacement)").join(", ")}.`
+        : "";
+      demanderConfirmation("Supprimer ce vin", `Supprimer définitivement « ${b.nom||"ce vin"} » de la cave ?${messageSuppl}`, ()=>{
         const cheminPhoto = b.photoFichier;
         bottles = bottles.filter(x=>x.id!==id);
+        nettoyerLiensOrphelins();
         sauvegarderBouteilles();
         document.getElementById("overlayFiche").classList.remove("show");
         rafraichirTout();
         toast("Vin supprimé");
-        if(cheminPhoto){
+        // Ne retire la photo distante que si aucune fiche liée ne l'utilise plus (photoFichier est un
+        // champ partagé entre fiches liées — la supprimer casserait la photo de la fiche restante).
+        if(cheminPhoto && !freresLies.length){
           supprimerPhotoDistante(cheminPhoto).then(ok=>{
             if(!ok && chargerConfig().token) toast("Vin supprimé — la photo sur GitHub n'a pas pu être retirée");
           });
@@ -2892,15 +3062,18 @@ function enregistrerFiche(){
     b.numero = numeroFicheCourant;
     delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
     logAjouter(`→ Vin existant mis à jour (id=${ficheEnCours}) — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
+    propagerVersLiens(ficheEnCours);
   }else{
+    const nouvelId = uuid();
     bottles.push(Object.assign({
-      id: uuid(),
+      id: nouvelId,
       numero: numeroFicheCourant || prochainNumero(),
       dateAjout: todayISO(),
       quantiteBue: 0,
       dateDerniereDegustation: ""
     }, data));
     logAjouter(`→ Nouveau vin créé — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
+    propagerVersLiens(nouvelId);
   }
   sauvegarderBouteilles();
   if(data.emplacement){
@@ -3505,11 +3678,16 @@ function construireClassement(items){
 }
 function construireStatistiques(){
   const conteneur = document.getElementById("statsContenu");
-  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
+  // Fusion des vins liés (voir fusionnerParLien) pour les comptages et classements : un vin réparti sur
+  // plusieurs emplacements ne doit apparaître qu'une fois (même note/prix listés deux fois sinon). Seul
+  // parAnnee, plus bas, reste calculé sur la liste brute — c'est un décompte d'événements de dégustation
+  // réels, pas un comptage de vins distincts, et la fusion y perdrait en précision.
+  const bottlesFusionnees = fusionnerParLien(bottles);
+  const enCave = bottlesFusionnees.filter(b=>(Number(b.quantite)||0) > 0);
   const totalBouteillesEnCave = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const valeurTotale = enCave.reduce((s,b)=> s + ((Number(b.prixUnitaire)||0) * (Number(b.quantite)||0)), 0);
   const totalBues = bottles.reduce((s,b)=>s+(Number(b.quantiteBue)||0),0);
-  const vinsAvecNoteChiffree = bottles.filter(b=>b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="");
+  const vinsAvecNoteChiffree = bottlesFusionnees.filter(b=>b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="");
   const noteChiffreeMoyenne = vinsAvecNoteChiffree.length
     ? (vinsAvecNoteChiffree.reduce((s,b)=>s+Number(b.noteNumerique),0) / vinsAvecNoteChiffree.length)
     : null;
@@ -3542,7 +3720,7 @@ function construireStatistiques(){
       valeur: String(b.noteNumerique) + (b.noteIncertaine==="?" ? "?" : "")
     }));
 
-  const rapportQP = bottles
+  const rapportQP = bottlesFusionnees
     .filter(b=> b.noteNumerique!==undefined && b.noteNumerique!==null && b.noteNumerique!=="" && Number(b.prixUnitaire)>0)
     .map(b=>({ b, ratio: Number(b.noteNumerique)/Number(b.prixUnitaire) }))
     .sort((a,b)=>b.ratio-a.ratio)
@@ -3706,7 +3884,9 @@ function pdfChaineVersOctets(pdf){
    parenthèse redondante du type « Champagne (Champagne) ». Cette même structure alimente à la fois
    l'aperçu HTML dans la page et le contenu du PDF généré. */
 function construireRapportVinsParRegion(){
-  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
+  // Fusion des vins liés (voir fusionnerParLien) : un vin réparti sur plusieurs emplacements ne doit
+  // apparaître qu'une fois par région, avec sa quantité totale — l'emplacement n'a aucune pertinence ici.
+  const enCave = fusionnerParLien(bottles.filter(b=>(Number(b.quantite)||0) > 0));
   const parRegion = {};
   enCave.forEach(b=>{
     const region = (b.region && b.region.trim()) ? b.region.trim() : "Région non renseignée";
@@ -3920,6 +4100,49 @@ function majBoutonDernierEmplacement(){
 }
 document.getElementById("btnEmplacementDernier").addEventListener("click", ()=>{
   if(dernierEmplacementUtilise) document.getElementById("fEmplacement").value = dernierEmplacementUtilise;
+});
+
+document.getElementById("btnAjouterEmplacementLie").addEventListener("click", ()=>{
+  if(!ficheEnCours){ toast("Enregistre d'abord ce vin avant de lui ajouter un autre emplacement"); return; }
+  const source = bottles.find(b=>b.id===ficheEnCours);
+  if(!source) return;
+  if(!source.lienId){
+    source.lienId = uuid();
+    logAjouter(`btnAjouterEmplacementLie — lienId créé sur la fiche existante ${source.id} : ${source.lienId}`);
+  }
+  const nouveau = Object.assign({}, source, {
+    id: uuid(),
+    numero: source.numero,
+    emplacement: "",
+    quantite: 0,
+    quantiteBue: 0,
+    dateAjout: todayISO(),
+    dateDerniereDegustation: "",
+    photoPendingBase64: ""
+  });
+  bottles.push(nouveau);
+  sauvegarderBouteilles();
+  logAjouter(`btnAjouterEmplacementLie — nouvelle fiche liée créée (id=${nouveau.id}, lienId=${source.lienId}) à partir de ${source.id}.`);
+  toast("Nouvel emplacement créé — renseigne-le puis Enregistre");
+  ouvrirFiche(nouveau.id);
+});
+
+document.getElementById("btnDelierEmplacement").addEventListener("click", ()=>{
+  if(!ficheEnCours) return;
+  const b = bottles.find(x=>x.id===ficheEnCours);
+  if(!b || !b.lienId) return;
+  demanderConfirmation(
+    "Délier cet emplacement ?",
+    "Ce vin ne sera plus synchronisé avec son ou ses autres emplacements. Les fiches existantes restent telles quelles, mais les futures modifications ne se recopieront plus automatiquement entre elles.",
+    ()=>{
+      logAjouter(`btnDelierEmplacement — fiche ${b.id} déliée (lienId était ${b.lienId}).`);
+      b.lienId = "";
+      nettoyerLiensOrphelins();
+      sauvegarderBouteilles();
+      majZoneLienEmplacement();
+      toast("Emplacement délié");
+    }
+  );
 });
 
 /* ---- Régions proposées (champ Région de la fiche) : liste construite via « Init » depuis les fiches

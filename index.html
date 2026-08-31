@@ -425,6 +425,27 @@
     font-family:'Inter',sans-serif !important;font-size:13.5px !important;
     white-space:pre-wrap;overflow-wrap:break-word;color:var(--text);min-height:180px;
   }
+  .pdf-apercu-page{
+    background:#ffffff;color:#1a1a1a;
+    max-width:600px;margin:14px auto 0 auto;padding:30px 34px 26px 34px;
+    border-radius:8px;box-shadow:var(--shadow);
+  }
+  .pdf-apercu-page .pdf-titre{font-family:'Fraunces',serif;font-size:19px;font-weight:600;margin:0 0 3px 0;color:#1a1a1a;}
+  .pdf-apercu-page .pdf-soustitre{font-size:11.5px;color:#666;margin:0 0 18px 0;}
+  .pdf-apercu-page .pdf-region{
+    font-size:14px;font-weight:700;margin:16px 0 6px 0;color:#1a1a1a;
+    border-bottom:1px solid #ddd;padding-bottom:3px;display:flex;justify-content:space-between;gap:10px;
+  }
+  .pdf-apercu-page .pdf-region-total{font-weight:400;color:#888;font-size:12px;white-space:nowrap;}
+  .pdf-apercu-page .pdf-liste-vins{list-style:none;margin:0;padding:0;}
+  .pdf-apercu-page .pdf-liste-vins li{
+    display:flex;justify-content:space-between;gap:12px;
+    padding:3px 0;font-size:12.5px;border-bottom:1px dashed #eee;color:#222;
+  }
+  .pdf-apercu-page .pdf-qte{color:#666;white-space:nowrap;font-size:11.5px;}
+  .pdf-apercu-page .pdf-total-general{
+    margin-top:20px;padding-top:10px;border-top:2px solid #1a1a1a;font-weight:700;font-size:13.5px;color:#1a1a1a;
+  }
   .versions-liste{
     max-height:380px;overflow-y:auto;
     border:1px solid var(--line-soft);border-radius:var(--radius);
@@ -1131,6 +1152,7 @@
       <button class="page-tab-btn" data-page="parametres" type="button" data-tt-titre="Paramètres" data-tt-desc="Régler l'assistant IA, les questions posées, les listes d'emplacement et de régions, et le mode consultation.">⚙️</button>
       <button class="page-tab-btn" data-page="journal" type="button" data-tt-titre="Journal / Diagnostic" data-tt-desc="Diagnostiquer un problème de synchronisation GitHub et restaurer une version antérieure de la cave.">🪲</button>
       <button class="page-tab-btn" data-page="log" type="button" data-tt-titre="Log" data-tt-desc="Journal détaillé des échanges avec l'assistant IA (identification et avis).">📜</button>
+      <button class="page-tab-btn" data-page="pdf" type="button" data-tt-titre="PDF" data-tt-desc="Générer un PDF récapitulatif de la cave, avec aperçu dans la page.">📄</button>
     </div>
   </div>
 
@@ -1311,6 +1333,14 @@
       <textarea id="logTexte" readonly rows="18" class="journal-textarea" placeholder="Utilise « Identifier avec ChatGPT/Claude » ou « Appliquer la réponse à ce vin » pour voir apparaître les étapes ici…" data-tt-titre="Log" data-tt-desc="Détail pas à pas des échanges avec l'assistant IA (identification et avis)."></textarea>
     </div>
   </div>
+
+  <div class="page-body" id="pageCorpsPdf" style="display:none;">
+    <p class="panel-note">Génère un PDF récapitulatif de la cave et l'ouvre en aperçu ci-dessous. Le fichier est aussi téléchargé automatiquement sur cet appareil.</p>
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnGenererPdfRegions" type="button" data-tt-titre="Générer le PDF" data-tt-desc="Crée un PDF listant les vins actuellement en cave, regroupés par région avec le nombre de bouteilles de chacun, l'affiche en aperçu ci-dessous et le télécharge.">📄 Vins en cave par région</button>
+    </div>
+    <div class="pdf-apercu-page" id="pdfApercuContenu" style="display:none;"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1326,8 +1356,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.94";
+const VERSION = "1.10.95";
 const HISTORY = [
+  { version:"1.10.95", date:"2026-08-31", notes:"Nouvelle page « PDF » (icône 📄 dans la barre d'onglets de Paramètres) : un premier bouton « Vins en cave par région » génère un PDF récapitulatif des vins actuellement en cave, regroupés par région avec le nombre de bouteilles de chacun, l'affiche en aperçu directement dans la page et le télécharge automatiquement sur l'appareil. Le PDF est produit entièrement en JavaScript, sans bibliothèque ni dépendance externe, pour rester cohérent avec le principe d'une app en un seul fichier autonome."},
   { version:"1.10.94", date:"2026-08-31", notes:"Simplification de la combobox Région (à droite du champ Région) : suppression du bouton « ✓ » séparé — sélectionner une région dans la liste la copie désormais directement dans le champ Région, comme pour les combobox d'emplacement. La combobox revient aussitôt à son icône 🌍 plutôt que d'afficher la valeur choisie."},
   { version:"1.10.93", date:"2026-08-31", notes:"Nettoyage : suppression de 5 fonctions jamais appelées nulle part dans le fichier (code mort) — restaurerVersion_OBSOLETE (doublon complet de restaurerVersion, déjà remplacée), decoderContenuBase64Utf8 et meilleureImageDisponible (plus utilisées depuis le passage aux réponses GitHub « raw »), reduireTousLesChampsAgrandis (logique équivalente déjà réalisée en ligne ailleurs), masquerBanniereConsultation (sans utilité tant que le mode consultation forcé reste verrouillé pour toute la session). Aucun changement de comportement — uniquement du code désormais inatteignable en moins."},
   { version:"1.10.92", date:"2026-08-31", notes:"Ajout d'un bandeau orange bien visible dans la fenêtre intermédiaire « Photo copiée » (affichée par « Identifier avec l'assistant IA ») rappelant de ne pas oublier de coller l'image dans la requête — avec le nom de l'assistant réellement sélectionné (Claude ou ChatGPT)."},
@@ -3191,6 +3222,166 @@ function construireStatistiques(){
   `;
 }
 
+/* ===================== PAGE PDF ===================== */
+/* Générateur PDF minimal, sans dépendance externe : construit un fichier PDF valide à la main
+   (police standard Helvetica/Helvetica-Bold, encodage WinAnsi), avec pagination automatique.
+   Suffisant pour un rapport texte simple ; pas de mise en page complexe (colonnes, images…). */
+function pdfEchapperParentheses(chaineOctets){
+  return chaineOctets.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+}
+/* Convertit le texte en octets WinAnsi (≈ Latin-1 pour les lettres accentuées françaises usuelles, plus
+   quelques signes typographiques propres à WinAnsi comme le tiret cadratin) — un caractère non
+   représentable sur un octet devient un « ? » plutôt que de corrompre le fichier. */
+function pdfChaineDepuisTexte(texte){
+  let octets = "";
+  for(const car of String(texte)){
+    let code = car.codePointAt(0);
+    if(code === 0x2018) code = 0x91;              // ‘
+    else if(code === 0x2019) code = 0x92;         // ’
+    else if(code === 0x201C) code = 0x93;         // “
+    else if(code === 0x201D) code = 0x94;         // ”
+    else if(code === 0x2013) code = 0x96;         // –
+    else if(code === 0x2014) code = 0x97;         // —
+    else if(code > 0xFF) code = 0x3F;             // caractère non pris en charge → ?
+    octets += String.fromCharCode(code);
+  }
+  return "(" + pdfEchapperParentheses(octets) + ")";
+}
+/* Construit le fichier PDF (une chaîne où chaque caractère représente un octet) à partir d'une liste
+   de lignes { texte, taille, gras, avant (espace en pt avant la ligne) }, avec saut de page automatique. */
+function construirePdfDepuisLignes(lignes){
+  const LARGEUR = 595.28, HAUTEUR = 841.89, MARGE = 50; // A4, en points
+  const HAUT_DEPART = HAUTEUR - MARGE, BAS_LIMITE = MARGE;
+
+  const pagesContenu = [];
+  let contenu = [];
+  let y = HAUT_DEPART;
+  function nouvellePage(){ if(contenu.length) pagesContenu.push(contenu.join("\n")); contenu = []; y = HAUT_DEPART; }
+  lignes.forEach(ligne=>{
+    const taille = ligne.taille || 10;
+    const interligne = taille * 1.4;
+    y -= (ligne.avant || 0);
+    if(y < BAS_LIMITE + interligne) nouvellePage();
+    const police = ligne.gras ? "/F2" : "/F1";
+    contenu.push(`BT ${police} ${taille} Tf 1 0 0 1 ${MARGE.toFixed(2)} ${y.toFixed(2)} Tm ${pdfChaineDepuisTexte(ligne.texte)} Tj ET`);
+    y -= interligne;
+  });
+  nouvellePage();
+  if(!pagesContenu.length) pagesContenu.push("");
+
+  const objCorps = [];
+  function ajouterObjet(corps){ objCorps.push(corps); return objCorps.length; }
+  const numCatalog = ajouterObjet("");
+  const numPages = ajouterObjet("");
+  const numFontRegular = ajouterObjet("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  const numFontBold = ajouterObjet("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+  const numPagesListe = [];
+  pagesContenu.forEach(stream=>{
+    const numContenu = ajouterObjet(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    const numPage = ajouterObjet(
+      `<< /Type /Page /Parent ${numPages} 0 R /MediaBox [0 0 ${LARGEUR} ${HAUTEUR}] `+
+      `/Resources << /Font << /F1 ${numFontRegular} 0 R /F2 ${numFontBold} 0 R >> >> `+
+      `/Contents ${numContenu} 0 R >>`
+    );
+    numPagesListe.push(numPage);
+  });
+  objCorps[numPages-1] = `<< /Type /Pages /Kids [ ${numPagesListe.map(n=>n+" 0 R").join(" ")} ] /Count ${numPagesListe.length} >>`;
+  objCorps[numCatalog-1] = `<< /Type /Catalog /Pages ${numPages} 0 R >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objCorps.forEach((corps,i)=>{ offsets.push(pdf.length); pdf += `${i+1} 0 obj\n${corps}\nendobj\n`; });
+  const offsetXref = pdf.length;
+  pdf += `xref\n0 ${objCorps.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=objCorps.length;i++) pdf += String(offsets[i]).padStart(10,"0") + " 00000 n \n";
+  pdf += `trailer\n<< /Size ${objCorps.length+1} /Root ${numCatalog} 0 R >>\nstartxref\n${offsetXref}\n%%EOF`;
+  return pdf;
+}
+function pdfChaineVersOctets(pdf){
+  const octets = new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++) octets[i] = pdf.charCodeAt(i) & 0xFF;
+  return octets;
+}
+
+/* Regroupe les vins actuellement en cave par région (même libellé « Région non renseignée » que le
+   regroupement de la grille principale, pour rester cohérent) et calcule les totaux. Cette même
+   structure alimente à la fois l'aperçu HTML dans la page et le contenu du PDF généré. */
+function construireRapportVinsParRegion(){
+  const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
+  const parRegion = {};
+  enCave.forEach(b=>{
+    const region = (b.region && b.region.trim()) ? b.region.trim() : "Région non renseignée";
+    (parRegion[region] = parRegion[region] || []).push(b);
+  });
+  const regions = Object.keys(parRegion).sort((a,b)=>{
+    if(a === "Région non renseignée") return 1;
+    if(b === "Région non renseignée") return -1;
+    return a.localeCompare(b, "fr");
+  });
+  const totalGeneral = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+  return { enCave, parRegion, regions, totalGeneral };
+}
+function lignesPdfRapportRegions(rapport){
+  const { enCave, parRegion, regions, totalGeneral } = rapport;
+  const lignes = [];
+  lignes.push({ texte:"Cave à vins — Vins en cave par région", taille:16, gras:true });
+  lignes.push({ texte:"Généré le " + new Date().toLocaleDateString("fr-FR"), taille:9, avant:5 });
+  lignes.push({ texte:`${enCave.length} vin(s) · ${totalGeneral} bouteille(s) au total`, taille:9, avant:2 });
+  regions.forEach(region=>{
+    const vins = parRegion[region].slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
+    const totalRegion = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    lignes.push({ texte:`${region} — ${totalRegion} bouteille(s)`, taille:12, gras:true, avant:16 });
+    vins.forEach(b=>{
+      const domaine = b.domaine ? " — " + b.domaine : "";
+      const millesime = b.millesime ? " (" + b.millesime + ")" : "";
+      const qte = Number(b.quantite)||0;
+      lignes.push({ texte:`${b.nom||"Sans nom"}${domaine}${millesime} — ${qte} bouteille(s)`, taille:10, avant:5 });
+    });
+  });
+  lignes.push({ texte:`Total général — ${totalGeneral} bouteille(s)`, taille:11, gras:true, avant:18 });
+  return lignes;
+}
+function apercuHtmlRapportRegions(rapport){
+  const { enCave, parRegion, regions, totalGeneral } = rapport;
+  let html = `<h2 class="pdf-titre">Cave à vins — Vins en cave par région</h2>`;
+  html += `<p class="pdf-soustitre">Généré le ${new Date().toLocaleDateString("fr-FR")} · ${enCave.length} vin(s) · ${totalGeneral} bouteille(s) au total</p>`;
+  regions.forEach(region=>{
+    const vins = parRegion[region].slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
+    const totalRegion = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    html += `<div class="pdf-region"><span>${escapeHtml(region)}</span><span class="pdf-region-total">${totalRegion} bouteille(s)</span></div>`;
+    html += `<ul class="pdf-liste-vins">` + vins.map(b=>{
+      const domaine = b.domaine ? " — " + escapeHtml(b.domaine) : "";
+      const millesime = b.millesime ? " (" + escapeHtml(b.millesime) + ")" : "";
+      const qte = Number(b.quantite)||0;
+      return `<li><span>${escapeHtml(b.nom||"Sans nom")}${domaine}${millesime}</span><span class="pdf-qte">${qte} bout.</span></li>`;
+    }).join("") + `</ul>`;
+  });
+  html += `<p class="pdf-total-general">Total général — ${totalGeneral} bouteille(s)</p>`;
+  return html;
+}
+document.getElementById("btnGenererPdfRegions").addEventListener("click", function(){
+  const rapport = construireRapportVinsParRegion();
+  if(!rapport.enCave.length){ toast("Aucun vin en cave à inclure dans le PDF"); return; }
+
+  const zoneApercu = document.getElementById("pdfApercuContenu");
+  zoneApercu.innerHTML = apercuHtmlRapportRegions(rapport);
+  zoneApercu.style.display = "block";
+
+  const pdf = construirePdfDepuisLignes(lignesPdfRapportRegions(rapport));
+  const blob = new Blob([pdfChaineVersOctets(pdf)], { type:"application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cave-vins-par-region-" + todayISO() + ".pdf";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  toast("PDF généré et téléchargé — aperçu ci-dessous");
+});
+
 /* ===================== PAGE PARAMÈTRES ===================== */
 function majLibelleAssistant(){
   const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
@@ -3390,8 +3581,9 @@ function afficherPageOnglet(cle){
   document.getElementById("pageCorpsParametres").style.display = cle === "parametres" ? "flex" : "none";
   document.getElementById("pageCorpsJournal").style.display = cle === "journal" ? "flex" : "none";
   document.getElementById("pageCorpsLog").style.display = cle === "log" ? "flex" : "none";
+  document.getElementById("pageCorpsPdf").style.display = cle === "pdf" ? "flex" : "none";
   document.getElementById("pageTitre").textContent =
-    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "stats" ? "Statistiques" : cle === "journal" ? "Journal / Diagnostic" : cle === "log" ? "Log" : "Paramètres";
+    cle === "saisie" ? "Saisie rapide" : cle === "avis" ? "Avis" : cle === "liste" ? "Liste" : cle === "stats" ? "Statistiques" : cle === "journal" ? "Journal / Diagnostic" : cle === "log" ? "Log" : cle === "pdf" ? "PDF" : "Paramètres";
   if(cle === "saisie") reinitialiserSaisieRapide();
   if(cle === "stats") construireStatistiques();
 }

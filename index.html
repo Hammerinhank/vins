@@ -233,7 +233,7 @@
     background:color-mix(in srgb, var(--gold) 22%, var(--bg-panel));
     border-left:4px solid var(--gold);
   }
-  .group-heading .count{color:var(--text-muted);font-weight:400;margin-left:2px;}
+  .group-heading .count{color:var(--gold-soft);font-weight:700;margin-left:2px;text-shadow:0 0 6px rgba(232,206,122,.6);}
   .group-heading:first-child{margin-top:0;}
   .bottle-grid{
     display:grid;
@@ -1380,8 +1380,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.9";
+const VERSION = "1.11.10";
 const HISTORY = [
+  { version:"1.11.10", date:"2026-08-31", notes:"Les bandeaux de regroupement (couleur, région, emplacement) affichent désormais à la fois le nombre de vins et le nombre de bouteilles en cave de chaque groupe (au lieu du seul nombre de vins), dans une teinte dorée lumineuse avec un léger halo pour être bien lisibles."},
   { version:"1.11.9", date:"2026-08-31", notes:"Protection du jeton GitHub contre un stockage local saturé : sauvegarderConfig() et sauvegarderReglagesLocal() n'avaient aucun filet de sécurité (contrairement à sauvegarderBouteilles()) — une saturation y provoquait une exception non interceptée qui interrompait le clic sur « Enregistrer les identifiants » en plein milieu, sans aucun retour visuel. Elles utilisent désormais la même bannière permanente que le reste de l'app. Ajout d'un second garde-fou indépendant : si le champ Jeton est vide au moment d'enregistrer alors qu'un jeton existait déjà, une confirmation explicite est demandée avant de l'effacer, pour ne jamais l'écraser par accident."},
   { version:"1.11.8", date:"2026-08-31", notes:"Champ Recherche : ajout d'une petite croix qui apparaît dès qu'il contient du texte et le vide en un appui ; encadré d'un très fin liseré jaune pour mieux le repérer ; et rendu insensible aux accents dans les deux sens (« duchene » retrouve désormais « Duchêne », et inversement)."},
   { version:"1.11.7", date:"2026-08-31", notes:"Corrigé : quand le stockage local est plein, l'avertissement affiché n'était qu'un toast de 2,2 s aussitôt écrasé par le toast de succès de l'action en cours (« Vin enregistré », etc.) — d'où un message quasi invisible. Remplacé par une bannière permanente, qui reste affichée jusqu'à ce qu'une sauvegarde locale réussisse de nouveau ou qu'un envoi vers GitHub aboutisse."},
@@ -2250,8 +2251,12 @@ function renderGrille(){
       const styleBarre = couleurKey
         ? ` style="border-left-color:var(--${couleurKey});background:color-mix(in srgb, var(--${couleurKey}) 30%, var(--bg-panel))"`
         : "";
+      const nbVins = groupes[g].length;
+      const nbBouteilles = groupes[g].reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      const libelleVins = nbVins > 1 ? "vins" : "vin";
+      const libelleBouteilles = nbBouteilles > 1 ? "bouteilles" : "bouteille";
       return `
-      <div class="group-heading"${styleBarre}>${escapeHtml(g)} <span class="count">· ${groupes[g].length}</span></div>
+      <div class="group-heading"${styleBarre}>${escapeHtml(g)} <span class="count">· ${nbVins} ${libelleVins} · ${nbBouteilles} ${libelleBouteilles}</span></div>
       <div class="bottle-grid">${groupes[g].map(carteBouteille).join("")}</div>
     `;
     }).join("");

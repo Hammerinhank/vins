@@ -1380,8 +1380,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.11";
+const VERSION = "1.11.13";
 const HISTORY = [
+  { version:"1.11.13", date:"2026-08-31", notes:"Sauvegarde automatique du log de diagnostic (page Log 📜) sur GitHub à chaque envoi réussi, dans un fichier dédié cave-log.txt totalement séparé de cave.json et cave-reglages.json (jamais lu par l'app, aucun effet de bord possible sur la synchronisation). Un seul fichier regroupe tout le log d'une même journée : les envois successifs du même jour y sont ajoutés à la suite (append) ; s'il date d'un autre jour, on repart de zéro. Au lancement, si ce fichier date d'un jour différent d'aujourd'hui, il est supprimé automatiquement pour éviter toute inflation avec le temps. Objectif : disposer d'une copie de secours du log consultable sur GitHub, même si la page Log locale a été perdue (rechargement, fermeture de l'app…)."},
+  { version:"1.11.12", date:"2026-08-31", notes:"Investigation d'un incident de restauration (retour à 47 bouteilles au lieu de ~90 après une restauration + envoi pourtant confirmés). Bug réel trouvé et corrigé : restaurerVersion() affectait bottles = distantes directement, partageant la même référence que le cache des versions — toute modification ultérieure aurait pu corrompre silencieusement le cache. Corrigé par une copie profonde. Journalisation considérablement enrichie (comptes exacts vins/bouteilles à chaque étape de restauration, d'envoi et de synchronisation au lancement) et tout échec d'envoi vers GitHub affiche désormais une alerte bloquante (impossible à manquer, contrairement à un toast) au lieu d'un simple message discret. Ajout d'une vérification automatique juste après chaque envoi réussi : l'app relit immédiatement ce que GitHub contient et alerte en cas de divergence avec ce qui devait être envoyé."},
   { version:"1.11.11", date:"2026-08-31", notes:"Trois ajustements. PDF « Vins en cave par région » : la couleur apparaît maintenant entre parenthèses même quand une région n'a qu'une seule couleur (ex. « Bourgogne (Rouge) ») ; seule exception, quand le nom de la couleur est identique à celui de la région (ex. région et couleur « Champagne »), pour éviter la redondance « Champagne (Champagne) ». Les boutons en bas à droite de chaque carte de vin (avis IA, photo, Détails) sont maintenant plus espacés pour limiter les appuis sur le mauvais bouton. La croix qui vide le champ de recherche a une zone cliquable nettement plus grande."},
   { version:"1.11.10", date:"2026-08-31", notes:"Les bandeaux de regroupement (couleur, région, emplacement) affichent désormais à la fois le nombre de vins et le nombre de bouteilles en cave de chaque groupe (au lieu du seul nombre de vins), dans une teinte dorée lumineuse avec un léger halo pour être bien lisibles."},
   { version:"1.11.9", date:"2026-08-31", notes:"Protection du jeton GitHub contre un stockage local saturé : sauvegarderConfig() et sauvegarderReglagesLocal() n'avaient aucun filet de sécurité (contrairement à sauvegarderBouteilles()) — une saturation y provoquait une exception non interceptée qui interrompait le clic sur « Enregistrer les identifiants » en plein milieu, sans aucun retour visuel. Elles utilisent désormais la même bannière permanente que le reste de l'app. Ajout d'un second garde-fou indépendant : si le champ Jeton est vide au moment d'enregistrer alors qu'un jeton existait déjà, une confirmation explicite est demandée avant de l'effacer, pour ne jamais l'écraser par accident."},
@@ -1536,6 +1538,81 @@ const LS_BOTTLES = "cave_bottles_v1";
 const LS_CONFIG = "cave_github_config_v1";
 const LS_REGLAGES = "cave_reglages_v1";
 const CHEMIN_REGLAGES = "cave-reglages.json";
+/* Fichier dédié au log de diagnostic (page Log 📜), volontairement séparé de cave.json et
+   cave-reglages.json pour ne jamais interférer avec la logique de conflit/synchronisation de ces deux-là
+   — l'app n'écrit jamais dedans qu'en tâche de fond, ne le lit jamais pour son propre fonctionnement, et
+   ne le propose jamais à la restauration. Un seul fichier regroupe tout le log d'une même journée (heure
+   de l'appareil) ; le lendemain, on repart de zéro plutôt que de laisser grossir indéfiniment. */
+const CHEMIN_LOG = "cave-log.txt";
+function dateDuJourISO(){ return new Date().toISOString().slice(0,10); }
+
+/* Sauvegarde best-effort du contenu de la page Log sur GitHub — appelée après chaque envoi principal
+   réussi. Si un log du jour existe déjà sur GitHub, la session en cours y est ajoutée à la suite (append)
+   plutôt que de l'écraser, pour qu'un seul fichier regroupe tout ce qui s'est passé dans la journée,
+   quel que soit le nombre d'envois. S'il date d'un autre jour, on repart de zéro. Échec entièrement
+   silencieux pour l'utilisateur (n'affecte jamais le succès déjà acquis de l'envoi principal) — tracé
+   uniquement dans le log local lui-même, pour rester cohérent avec l'esprit diagnostic de ce fichier.*/
+async function sauvegarderLogSurGitHub(cfg){
+  const contenuSession = document.getElementById("logTexte").value;
+  if(!contenuSession.trim()) return;
+  const aujourdHui = dateDuJourISO();
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_LOG)}`;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg);
+    let sha = null;
+    let contenuFinal;
+    if(getRes.status === 200){
+      const info = await getRes.json();
+      sha = info.sha;
+      const texteExistant = decodeURIComponent(escape(atob(info.content.replace(/\n/g, ""))));
+      const dateExistante = (texteExistant.split("\n")[0].match(/(\d{4}-\d{2}-\d{2})/) || [])[1];
+      if(dateExistante === aujourdHui){
+        contenuFinal = texteExistant.replace(/\n?$/, "\n") + contenuSession;
+        logAjouter(`sauvegarderLogSurGitHub() — log du ${aujourdHui} déjà présent sur GitHub, complété (append) avec ${contenuSession.length} caractère(s) supplémentaire(s).`);
+      }else{
+        contenuFinal = `=== ${aujourdHui} ===\n` + contenuSession;
+        logAjouter(`sauvegarderLogSurGitHub() — log existant daté d'un autre jour (${dateExistante || "inconnue"}) : remplacé, on repart de zéro pour aujourd'hui.`);
+      }
+    }else if(getRes.status === 404){
+      contenuFinal = `=== ${aujourdHui} ===\n` + contenuSession;
+      logAjouter("sauvegarderLogSurGitHub() — aucun fichier log existant sur GitHub : création.");
+    }else{
+      throw new Error("Lecture impossible (" + getRes.status + ")");
+    }
+    const body = { message: "Sauvegarde du log — " + aujourdHui, content: btoa(unescape(encodeURIComponent(contenuFinal))), branch: cfg.branche };
+    if(sha) body.sha = sha;
+    const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
+    if(!putRes.ok) throw new Error("Écriture impossible (" + putRes.status + ")");
+    logAjouter(`sauvegarderLogSurGitHub() — envoyé avec succès (${CHEMIN_LOG}, ${contenuFinal.length} caractère(s) au total pour aujourd'hui).`);
+  }catch(e){
+    logAjouter("sauvegarderLogSurGitHub() — échec (best-effort, sans conséquence sur l'envoi principal déjà réussi) : " + (e && e.message ? e.message : String(e)));
+  }
+}
+
+/* Nettoyage best-effort au lancement : si le fichier log sur GitHub date d'un jour différent
+   d'aujourd'hui, il est supprimé (plutôt que laissé à traîner indéfiniment en attendant un hypothétique
+   futur envoi qui le remplacerait). Tâche de fond, jamais bloquante, jamais signalée à l'utilisateur. */
+async function nettoyerLogSiAncien(cfg){
+  if(!cfg.user || !cfg.repo || !cfg.token) return;
+  try{
+    const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_LOG)}`;
+    const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
+    if(getRes.status !== 200) return;
+    const info = await getRes.json();
+    const texteExistant = decodeURIComponent(escape(atob(info.content.replace(/\n/g, ""))));
+    const dateExistante = (texteExistant.split("\n")[0].match(/(\d{4}-\d{2}-\d{2})/) || [])[1];
+    const aujourdHui = dateDuJourISO();
+    if(dateExistante && dateExistante !== aujourdHui){
+      const delRes = await githubAPI(base, cfg, {
+        method: "DELETE",
+        body: JSON.stringify({ message: "Nettoyage du log (jour précédent)", sha: info.sha, branch: cfg.branche||"main" })
+      });
+      logAjouter(`nettoyerLogSiAncien() — fichier log daté du ${dateExistante} (≠ aujourd'hui ${aujourdHui}) : ${delRes.ok ? "supprimé" : "échec de la suppression (statut " + delRes.status + ")"}.`);
+    }
+  }catch(e){
+    logAjouter("nettoyerLogSiAncien() — échec (best-effort) : " + (e && e.message ? e.message : String(e)));
+  }
+}
 const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
 const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
 const LS_DERNIER_EMPLACEMENT = "cave_dernier_emplacement_v1";
@@ -1858,7 +1935,11 @@ function chargerBouteilles(){
   try{
     const raw = localStorage.getItem(LS_BOTTLES);
     bottles = raw ? JSON.parse(raw) : [];
-  }catch(e){ bottles = []; }
+    logAjouter(`chargerBouteilles() — lu depuis localStorage : ${bottles.length} vin(s), ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s) en cave (octets bruts : ${raw ? raw.length : 0}).`);
+  }catch(e){
+    bottles = [];
+    logAjouter("chargerBouteilles() — ERREUR de lecture/parsing localStorage : " + (e && e.message ? e.message : String(e)) + " → repart sur une cave vide.");
+  }
   migrerBouteilles();
 }
 /* Migration depuis l'ancien schéma (statut « cave »/« bue » sur toute la fiche) vers un suivi par quantités : quantite (en cave) et quantiteBue (bues), qui peuvent cohabiter sur une même fiche. */
@@ -1893,10 +1974,13 @@ function sauvegarderBouteilles(){
   try{
     localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
     masquerBanniereStockagePlein();
+    marquerNonSynchronise();
+    return true;
   }catch(e){
     afficherBanniereStockagePlein();
+    marquerNonSynchronise();
+    return false;
   }
-  marquerNonSynchronise();
 }
 /* Retire les champs volumineux (photo pleine résolution en attente, ancien champ) avant un envoi vers GitHub : le fichier de données reste petit quel que soit le nombre de photos. */
 function bouteillesPourExportGitHub(){
@@ -4399,10 +4483,11 @@ async function lancerEnvoiVersGitHub(){
 async function envoyerDirectementVersGitHub(){
   const cfg = lireChampsConfig();
   const statusEl = document.getElementById("syncStatus");
-  logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}`);
+  logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}, ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s).`);
   if(!cfg.user || !cfg.repo || !cfg.token){
     logAjouter("→ ARRÊT : configuration GitHub incomplète.");
     toast("Renseigne utilisateur, dépôt et jeton");
+    alert("⚠️ Envoi impossible\n\nLa configuration GitHub (utilisateur, dépôt ou jeton) est incomplète. Rien n'a été envoyé.");
     marquerErreurSynchro();
     return;
   }
@@ -4420,12 +4505,12 @@ async function envoyerDirectementVersGitHub(){
   }catch(err){
     logAjouter("→ ERREUR pendant la lecture du sha : " + (err && err.message ? err.message : String(err)));
     if(statusEl) statusEl.textContent = "Échec de la vérification : " + err.message;
-    toast("Échec de l'envoi vers GitHub");
+    alert("⚠️ Envoi impossible\n\nÉchec pendant la vérification préalable sur GitHub : " + (err && err.message ? err.message : String(err)) + "\n\nRien n'a été envoyé — cette cave (" + bottles.length + " vin(s)) reste seulement sur cet appareil. Réessaie dès que possible.");
     marquerErreurSynchro();
     return;
   }
   logAjouter("→ Envoi direct, sans re-vérification de conflit (choix déjà fait explicitement).");
-  effectuerEnvoiVersGitHub(cfg, sha);
+  await effectuerEnvoiVersGitHub(cfg, sha);
 }
 
 async function effectuerEnvoiVersGitHub(cfg, sha){
@@ -4449,8 +4534,9 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
     const nouvelleMaj = new Date().toISOString();
     const bouteillesAEnvoyer = bouteillesPourExportGitHub();
+    const totalBouteillesEnvoyees = bouteillesAEnvoyer.reduce((s,b)=>s+(Number(b.quantite)||0),0);
     const contenu = JSON.stringify({ bottles: bouteillesAEnvoyer, maj: nouvelleMaj, origine: INSTANCE_ID }, null, 2);
-    logAjouter(`→ Préparation du contenu à envoyer : ${bouteillesAEnvoyer.length} vin(s), maj=${nouvelleMaj}, ${contenu.length} caractère(s)`);
+    logAjouter(`→ Préparation du contenu à envoyer : ${bouteillesAEnvoyer.length} vin(s), ${totalBouteillesEnvoyees} bouteille(s), maj=${nouvelleMaj}, ${contenu.length} caractère(s)`);
     const body = {
       message: "Mise à jour de la cave à vin",
       content: btoa(unescape(encodeURIComponent(contenu))),
@@ -4471,12 +4557,45 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
       + (resPhotos.total ? ` — photos : ${resPhotos.succes} envoyée(s)${resPhotos.echecs ? ", " + resPhotos.echecs + " échouée(s)" : ""}` : "");
     feedbackBouton(btn, "✓ Envoyé");
     toast((resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub") + ` — app v${VERSION}`);
-    logAjouter(`→ SUCCÈS : ${bouteillesAEnvoyer.length} vin(s) envoyé(s) et confirmés sur GitHub (app v${VERSION}).`);
+    logAjouter(`→ SUCCÈS (réponse HTTP) : ${bouteillesAEnvoyer.length} vin(s)/${totalBouteillesEnvoyees} bouteille(s) envoyé(s) (app v${VERSION}).`);
     marquerSynchronise();
+
+    // VÉRIFICATION IMMÉDIATE : on relit ce que GitHub contient réellement juste après l'écriture, et on le
+    // compare à ce qu'on voulait envoyer. Un statut HTTP 200/201 confirme que GitHub a accepté la requête,
+    // mais ne garantit pas à lui seul que le contenu relu correspondra — cette relecture ferme la boucle et
+    // permet de détecter tout de suite une divergence plutôt que de la découvrir bien plus tard.
+    try{
+      const verifRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche), cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
+      const verifTexte = await verifRes.text();
+      const verifData = JSON.parse(verifTexte);
+      const verifBottles = Array.isArray(verifData.bottles) ? verifData.bottles : [];
+      const totalVerifie = verifBottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      logAjouter(`→ VÉRIFICATION post-envoi : GitHub contient maintenant ${verifBottles.length} vin(s)/${totalVerifie} bouteille(s) — attendu ${bouteillesAEnvoyer.length} vin(s)/${totalBouteillesEnvoyees} bouteille(s).`);
+      if(verifBottles.length !== bouteillesAEnvoyer.length || totalVerifie !== totalBouteillesEnvoyees){
+        logAjouter("→ ⚠️ DIVERGENCE DÉTECTÉE entre ce qui a été envoyé et ce que GitHub renvoie juste après !");
+        alert(
+          "⚠️ Alerte — vérification après envoi\n\n" +
+          `Ce qui devait être envoyé : ${bouteillesAEnvoyer.length} vin(s), ${totalBouteillesEnvoyees} bouteille(s).\n` +
+          `Ce que GitHub contient maintenant : ${verifBottles.length} vin(s), ${totalVerifie} bouteille(s).\n\n` +
+          "Ces deux nombres devraient être identiques. Va voir la page Log (📜) pour le détail complet, et ne relance pas d'action avant d'avoir compris ce qui s'est passé."
+        );
+      }
+    }catch(eVerif){
+      logAjouter("→ Vérification post-envoi impossible (réseau) : " + (eVerif && eVerif.message ? eVerif.message : String(eVerif)) + " — l'envoi lui-même a réussi (statut " + putRes.status + "), seule cette relecture de contrôle a échoué.");
+    }
+
+    // Sauvegarde best-effort du log de cette session sur GitHub (fichier dédié, voir sauvegarderLogSurGitHub) —
+    // volontairement APRÈS la vérification ci-dessus, pour que son propre résultat soit lui aussi journalisé.
+    await sauvegarderLogSurGitHub(cfg);
   }catch(err){
     logAjouter("→ ERREUR pendant l'envoi effectif : " + (err && err.message ? err.message : String(err)));
     statusEl.textContent = "Échec de l'envoi : " + err.message;
-    toast("Échec de l'envoi vers GitHub");
+    journalAjouter("ERREUR (envoi) : " + (err && err.message ? err.message : String(err)));
+    alert(
+      "⚠️ Échec de l'envoi vers GitHub\n\n" +
+      "Erreur : " + (err && err.message ? err.message : String(err)) + "\n\n" +
+      "Rien n'a été envoyé — la version sur GitHub n'a pas changé. Cette cave (" + bottles.length + " vin(s)) reste seulement sur cet appareil tant que l'envoi n'a pas réussi. Réessaie dès que possible."
+    );
     marquerErreurSynchro();
   }
   syncEnCours = false;
@@ -4494,6 +4613,7 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
   const totalLocal = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const totalDistant = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
   const dateDistante = donneesDistantes.maj ? new Date(donneesDistantes.maj).toLocaleString("fr-FR") : "date inconnue";
+  logAjouter(`afficherConflitSync() affichée — local=${bottles.length} vin(s)/${totalLocal} bouteille(s) · distant=${distantes.length} vin(s)/${totalDistant} bouteille(s) (${dateDistante}).`);
   document.getElementById("conflitSyncExplication").textContent =
     "Une version différente existe sur GitHub, et cet appareil a ici des modifications pas encore envoyées. Cette version distante peut venir d'un envoi fait ailleurs aujourd'hui, mais aussi tout simplement d'une session précédente sur un autre navigateur ou appareil — ce n'est pas forcément récent ni concurrent.";
   document.getElementById("conflitSyncDetailLocal").innerHTML =
@@ -4503,6 +4623,7 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
   document.getElementById("conflitSyncConseil").textContent =
     "💡 C'est à toi de choisir laquelle correspond à ce que tu veux garder — le nombre de vins ou de bouteilles ne permet pas de deviner ça à ta place.";
   document.getElementById("btnConflitGarderLocal").onclick = ()=>{
+    logAjouter(`→ « Garder mes modifications locales » choisi (${bottles.length} vin(s)/${totalLocal} bouteille(s)).`);
     document.getElementById("overlayConflitSync").classList.remove("show");
     demanderConfirmation(
       "Envoyer tes modifications locales ?",
@@ -4511,6 +4632,7 @@ function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
     );
   };
   document.getElementById("btnConflitUtiliserDistant").onclick = ()=>{
+    logAjouter(`→ « Utiliser la version GitHub » choisi (${distantes.length} vin(s)/${totalDistant} bouteille(s)).`);
     document.getElementById("overlayConflitSync").classList.remove("show");
     onUtiliserDistant();
   };
@@ -4601,33 +4723,41 @@ async function initialiserSynchronisationGitHub(){
   }
 
   logAjouter("→ GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.");
+  nettoyerLogSiAncien(chargerConfig()); // best-effort, en tâche de fond — ne bloque jamais la suite du lancement
 
   /* ---- Données (cave.json) ---- */
   if(resCave.statut === 404){
     logAjouter("→ Aucune cave enregistrée sur GitHub pour l'instant : les données locales sont conservées telles quelles.");
   }else{
     const donneesDistantes = resCave.donneesDistantes;
+    const nbVinsDistants = resCave.distantes.length;
+    const nbBouteillesDistantes = resCave.distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const nbVinsLocaux = bottles.length;
+    const nbBouteillesLocales = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
     if(syncDirty){
       const connue = lireDerniereMajConnue();
       const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
+      logAjouter(`→ syncDirty=true — local=${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) · distant=${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) (maj=${donneesDistantes.maj}) · dernière maj connue=${connue ? connue.maj : "aucune"} · estNonPriseEnCompte=${estNonPriseEnCompte}`);
       if(estNonPriseEnCompte){
         logAjouter("→ Conflit au lancement : modifications locales non envoyées ET version GitHub différente de la dernière connue. Fenêtre de conflit affichée.");
         afficherConflitSync(resCave.distantes, donneesDistantes, ()=>{
+          logAjouter(`→ « Utiliser la version GitHub » choisi — remplacement de ${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) locaux par ${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) distants.`);
           bottles = resCave.distantes;
-          sauvegarderBouteilles();
+          const ecritureOk = sauvegarderBouteilles();
           ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
           marquerSynchronise();
           rafraichirTout();
           const statusEl = document.getElementById("syncStatus");
           if(statusEl) statusEl.textContent = "Version GitHub appliquée (conflit résolu au lancement).";
-          logAjouter("→ Conflit résolu au lancement : version GitHub appliquée, localStorage mis à jour.");
+          logAjouter(`→ Conflit résolu au lancement : version GitHub appliquée (${bottles.length} vin(s)), écriture locale ${ecritureOk ? "OK" : "ÉCHOUÉE (stockage plein)"}.`);
         });
       }else{
         logAjouter("→ Modifications locales non envoyées, mais la version GitHub n'a pas changé depuis la dernière synchro connue : rien n'est écrasé.");
       }
     }else{
+      logAjouter(`→ syncDirty=false — remplacement automatique : local=${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) → distant=${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) (maj=${donneesDistantes.maj}).`);
       bottles = resCave.distantes;
-      sauvegarderBouteilles();
+      const ecritureOk = sauvegarderBouteilles();
       ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
       marquerSynchronise();
 
@@ -4638,7 +4768,7 @@ async function initialiserSynchronisationGitHub(){
       const statusEl = document.getElementById("syncStatus");
       if(statusEl) statusEl.textContent = "Chargé automatiquement depuis GitHub le " + cfgSauv.derniereSync;
 
-      logAjouter("→ Données GitHub appliquées et localStorage mis à jour.");
+      logAjouter(`→ Données GitHub appliquées (${bottles.length} vin(s)) et localStorage mis à jour : ${ecritureOk ? "OK" : "ÉCHEC (stockage plein)"}.`);
     }
   }
 
@@ -4949,7 +5079,9 @@ async function restaurerVersion(sha, btn){
       btn.disabled = true;
       logAjouter(`restaurerVersion(${sha}) confirmé — bottles.length (avant)=${bottles.length} · syncDirty (avant)=${syncDirty}`);
       let distantes = cacheVersions[sha];
+      let source = "cache";
       if(!distantes){
+        source = "réseau (non présent dans le cache)";
         const cfg = chargerConfig();
         const chemin = cfg.chemin || "cave.json";
         try{
@@ -4964,15 +5096,23 @@ async function restaurerVersion(sha, btn){
           cacheVersions[sha] = distantes;
         }catch(e){
           journalAjouter("ERREUR (restauration) : " + (e && e.message ? e.message : String(e)));
+          logAjouter("→ ERREUR (restauration, récupération réseau) : " + (e && e.message ? e.message : String(e)));
           toast("Impossible de charger la version à restaurer — voir le journal");
           btn.disabled = false;
           return;
         }
       }
+      const nbVinsSource = distantes.length;
+      const nbBouteillesSource = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      logAjouter(`→ Version ${sha.slice(0,7)} récupérée depuis le ${source} : ${nbVinsSource} vin(s), ${nbBouteillesSource} bouteille(s).`);
 
-      // 1. Remplacer les bouteilles locales
-      bottles = distantes;
-      sauvegarderBouteilles();
+      // 1. Remplacer les bouteilles locales — IMPORTANT : copie profonde, jamais une simple affectation de
+      // référence. cacheVersions[sha] doit rester un instantané intact ; si "bottles" pointait directement
+      // vers le même tableau/objets, la moindre modification ultérieure (marquer une bue, éditer un champ…)
+      // aurait aussi silencieusement modifié la version mise en cache.
+      bottles = JSON.parse(JSON.stringify(distantes));
+      const ecritureLocaleOk = sauvegarderBouteilles();
+      logAjouter(`→ Écriture locale (localStorage) après restauration : ${ecritureLocaleOk ? "réussie" : "ÉCHOUÉE (stockage plein — voir bannière)"}.`);
 
       // 2. Marquer l'état local comme modifié ("à sauvegarder")
       marquerNonSynchronise();
@@ -4984,16 +5124,22 @@ async function restaurerVersion(sha, btn){
 
       // 4. Mettre à jour l'interface
       rafraichirTout();
-      toast(`Version restaurée (${bottles.length} vin(s)) — à sauvegarder vers GitHub`);
-      journalAjouter(`Version ${sha.slice(0,7)} restaurée avec succès (${bottles.length} vin(s)). Horodatage mis à jour.`);
-      logAjouter(`→ RESTAURATION EFFECTUÉE : ${bottles.length} vin(s) restauré(s), marqueur de maj fixé à ${nouvelleMajRestauration}`);
+      const nbVinsApres = bottles.length;
+      const nbBouteillesApres = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      toast(`Version restaurée (${nbVinsApres} vin(s)) — à sauvegarder vers GitHub`);
+      journalAjouter(`Version ${sha.slice(0,7)} restaurée avec succès (${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s)). Horodatage mis à jour.`);
+      logAjouter(`→ RESTAURATION EFFECTUÉE : bottles.length (après)=${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s) · marqueur de maj fixé à ${nouvelleMajRestauration} · écriture locale ${ecritureLocaleOk ? "OK" : "ÉCHOUÉE"}.`);
+      if(!ecritureLocaleOk){
+        logAjouter("→ ATTENTION : tant que le stockage local reste plein, un rechargement de la page perdrait cette restauration (elle n'existe que dans la mémoire de cet onglet). Envoie vers GitHub avant de recharger ou de fermer l'app.");
+      }
       btn.disabled = false;
 
       // 5. Proposer immédiatement de pousser vers GitHub
       demanderConfirmation(
         "Envoyer la version restaurée ?",
-        `La version (${bottles.length} vin(s)) a été restaurée sur cet appareil. Voulez-vous l'envoyer immédiatement vers GitHub pour qu'elle devienne la version officielle sur tous vos appareils ?`,
+        `La version restaurée (${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s)) est actuellement en mémoire sur cet appareil${ecritureLocaleOk ? "" : " (elle n'a PAS pu être enregistrée localement — stockage plein)"}. Voulez-vous l'envoyer immédiatement vers GitHub pour qu'elle devienne la version officielle sur tous vos appareils ?`,
         ()=>{
+          logAjouter(`→ Confirmation « Envoyer la version restaurée » acceptée — bottles.length (juste avant l'envoi)=${bottles.length}, ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s).`);
           envoyerDirectementVersGitHub();
         }
       );

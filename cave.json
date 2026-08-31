@@ -476,7 +476,7 @@
       "nom": "Quarts de Chaume",
       "domaine": "Château Bellerive",
       "appellation": "",
-      "region": "Val de Loire",
+      "region": "Loire",
       "pays": "France",
       "couleur": "blanc",
       "millesime": "2005",
@@ -1477,6 +1477,6 @@
       "photoFichier": "images/c7505834-07e0-4fe7-85be-a84b5b4488c4.jpg"
     }
   ],
-  "maj": "2026-08-31T14:18:31.956Z",
+  "maj": "2026-08-31T14:21:07.258Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

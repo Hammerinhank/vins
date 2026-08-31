@@ -1356,8 +1356,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.95";
+const VERSION = "1.10.96";
 const HISTORY = [
+  { version:"1.10.96", date:"2026-08-31", notes:"Dans le rapport PDF « Vins en cave par région » : quand une région contient des vins de plusieurs couleurs différentes, elle est désormais éclatée en plusieurs rubriques — une par couleur présente, dans l'ordre habituel des couleurs de l'app — avec pour titre « Région (Couleur) » au lieu de « Région » seule. Une région dont tous les vins partagent la même couleur reste affichée en une seule rubrique, sans mention de couleur, comme avant."},
   { version:"1.10.95", date:"2026-08-31", notes:"Nouvelle page « PDF » (icône 📄 dans la barre d'onglets de Paramètres) : un premier bouton « Vins en cave par région » génère un PDF récapitulatif des vins actuellement en cave, regroupés par région avec le nombre de bouteilles de chacun, l'affiche en aperçu directement dans la page et le télécharge automatiquement sur l'appareil. Le PDF est produit entièrement en JavaScript, sans bibliothèque ni dépendance externe, pour rester cohérent avec le principe d'une app en un seul fichier autonome."},
   { version:"1.10.94", date:"2026-08-31", notes:"Simplification de la combobox Région (à droite du champ Région) : suppression du bouton « ✓ » séparé — sélectionner une région dans la liste la copie désormais directement dans le champ Région, comme pour les combobox d'emplacement. La combobox revient aussitôt à son icône 🌍 plutôt que d'afficher la valeur choisie."},
   { version:"1.10.93", date:"2026-08-31", notes:"Nettoyage : suppression de 5 fonctions jamais appelées nulle part dans le fichier (code mort) — restaurerVersion_OBSOLETE (doublon complet de restaurerVersion, déjà remplacée), decoderContenuBase64Utf8 et meilleureImageDisponible (plus utilisées depuis le passage aux réponses GitHub « raw »), reduireTousLesChampsAgrandis (logique équivalente déjà réalisée en ligne ailleurs), masquerBanniereConsultation (sans utilité tant que le mode consultation forcé reste verrouillé pour toute la session). Aucun changement de comportement — uniquement du code désormais inatteignable en moins."},
@@ -3305,7 +3306,10 @@ function pdfChaineVersOctets(pdf){
 }
 
 /* Regroupe les vins actuellement en cave par région (même libellé « Région non renseignée » que le
-   regroupement de la grille principale, pour rester cohérent) et calcule les totaux. Cette même
+   regroupement de la grille principale, pour rester cohérent), puis construit les rubriques du rapport :
+   une rubrique par région tant que tous ses vins partagent la même couleur ; dès qu'une région mélange
+   plusieurs couleurs, elle est éclatée en une rubrique par couleur présente (ordre canonique des
+   couleurs de l'app), avec pour titre « Région (Couleur) » au lieu de « Région » seule. Cette même
    structure alimente à la fois l'aperçu HTML dans la page et le contenu du PDF généré. */
 function construireRapportVinsParRegion(){
   const enCave = bottles.filter(b=>(Number(b.quantite)||0) > 0);
@@ -3320,18 +3324,33 @@ function construireRapportVinsParRegion(){
     return a.localeCompare(b, "fr");
   });
   const totalGeneral = enCave.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-  return { enCave, parRegion, regions, totalGeneral };
+
+  const rubriques = [];
+  regions.forEach(region=>{
+    const vinsRegion = parRegion[region];
+    const couleursPresentes = new Set(vinsRegion.map(b=>b.couleur || "autre"));
+    if(couleursPresentes.size <= 1){
+      rubriques.push({ titre: region, vins: vinsRegion });
+    }else{
+      COULEURS.forEach(c=>{
+        const vinsCouleur = vinsRegion.filter(b=>(b.couleur||"autre") === c.key);
+        if(vinsCouleur.length) rubriques.push({ titre: `${region} (${c.label})`, vins: vinsCouleur });
+      });
+    }
+  });
+
+  return { enCave, parRegion, regions, rubriques, totalGeneral };
 }
 function lignesPdfRapportRegions(rapport){
-  const { enCave, parRegion, regions, totalGeneral } = rapport;
+  const { enCave, rubriques, totalGeneral } = rapport;
   const lignes = [];
   lignes.push({ texte:"Cave à vins — Vins en cave par région", taille:16, gras:true });
   lignes.push({ texte:"Généré le " + new Date().toLocaleDateString("fr-FR"), taille:9, avant:5 });
   lignes.push({ texte:`${enCave.length} vin(s) · ${totalGeneral} bouteille(s) au total`, taille:9, avant:2 });
-  regions.forEach(region=>{
-    const vins = parRegion[region].slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
-    const totalRegion = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-    lignes.push({ texte:`${region} — ${totalRegion} bouteille(s)`, taille:12, gras:true, avant:16 });
+  rubriques.forEach(rubrique=>{
+    const vins = rubrique.vins.slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
+    const totalRubrique = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    lignes.push({ texte:`${rubrique.titre} — ${totalRubrique} bouteille(s)`, taille:12, gras:true, avant:16 });
     vins.forEach(b=>{
       const domaine = b.domaine ? " — " + b.domaine : "";
       const millesime = b.millesime ? " (" + b.millesime + ")" : "";
@@ -3343,13 +3362,13 @@ function lignesPdfRapportRegions(rapport){
   return lignes;
 }
 function apercuHtmlRapportRegions(rapport){
-  const { enCave, parRegion, regions, totalGeneral } = rapport;
+  const { enCave, rubriques, totalGeneral } = rapport;
   let html = `<h2 class="pdf-titre">Cave à vins — Vins en cave par région</h2>`;
   html += `<p class="pdf-soustitre">Généré le ${new Date().toLocaleDateString("fr-FR")} · ${enCave.length} vin(s) · ${totalGeneral} bouteille(s) au total</p>`;
-  regions.forEach(region=>{
-    const vins = parRegion[region].slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
-    const totalRegion = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-    html += `<div class="pdf-region"><span>${escapeHtml(region)}</span><span class="pdf-region-total">${totalRegion} bouteille(s)</span></div>`;
+  rubriques.forEach(rubrique=>{
+    const vins = rubrique.vins.slice().sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr"));
+    const totalRubrique = vins.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    html += `<div class="pdf-region"><span>${escapeHtml(rubrique.titre)}</span><span class="pdf-region-total">${totalRubrique} bouteille(s)</span></div>`;
     html += `<ul class="pdf-liste-vins">` + vins.map(b=>{
       const domaine = b.domaine ? " — " + escapeHtml(b.domaine) : "";
       const millesime = b.millesime ? " (" + escapeHtml(b.millesime) + ")" : "";

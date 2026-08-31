@@ -760,6 +760,8 @@
 
 <div class="consultation-banner" id="consultationBanner"></div>
 
+<div class="consultation-banner" id="stockagePleinBanner"></div>
+
 <div class="stats-bar" id="statsBar"></div>
 
 <div class="toolbar">
@@ -1365,8 +1367,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.11.6";
+const VERSION = "1.11.7";
 const HISTORY = [
+  { version:"1.11.7", date:"2026-08-31", notes:"Corrigé : quand le stockage local est plein, l'avertissement affiché n'était qu'un toast de 2,2 s aussitôt écrasé par le toast de succès de l'action en cours (« Vin enregistré », etc.) — d'où un message quasi invisible. Remplacé par une bannière permanente, qui reste affichée jusqu'à ce qu'une sauvegarde locale réussisse de nouveau ou qu'un envoi vers GitHub aboutisse."},
   { version:"1.11.6", date:"2026-08-31", notes:"Le nombre de vins affiché en haut à gauche de la page principale (« · X vin(s) », sous « Bouteilles en cave ») passe en blanc au lieu d'un gris terne peu lisible sur le fond sombre."},
   { version:"1.11.5", date:"2026-08-31", notes:"Corrigé la faute « Licoreux » en « Liquoreux » dans le texte par défaut codé en dur de la question d'identification par photo, à la source du besoin de confirmation ajouté en 1.11.3. L'IA devrait désormais répondre directement avec l'orthographe correcte, sans plus déclencher la question de confirmation pour ce cas précis."},
   { version:"1.11.4", date:"2026-08-31", notes:"Ajout d'un appui long sur le N° d'un vin dans la liste : quand il est marqué en vert, l'appui long le ramène directement au marquage jaune (le vin reste marqué, sans repasser par « non marqué »). Sans effet si le vin n'est pas marqué ou déjà marqué en jaune — dans ces cas, seul l'appui simple habituel fait défiler le repère."},
@@ -1599,6 +1602,7 @@ function marquerSynchronise(){
   syncDirty = false;
   syncEnErreur = false;
   try{ localStorage.removeItem(LS_SYNC_DIRTY); }catch(e){}
+  masquerBanniereStockagePlein(); // l'état local est désormais confirmé sur GitHub : le risque immédiat de perte est levé
   majBadgeVersion();
 }
 function marquerErreurSynchro(){
@@ -1669,6 +1673,25 @@ function afficherBanniereConsultation(message){
   if(!b) return;
   b.textContent = "📵 Mode consultation — " + message + " · données locales utilisées · relance l'application pour réessayer.";
   b.style.display = "block";
+}
+
+/* ---- Bannière permanente de stockage local plein (voir sauvegarderBouteilles) ----
+   Un simple toast() ne suffisait pas ici : la fonction appelante affiche presque toujours son propre
+   toast de succès juste après (« Vin enregistré », « Bouteille marquée comme bue »…), qui écrasait cet
+   avertissement en quelques millisecondes avant qu'on ait pu le lire. Cette bannière reste affichée
+   jusqu'à ce qu'une sauvegarde locale réussisse de nouveau, ou qu'un envoi vers GitHub aboutisse (le
+   risque immédiat de perte est alors levé, même si le stockage local reste plein pour les modifications
+   suivantes). */
+function afficherBanniereStockagePlein(){
+  const b = document.getElementById("stockagePleinBanner");
+  if(!b) return;
+  b.textContent = "⚠️ Stockage local plein — cette modification n'a pas pu être enregistrée sur cet appareil (elle reste seulement en mémoire). Envoie vers GitHub dès que possible pour ne rien perdre, puis retire des photos pour libérer de la place.";
+  b.style.display = "block";
+}
+function masquerBanniereStockagePlein(){
+  const b = document.getElementById("stockagePleinBanner");
+  if(!b) return;
+  b.style.display = "none";
 }
 
 /* ---- Infobulle « post-it » (nom + description au survol prolongé, jamais sur appareil tactile) ----
@@ -1852,8 +1875,9 @@ function migrerBouteilles(){
 function sauvegarderBouteilles(){
   try{
     localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
+    masquerBanniereStockagePlein();
   }catch(e){
-    toast("Stockage local plein — synchronise avec GitHub pour libérer de la place");
+    afficherBanniereStockagePlein();
   }
   marquerNonSynchronise();
 }

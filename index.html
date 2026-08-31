@@ -1468,8 +1468,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.8";
+const VERSION = "1.13.0";
 const HISTORY = [
+  { version:"1.13.0", date:"2026-08-31", notes:"Refonte du modèle de données des vins liés, suite à une incohérence repérée sur capture d'écran (« Quantité en cave » et « Pour cet emplacement » affichaient la même valeur, alors que la première doit être le TOTAL). Nouveau principe, strict : « Quantité en cave » est désormais le total partagé, identique sur toutes les fiches d'un même vin — TOUJOURS égal à la somme des quantités propres de chaque emplacement, jamais une valeur indépendante. « Pour cet emplacement » affiche cette quantité propre, distincte du total. Éditer « Quantité en cave » directement applique l'écart à l'emplacement de la fiche ouverte, puis recalcule et propage le vrai total. Un transfert (− / + sur les cartes d'emplacements) ne change jamais le total, seulement la répartition. Marquer/annuler une bue met à jour la quantité propre à l'emplacement ET le total. Délier un emplacement lui rend sa seule quantité propre. Migration automatique et silencieuse des vins déjà liés au chargement (la répartition actuelle est conservée, le total est calculé comme leur somme). Au passage, un bug réel a été trouvé et corrigé dans le bouton Délier (l'ordre des opérations empêchait le recalcul de la fiche déliée elle-même). Validé par une suite de tests dans un vrai DOM simulé : migration, affichage, transfert, édition du total, bue/annuler bue, délien, création d'un nouveau lien — tous corrects, y compris l'invariant total = somme des emplacements vérifié à chaque étape."},
   { version:"1.12.8", date:"2026-08-31", notes:"CORRECTIF CRITIQUE : la 1.12.7 laissait par erreur un reliquat de code (référence à labelQuantite/noteTotalLien, supprimés de la page) en fin de majZoneLienEmplacement() — dès qu'une fiche liée à un autre emplacement était ouverte, une exception silencieuse interrompait ouvrirFiche() avant l'affichage de la fenêtre, rendant le bouton « Détails » inopérant sur ces fiches. Corrigé, et vérifié cette fois avec un vrai test dans un DOM simulé (pas seulement une vérification de syntaxe) : ouverture d'un vin simple et d'un vin lié, dans les deux cas la fiche s'ouvre correctement."},
   { version:"1.12.7", date:"2026-08-31", notes:"Reprise complète de la clarification précédente, jugée pas satisfaisante. Le champ « Quantité en cave » redevient strictement identique, que la fiche soit simple ou liée — plus aucun changement de libellé ni de note. À la place, un nouvel encadré « Pour cet emplacement » apparaît en tête du panneau, au-dessus des autres emplacements liés : il recopie en lecture seule le nom et la quantité de la fiche ouverte (bordure neutre, pas dorée, pour bien le distinguer des cartes actionnables) — sans aucun +/-, puisque toute modification directe passe par les champs Emplacement et Quantité en cave habituels. Ce chiffre ne bouge ici que par ricochet, quand un transfert est déclenché depuis l'une des cartes des autres emplacements juste en dessous."},
   { version:"1.12.6", date:"2026-08-31", notes:"Levé une ambiguïté sur un vin à plusieurs emplacements : le champ « Quantité en cave » de la fiche était déjà propre à cet emplacement précis (ajouter/retirer là ne touche que son propre quota, jamais un total) — mais rien ne le précisait. Le libellé devient « Quantité en cave (à cet emplacement) » dès que la fiche est liée, et une note juste en dessous affiche le total du vin tous emplacements confondus, pour que les deux chiffres cohabitent sans confusion possible."},
@@ -1838,7 +1839,12 @@ const CHAMPS_PARTAGES_LIEN = [
   "nom","domaine","pays","couleur","millesime","region","appellation","cepages",
   "prixUnitaire","dateAchat","lieuAchat","boireDe","boireA","note","noteNumerique",
   "noteIncertaine","etiquette","commentaire","marque","marqueCouleur","numero",
-  "photoMiniature","photoFichier"
+  "photoMiniature","photoFichier","quantite"
+  // quantite est désormais LE TOTAL, partagé et identique sur toutes les fiches d'un même lien (jamais la
+  // quantité propre à un emplacement — voir quantiteIci, volontairement absent de cette liste). Sa
+  // propagation ici suppose que la valeur du champ ait déjà été recalculée comme la vraie somme des
+  // quantiteIci du groupe AVANT l'appel à propagerVersLiens() — jamais recopiée telle quelle sans ce
+  // recalcul préalable (voir enregistrerFiche, marquerBue, annulerBue).
   // photoPendingBase64 volontairement exclu : c'est une photo pleine résolution pas encore envoyée sur
   // GitHub, propre à cet appareil — la dupliquer entre fiches liées doublerait inutilement l'espace
   // utilisé en local (voir l'historique des incidents de stockage saturé). Une fois envoyée, c'est
@@ -1858,18 +1864,50 @@ function propagerVersLiens(id){
   });
   if(nbPropages) logAjouter(`propagerVersLiens(${id}) — champs partagés recopiés vers ${nbPropages} fiche(s) liée(s) (lienId=${source.lienId}).`);
 }
+/* Recalcule le total partagé d'un groupe de vins liés comme la vraie somme des quantités propres
+   (quantiteIci) de chacune de ses fiches, et l'applique à toutes — jamais recopié tel quel sans ce calcul.
+   Retourne le total obtenu (0 si le groupe n'existe pas). */
+function recalculerTotalLien(lienId){
+  const groupe = bottles.filter(b=>b.lienId===lienId);
+  if(!groupe.length) return 0;
+  const total = groupe.reduce((s,b)=>s+(Number(b.quantiteIci)||0), 0);
+  groupe.forEach(b=>{ b.quantite = total; });
+  return total;
+}
 /* Retire le lienId de toute fiche dont le groupe de lien ne contient plus qu'elle-même (après une
-   suppression ou un délien) — un « lien » à un seul élément n'a pas de sens et redeviendrait trompeur. */
+   suppression ou un délien) — un « lien » à un seul élément n'a pas de sens et redeviendrait trompeur.
+   La fiche qui redevient seule voit son total (quantite) revenir à sa seule quantité propre
+   (quantiteIci) : elle ne représente plus qu'elle-même, plus la somme d'un groupe qui n'existe plus. */
 function nettoyerLiensOrphelins(){
   const comptes = {};
   bottles.forEach(b=>{ if(b.lienId) comptes[b.lienId] = (comptes[b.lienId]||0) + 1; });
-  bottles.forEach(b=>{ if(b.lienId && comptes[b.lienId] <= 1) b.lienId = ""; });
+  bottles.forEach(b=>{
+    if(b.lienId && comptes[b.lienId] <= 1){
+      b.quantite = Number(b.quantiteIci)||0;
+      delete b.quantiteIci;
+      b.lienId = "";
+    }
+  });
 }
-/* Fusionne les fiches liées entre elles en une seule carte virtuelle par groupe de lien : quantités (en
-   cave et bues) additionnées, emplacement affiché comme "Lieu A + Lieu B". Les champs partagés sont pris
-   sur la première fiche rencontrée (synchronisés de toute façon par propagerVersLiens à chaque
-   enregistrement). Une fiche non liée, ou dont l'unique fiche liée a été retirée par un filtre appliqué
-   avant cette fusion, traverse la fonction inchangée — jamais d'erreur si le lien est incomplet. */
+/* Délie explicitement UNE fiche précise de son groupe (bouton « Délier ») : elle redevient autonome, avec
+   pour "quantite" sa seule quantité propre — elle ne représente plus la somme d'un groupe dont elle ne
+   fait plus partie. IMPORTANT : on retire son lienId AVANT d'appeler nettoyerLiensOrphelins(), pour que
+   celle-ci recalcule correctement le(s) membre(s) restant(s) du groupe (qui redevient orphelin si un seul
+   autre subsiste) — l'inverse (nettoyer avant de retirer le lien) laisserait cette fiche-ci de côté,
+   puisqu'elle ne serait alors plus détectée comme faisant partie d'un groupe à nettoyer. */
+function delierFiche(b){
+  b.quantite = Number(b.quantiteIci)||0;
+  delete b.quantiteIci;
+  b.lienId = "";
+  nettoyerLiensOrphelins();
+}
+/* Fusionne les fiches liées entre elles en une seule carte virtuelle par groupe de lien : "quantite" (le
+   total) est déjà partagé et identique sur toutes les fiches du groupe (voir recalculerTotalLien) — on le
+   prend donc tel quel, une seule fois, jamais en le sommant ; "quantiteBue" reste propre à chaque
+   emplacement et continue d'être additionné. Emplacement affiché comme "Lieu A + Lieu B". Les champs
+   partagés sont pris sur la première fiche rencontrée (synchronisés de toute façon par propagerVersLiens
+   à chaque enregistrement). Une fiche non liée, ou dont l'unique fiche liée a été retirée par un filtre
+   appliqué avant cette fusion, traverse la fonction inchangée — jamais d'erreur si le lien est incomplet. */
 function fusionnerParLien(list){
   const dejaTraites = new Set();
   const resultat = [];
@@ -1879,11 +1917,10 @@ function fusionnerParLien(list){
     dejaTraites.add(b.lienId);
     const liees = list.filter(x=>x.lienId === b.lienId);
     if(liees.length <= 1){ resultat.push(b); return; }
-    const quantiteTotale = liees.reduce((s,x)=>s+(Number(x.quantite)||0), 0);
     const quantiteBueTotale = liees.reduce((s,x)=>s+(Number(x.quantiteBue)||0), 0);
     const emplacements = liees.map(x=>x.emplacement || "(sans emplacement)").join(" + ");
     resultat.push(Object.assign({}, liees[0], {
-      quantite: quantiteTotale,
+      quantite: Number(liees[0].quantite)||0,
       quantiteBue: quantiteBueTotale,
       emplacement: emplacements,
       _lienFusion: true,
@@ -1891,6 +1928,19 @@ function fusionnerParLien(list){
     }));
   });
   return resultat;
+}
+/* Nombre de bouteilles à considérer pour UNE carte précise dans la grille (affichage, activation du
+   bouton 🍷, filtre « En cave ») — jamais b.quantite tel quel dès qu'un lien est en jeu, puisque ce champ
+   est désormais le TOTAL du groupe, pas le stock réellement présent à CET emplacement précis :
+   - Carte fusionnée (plusieurs emplacements résumés en une seule carte) : b.quantite est déjà le total,
+     correctement établi par fusionnerParLien() — on le prend tel quel.
+   - Fiche d'UN SEUL emplacement faisant partie d'un lien (non fusionnée, ex. regroupement par emplacement) :
+     c'est quantiteIci qui compte, pas le total partagé.
+   - Vin non lié : quantite est, par définition, déjà son unique stock. */
+function quantiteAffichee(b){
+  if(b._lienFusion) return Number(b.quantite)||0;
+  if(b.lienId) return Number(b.quantiteIci)||0;
+  return Number(b.quantite)||0;
 }
 /* Affiche un choix simple (un bouton par emplacement lié) pour savoir de quel emplacement précis une
    action (marquer une bue / annuler une bue) doit être appliquée, quand elle est déclenchée depuis une
@@ -1903,14 +1953,14 @@ function demanderChoixEmplacement(idsLies, contexte, onChoisi){
   const candidats = idsLies
     .map(id=>bottles.find(b=>b.id===id))
     .filter(Boolean)
-    .filter(b=> contexte === "annulerBue" ? (Number(b.quantiteBue)||0) > 0 : (Number(b.quantite)||0) > 0);
+    .filter(b=> contexte === "annulerBue" ? (Number(b.quantiteBue)||0) > 0 : quantiteAffichee(b) > 0);
   if(!candidats.length){ toast("Aucun emplacement disponible pour cette action"); return; }
   document.getElementById("choixEmplacementTitre").innerHTML = `Quel emplacement ? <span class="heure-message">${heureAvecSecondes()}</span>`;
   const conteneur = document.getElementById("choixEmplacementListe");
   conteneur.innerHTML = candidats.map(b=>{
     const detail = contexte === "annulerBue"
       ? `${Number(b.quantiteBue)||0} bue(s)`
-      : `${Number(b.quantite)||0} en cave`;
+      : `${quantiteAffichee(b)} en cave`;
     return `<button type="button" class="choix-emplacement-btn" data-id="${b.id}">${escapeHtml(b.emplacement||"(sans emplacement)")} — ${detail}</button>`;
   }).join("");
   conteneur.querySelectorAll("[data-id]").forEach(btn=>{
@@ -1945,15 +1995,16 @@ function majZoneLienEmplacement(){
     btnDelier.style.display = "none";
     return;
   }
-  const stockIci = Number(b.quantite)||0;
-  // Encadré du haut : simple recopie en lecture seule de l'emplacement et de la quantité de LA FICHE
-  // OUVERTE (le champ Emplacement ci-dessus reste l'unique endroit pour modifier le nom ; le champ
-  // Quantité en cave ci-dessus reste l'unique endroit pour modifier son nombre directement — ce chiffre ne
-  // varie ici que par ricochet, quand un transfert est déclenché depuis une des cartes ci-dessous).
+  const stockIci = Number(b.quantiteIci)||0;
+  // Encadré du haut : simple recopie en lecture seule de l'emplacement et de la quantité PROPRE à cet
+  // emplacement (quantiteIci) — jamais le total partagé affiché dans « Quantité en cave » ci-dessus. Le
+  // champ Emplacement ci-dessus reste l'unique endroit pour modifier le nom ; « Quantité en cave » reste
+  // l'unique endroit pour modifier le TOTAL directement — ce chiffre-ci ne varie ici que par ricochet,
+  // quand un transfert est déclenché depuis une des cartes ci-dessous, ou quand le total est modifié.
   nomCourant.textContent = b.emplacement || "(sans emplacement)";
   nombreCourant.textContent = stockIci;
   liste.innerHTML = freres.map(f=>{
-    const stockLa = Number(f.quantite)||0;
+    const stockLa = Number(f.quantiteIci)||0;
     return `
     <div class="lien-emplacement-carte">
       <button type="button" class="lien-emplacement-nom" data-ouvrir="${f.id}" data-tt-titre="Ouvrir cette fiche" data-tt-desc="Ouvre la fiche de ce vin à cet autre emplacement.">${escapeHtml(f.emplacement||"(sans emplacement)")}</button>
@@ -2258,6 +2309,24 @@ function migrerBouteilles(){
       .forEach(b=>{ b.numero = prochainNumero(); });
     modifie = true;
   }
+  // Migration du modèle des vins liés : jusqu'à la 1.12.8, chaque fiche liée avait sa propre quantité
+  // indépendante (rien de commun entre elles). Désormais, "quantite" doit être le TOTAL, identique sur
+  // toutes les fiches d'un même lien, et "quantiteIci" la quantité propre à chaque emplacement — pour que
+  // le total soit toujours, structurellement, la somme des emplacements. On ne migre qu'une fois : si une
+  // fiche liée n'a pas encore de quantiteIci, on la fixe à sa quantité actuelle (ce qu'elle représentait
+  // jusqu'ici), puis on recalcule le total du groupe et on l'applique à toutes les fiches liées.
+  const groupesAMigrer = new Set();
+  bottles.forEach(b=>{
+    if(b.lienId && b.quantiteIci === undefined) groupesAMigrer.add(b.lienId);
+  });
+  groupesAMigrer.forEach(lienId=>{
+    const groupe = bottles.filter(b=>b.lienId===lienId);
+    groupe.forEach(b=>{ if(b.quantiteIci === undefined) b.quantiteIci = Number(b.quantite)||0; });
+    const total = groupe.reduce((s,b)=>s+(Number(b.quantiteIci)||0), 0);
+    groupe.forEach(b=>{ b.quantite = total; });
+    logAjouter(`migrerBouteilles() — migration du lien ${lienId} : ${groupe.map(b=>`${b.emplacement||"?"}=${b.quantiteIci}`).join(", ")} → total partagé=${total}.`);
+    modifie = true;
+  });
   if(modifie) sauvegarderBouteilles();
 }
 function sauvegarderBouteilles(){
@@ -2500,7 +2569,7 @@ function bouteillesFiltrees(){
   // séparément). DOIT avoir lieu avant le filtre par statut cave/bue ci-dessous : sinon un vin dont une
   // seule des fiches liées a du stock (ou a été bue) pourrait être exclu à tort.
   if(groupBy !== "emplacement") list = fusionnerParLien(list);
-  if(filtreStatut === "cave") list = list.filter(b=>(Number(b.quantite)||0) > 0);
+  if(filtreStatut === "cave") list = list.filter(b=>quantiteAffichee(b) > 0);
   else if(filtreStatut === "bue") list = list.filter(b=>(Number(b.quantiteBue)||0) > 0);
   list.sort((a,b)=>{
     switch(sortKey){
@@ -2562,7 +2631,7 @@ function carteBouteille(b){
     ? "(" + b.noteNumerique + (b.noteIncertaine==="?" ? "?" : "") + ")"
     : "";
   const sousTitre = [b.domaine, b.appellation].filter(Boolean).join(" · ");
-  const quantite = Number(b.quantite)||0;
+  const quantite = quantiteAffichee(b);
   const quantiteBue = Number(b.quantiteBue)||0;
   const classeMarque = b.marque ? (b.marqueCouleur === "vert" ? " numero-badge-marque-vert" : " numero-badge-marque") : "";
   const tags = [];
@@ -2694,28 +2763,45 @@ function rafraichirTout(){
 }
 
 /* ===================== SUIVI DES BOUTEILLES BUES ===================== */
-/* Marque une bouteille comme bue : décrémente le stock en cave (quantite) et incrémente le compteur de bues (quantiteBue). */
+/* Marque une bouteille comme bue : décrémente le stock disponible (quantiteIci pour un vin lié, sinon
+   quantite directement) et incrémente le compteur de bues (quantiteBue, toujours propre à cet
+   emplacement). Pour un vin lié, le total partagé (quantite) est ensuite recalculé comme la vraie somme
+   du groupe et propagé aux fiches liées — jamais décrémenté directement. */
 function marquerBue(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
-  const dispo = Number(b.quantite)||0;
+  const dispo = quantiteAffichee(b);
   if(dispo <= 0) return;
-  b.quantite = dispo - 1;
+  if(b.lienId){
+    b.quantiteIci = (Number(b.quantiteIci)||0) - 1;
+    recalculerTotalLien(b.lienId);
+  }else{
+    b.quantite = (Number(b.quantite)||0) - 1;
+  }
   b.quantiteBue = (Number(b.quantiteBue)||0) + 1;
   b.dateDerniereDegustation = todayISO();
   sauvegarderBouteilles();
+  if(b.lienId) propagerVersLiens(id);
   rafraichirTout();
   toast("Bouteille marquée comme bue");
 }
-/* Annule la dernière bue (erreur de manipulation) : remet une bouteille en cave et décrémente le compteur de bues. */
+/* Annule la dernière bue (erreur de manipulation) : remet une bouteille en stock disponible (quantiteIci
+   pour un vin lié, sinon quantite) et décrémente le compteur de bues. Total partagé recalculé et propagé
+   comme ci-dessus pour un vin lié. */
 function annulerBue(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
   const bues = Number(b.quantiteBue)||0;
   if(bues <= 0) return;
   b.quantiteBue = bues - 1;
-  b.quantite = (Number(b.quantite)||0) + 1;
+  if(b.lienId){
+    b.quantiteIci = (Number(b.quantiteIci)||0) + 1;
+    recalculerTotalLien(b.lienId);
+  }else{
+    b.quantite = (Number(b.quantite)||0) + 1;
+  }
   sauvegarderBouteilles();
+  if(b.lienId) propagerVersLiens(id);
   rafraichirTout();
   toast("Annulé — bouteille remise en cave");
 }
@@ -3156,9 +3242,22 @@ function enregistrerFiche(){
 
   if(ficheEnCours){
     const b = bottles.find(x=>x.id===ficheEnCours);
+    const ancienTotal = Number(b.quantite)||0;
+    const nouveauTotalSaisi = data.quantite;
     Object.assign(b, data);
     b.numero = numeroFicheCourant;
     delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
+    if(b.lienId){
+      // Vin lié : "Quantité en cave" représente le TOTAL du groupe, jamais une valeur indépendante — tout
+      // écart entre l'ancien et le nouveau total saisi est reporté sur la quantité PROPRE à cette fiche
+      // (celle qu'on est en train de modifier), jamais sur les autres. Le total réel affiché ensuite est
+      // toujours recalculé comme la vraie somme des quantités propres du groupe, jamais recopié tel quel.
+      const delta = nouveauTotalSaisi - ancienTotal;
+      const ancienIci = Number(b.quantiteIci)||0;
+      b.quantiteIci = Math.max(0, ancienIci + delta);
+      const totalReel = recalculerTotalLien(b.lienId);
+      logAjouter(`→ Vin lié : quantité saisie=${nouveauTotalSaisi} (delta=${delta>=0?"+":""}${delta}) → quantiteIci de cette fiche passe de ${ancienIci} à ${b.quantiteIci} · total réel du groupe recalculé=${totalReel}.`);
+    }
     logAjouter(`→ Vin existant mis à jour (id=${ficheEnCours}) — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
     propagerVersLiens(ficheEnCours);
   }else{
@@ -4206,13 +4305,17 @@ document.getElementById("btnAjouterEmplacementLie").addEventListener("click", ()
   if(!source) return;
   if(!source.lienId){
     source.lienId = uuid();
-    logAjouter(`btnAjouterEmplacementLie — lienId créé sur la fiche existante ${source.id} : ${source.lienId}`);
+    // Tout le stock connu jusqu'ici était à cet unique emplacement — devient sa quantité propre au
+    // moment de la liaison ; "quantite" reste le total (inchangé pour l'instant, rien n'a encore bougé).
+    source.quantiteIci = Number(source.quantite)||0;
+    logAjouter(`btnAjouterEmplacementLie — lienId créé sur la fiche existante ${source.id} : ${source.lienId} (quantiteIci initialisée à ${source.quantiteIci}).`);
   }
   const nouveau = Object.assign({}, source, {
     id: uuid(),
     numero: source.numero,
     emplacement: "",
-    quantite: 0,
+    quantite: source.quantite, // même total partagé — rien n'a encore été ajouté/retiré globalement
+    quantiteIci: 0,            // rien ici pour l'instant
     quantiteBue: 0,
     dateAjout: todayISO(),
     dateDerniereDegustation: "",
@@ -4220,7 +4323,7 @@ document.getElementById("btnAjouterEmplacementLie").addEventListener("click", ()
   });
   bottles.push(nouveau);
   sauvegarderBouteilles();
-  logAjouter(`btnAjouterEmplacementLie — nouvelle fiche liée créée (id=${nouveau.id}, lienId=${source.lienId}) à partir de ${source.id}.`);
+  logAjouter(`btnAjouterEmplacementLie — nouvelle fiche liée créée (id=${nouveau.id}, lienId=${source.lienId}) à partir de ${source.id} — total partagé=${nouveau.quantite}, quantiteIci=0.`);
   toast("Nouvel emplacement créé — renseigne-le puis Enregistre");
   ouvrirFiche(nouveau.id);
 });
@@ -4233,9 +4336,8 @@ document.getElementById("btnDelierEmplacement").addEventListener("click", ()=>{
     "Délier cet emplacement ?",
     "Ce vin ne sera plus synchronisé avec son ou ses autres emplacements. Les fiches existantes restent telles quelles, mais les futures modifications ne se recopieront plus automatiquement entre elles.",
     ()=>{
-      logAjouter(`btnDelierEmplacement — fiche ${b.id} déliée (lienId était ${b.lienId}).`);
-      b.lienId = "";
-      nettoyerLiensOrphelins();
+      logAjouter(`btnDelierEmplacement — fiche ${b.id} déliée (lienId était ${b.lienId}, quantiteIci=${b.quantiteIci}).`);
+      delierFiche(b);
       sauvegarderBouteilles();
       majZoneLienEmplacement();
       toast("Emplacement délié");
@@ -4252,15 +4354,14 @@ function deplacerBouteilleVers(sourceId, destId){
   const source = bottles.find(x=>x.id===sourceId);
   const dest = bottles.find(x=>x.id===destId);
   if(!source || !dest) return;
-  if((Number(source.quantite)||0) <= 0){ toast("Aucune bouteille à déplacer depuis cet emplacement"); return; }
-  source.quantite = Math.max(0, (Number(source.quantite)||0) - 1);
-  dest.quantite = (Number(dest.quantite)||0) + 1;
+  const stockSource = Number(source.quantiteIci)||0;
+  if(stockSource <= 0){ toast("Aucune bouteille à déplacer depuis cet emplacement"); return; }
+  source.quantiteIci = stockSource - 1;
+  dest.quantiteIci = (Number(dest.quantiteIci)||0) + 1;
   sauvegarderBouteilles();
-  logAjouter(`deplacerBouteilleVers — 1 bouteille déplacée de ${source.id} (${source.emplacement||"?"}, désormais ${source.quantite}) vers ${dest.id} (${dest.emplacement||"?"}, désormais ${dest.quantite}). Total inchangé.`);
+  logAjouter(`deplacerBouteilleVers — 1 bouteille déplacée de ${source.id} (${source.emplacement||"?"}, désormais ${source.quantiteIci}) vers ${dest.id} (${dest.emplacement||"?"}, désormais ${dest.quantiteIci}). Total du groupe inchangé (${source.quantite}).`);
   toast(`Bouteille déplacée vers ${dest.emplacement||"l'autre emplacement"}`);
   if(ficheEnCours === sourceId || ficheEnCours === destId){
-    const courant = bottles.find(x=>x.id===ficheEnCours);
-    document.getElementById("fQuantite").value = courant.quantite;
     majZoneLienEmplacement();
   }
   rafraichirTout();

@@ -33,7 +33,7 @@
       "marque": true,
       "marqueCouleur": "jaune",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
-      "quantiteIci": 13
+      "quantiteIci": 12
     },
     {
       "id": "85d9eac7-55af-44c7-836a-73b83adaeb9c",
@@ -1545,9 +1545,9 @@
       "marque": true,
       "marqueCouleur": "jaune",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
-      "quantiteIci": 0
+      "quantiteIci": 1
     }
   ],
-  "maj": "2026-08-31T21:47:29.216Z",
+  "maj": "2026-08-31T21:48:34.710Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

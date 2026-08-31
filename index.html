@@ -915,10 +915,9 @@
             <div class="field"><label>Région</label>
               <div class="emplacement-row">
                 <textarea id="fRegion" class="champ-ligne-unique" rows="1" data-tt-titre="Région" data-tt-desc="Région viticole du vin."></textarea>
-                <select class="emplacement-select" id="fRegionSelect" data-tt-titre="Choisir une région" data-tt-desc="Sélectionne une région parmi celles proposées dans les Paramètres.">
+                <select class="emplacement-select" id="fRegionSelect" data-tt-titre="Choisir une région" data-tt-desc="Sélectionne une région parmi celles proposées dans les Paramètres — copiée aussitôt dans le champ Région.">
                   <option value="">🌍</option>
                 </select>
-                <button type="button" class="emplacement-icon-btn" id="btnAppliquerRegion" data-tt-titre="Copier la région choisie" data-tt-desc="Recopie la région sélectionnée dans le champ Région.">✓</button>
               </div>
             </div>
             <div class="field"><label>Appellation</label><textarea id="fAppellation" class="champ-ligne-unique" rows="1" data-tt-titre="Appellation" data-tt-desc="Appellation d'origine du vin."></textarea></div>
@@ -1327,8 +1326,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.10.93";
+const VERSION = "1.10.94";
 const HISTORY = [
+  { version:"1.10.94", date:"2026-08-31", notes:"Simplification de la combobox Région (à droite du champ Région) : suppression du bouton « ✓ » séparé — sélectionner une région dans la liste la copie désormais directement dans le champ Région, comme pour les combobox d'emplacement. La combobox revient aussitôt à son icône 🌍 plutôt que d'afficher la valeur choisie."},
   { version:"1.10.93", date:"2026-08-31", notes:"Nettoyage : suppression de 5 fonctions jamais appelées nulle part dans le fichier (code mort) — restaurerVersion_OBSOLETE (doublon complet de restaurerVersion, déjà remplacée), decoderContenuBase64Utf8 et meilleureImageDisponible (plus utilisées depuis le passage aux réponses GitHub « raw »), reduireTousLesChampsAgrandis (logique équivalente déjà réalisée en ligne ailleurs), masquerBanniereConsultation (sans utilité tant que le mode consultation forcé reste verrouillé pour toute la session). Aucun changement de comportement — uniquement du code désormais inatteignable en moins."},
   { version:"1.10.92", date:"2026-08-31", notes:"Ajout d'un bandeau orange bien visible dans la fenêtre intermédiaire « Photo copiée » (affichée par « Identifier avec l'assistant IA ») rappelant de ne pas oublier de coller l'image dans la requête — avec le nom de l'assistant réellement sélectionné (Claude ou ChatGPT)."},
   { version:"1.10.91", date:"2026-08-31", notes:"Corrigé : le filtre « Filtrer par marquage » (et les autres critères de sélection de la barre d'outils — filtre couleur, chips En cave/Historique/Toutes, À boire maintenant) ne survivaient pas à un rechargement, contrairement au regroupement et au tri déjà persistés. Les quatre sont maintenant enregistrés localement et synchronisés sur GitHub à chaque changement, exactement comme le regroupement et le tri. Seul le texte de recherche reste volontairement non conservé, pour éviter qu'une ancienne recherche ne fasse croire à tort que des vins ont disparu au prochain lancement."},
@@ -3266,7 +3266,7 @@ function appliquerModeEdition(){
     document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   }
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
-   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique","fNoteIncertaine","btnQuantiteMoins","btnQuantitePlus","fRegionSelect","btnAppliquerRegion"]
+   "fEmplacement","fEmplacementGauche","fEmplacementDroite","btnEmplacementDernier","fBoireDe","fBoireA","fEtiquette","fCommentaire","fDateAchat","fLieuAchat","numeroFicheInput","fNoteNumerique","fNoteIncertaine","btnQuantiteMoins","btnQuantitePlus","fRegionSelect"]
     .forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = !MODE_EDITION; });
   ["couleurChoices","starPicker"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.style.pointerEvents = MODE_EDITION ? "" : "none";
@@ -3332,9 +3332,9 @@ function construireSelectRegionsParametres(){
     ? regionsListe.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("")
     : `<option value="">(vide — touche Init)</option>`;
 }
-document.getElementById("btnAppliquerRegion").addEventListener("click", ()=>{
-  const sel = document.getElementById("fRegionSelect");
-  if(sel.value) document.getElementById("fRegion").value = sel.value;
+document.getElementById("fRegionSelect").addEventListener("change", function(){
+  if(this.value) document.getElementById("fRegion").value = this.value;
+  this.selectedIndex = 0;
 });
 document.getElementById("btnInitRegions").addEventListener("click", function(){
   const set = new Set();

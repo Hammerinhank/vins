@@ -132,3 +132,35 @@
 [18:46:50] → Réponse de l'envoi (PUT) : statut 200
 [18:46:50] → SUCCÈS (réponse HTTP) : 50 vin(s)/91 bouteille(s) envoyé(s) (app v1.12.3).
 [18:46:51] → VÉRIFICATION post-envoi : GitHub contient maintenant 50 vin(s)/91 bouteille(s) — attendu 50 vin(s)/91 bouteille(s).
+[23:43:58] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 2358402).
+[23:43:58] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[23:43:59] → Lecture réussie : 50 vin(s) sur GitHub (maj=2026-08-31T16:46:47.077Z, origine=bdd3462f-a0c3-4357-88f4-b6e3793d2fda).
+[23:43:59] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[23:43:59] → syncDirty=false — remplacement automatique : local=34 vin(s)/47 bouteille(s) → distant=50 vin(s)/91 bouteille(s) (maj=2026-08-31T16:46:47.077Z).
+[23:43:59] → Données GitHub appliquées (50 vin(s)) et localStorage mis à jour : ÉCHEC (stockage plein).
+[23:45:21] ouvrirFiche(9c191956-8c75-41cd-a242-e29578a0383f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: miniature=oui pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:46:30] ouvrirFiche(9c191956-8c75-41cd-a242-e29578a0383f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: miniature=oui pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:46:38] demanderConfirmation() affichée — titre="Délier cet emplacement ?"
+[23:46:39] → Fenêtre de confirmation « Délier cet emplacement ? » : Confirmer (callback exécuté).
+[23:46:39] btnDelierEmplacement — fiche 9c191956-8c75-41cd-a242-e29578a0383f déliée (lienId était c303eb43-6cde-4485-9759-f388bb0b8e00, quantiteIci=undefined).
+[23:46:45] enregistrerFiche() appelé — ficheEnCours=9c191956-8c75-41cd-a242-e29578a0383f · nom="Crémant de Bourgogne – Brut Tradition" · pendante:vide · miniature:16363o · fichier:images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:46:45] → Vin existant mis à jour (id=9c191956-8c75-41cd-a242-e29578a0383f) — photoMiniature=16363o · photoFichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg · photoPendingBase64=vide
+[23:46:52] ouvrirFiche(9c191956-8c75-41cd-a242-e29578a0383f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: miniature=oui pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:46:55] btnAjouterEmplacementLie — lienId créé sur la fiche existante 9c191956-8c75-41cd-a242-e29578a0383f : 01bd5a38-db65-4443-b9c4-b27c38839ac6 (quantiteIci initialisée à 13).
+[23:46:55] btnAjouterEmplacementLie — nouvelle fiche liée créée (id=59b6e617-3244-435e-8361-dfd26dad5824, lienId=01bd5a38-db65-4443-b9c4-b27c38839ac6) à partir de 9c191956-8c75-41cd-a242-e29578a0383f — total partagé=13, quantiteIci=0.
+[23:46:55] ouvrirFiche(59b6e617-3244-435e-8361-dfd26dad5824) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: miniature=oui pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:47:21] enregistrerFiche() appelé — ficheEnCours=59b6e617-3244-435e-8361-dfd26dad5824 · nom="Crémant de Bourgogne – Brut Tradition" · pendante:vide · miniature:16363o · fichier:images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[23:47:21] → Vin lié : quantité saisie=13 (delta=+0) → quantiteIci de cette fiche passe de 0 à 0 · total réel du groupe recalculé=13.
+[23:47:21] → Vin existant mis à jour (id=59b6e617-3244-435e-8361-dfd26dad5824) — photoMiniature=16363o · photoFichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg · photoPendingBase64=vide
+[23:47:21] propagerVersLiens(59b6e617-3244-435e-8361-dfd26dad5824) — champs partagés recopiés vers 1 fiche(s) liée(s) (lienId=01bd5a38-db65-4443-b9c4-b27c38839ac6).
+[23:47:27] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=51
+[23:47:28] → Lecture distante (avant envoi) : statut 200
+[23:47:29] → Contenu distant actuel : 50 vin(s), maj=2026-08-31T16:46:47.077Z, origine=bdd3462f-a0c3-4357-88f4-b6e3793d2fda · sha=82b31d392edcd1f8be1dead4e74c604a87294ad2
+[23:47:29] → dernière maj connue=2026-08-31T16:46:47.077Z · maj distante=2026-08-31T16:46:47.077Z · estNonPriseEnCompte=false
+[23:47:29] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[23:47:29] effectuerEnvoiVersGitHub() appelé — sha=82b31d392edcd1f8be1dead4e74c604a87294ad2 · bottles.length=51
+[23:47:29] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[23:47:29] → Préparation du contenu à envoyer : 51 vin(s), 104 bouteille(s), maj=2026-08-31T21:47:29.216Z, 3338928 caractère(s)
+[23:47:31] → Réponse de l'envoi (PUT) : statut 200
+[23:47:31] → SUCCÈS (réponse HTTP) : 51 vin(s)/104 bouteille(s) envoyé(s) (app v1.13.0).
+[23:47:32] → VÉRIFICATION post-envoi : GitHub contient maintenant 51 vin(s)/104 bouteille(s) — attendu 51 vin(s)/104 bouteille(s).

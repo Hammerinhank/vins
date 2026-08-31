@@ -522,6 +522,9 @@
   }
   .lien-emplacement-gestion{display:flex;gap:8px;margin-top:10px;}
   .lien-emplacement-gestion .btn{flex:1;justify-content:center;}
+  .quantite-totale-lien{
+    font-size:11.5px;color:var(--gold-soft);margin:5px 0 0 0;line-height:1.3;
+  }
   .couleur-choices{display:flex;gap:8px;flex-wrap:wrap;}
   .couleur-choice{
     display:flex;align-items:center;gap:6px;
@@ -938,12 +941,13 @@
 
         <div class="field-row">
           <div class="field"><label>Millésime</label><textarea id="fMillesime" class="champ-ligne-unique" rows="1" placeholder="ex. 2018 ou NM" data-tt-titre="Millésime" data-tt-desc="Année de récolte du vin (ou « NM » si non millésimé)."></textarea></div>
-          <div class="field"><label>Quantité en cave</label>
+          <div class="field"><label id="labelQuantiteEnCave">Quantité en cave</label>
             <div class="quantite-row">
               <button type="button" class="qty-btn-fiche" id="btnQuantiteMoins" aria-label="Diminuer la quantité" data-tt-titre="Diminuer la quantité" data-tt-desc="Réduit d'une unité le nombre de bouteilles en cave pour ce vin.">−</button>
               <input type="number" id="fQuantite" min="0" value="1" list="fQuantiteListe" autocomplete="off" data-tt-titre="Quantité en cave" data-tt-desc="Nombre de bouteilles actuellement en cave pour ce vin.">
               <button type="button" class="qty-btn-fiche" id="btnQuantitePlus" aria-label="Augmenter la quantité" data-tt-titre="Augmenter la quantité" data-tt-desc="Ajoute une unité au nombre de bouteilles en cave pour ce vin.">+</button>
             </div>
+            <p class="quantite-totale-lien" id="quantiteTotaleLien" style="display:none;"></p>
             <datalist id="fQuantiteListe">
               <option value="0"></option>
               <option value="1"></option>
@@ -1450,8 +1454,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.12.5";
+const VERSION = "1.12.6";
 const HISTORY = [
+  { version:"1.12.6", date:"2026-08-31", notes:"Levé une ambiguïté sur un vin à plusieurs emplacements : le champ « Quantité en cave » de la fiche était déjà propre à cet emplacement précis (ajouter/retirer là ne touche que son propre quota, jamais un total) — mais rien ne le précisait. Le libellé devient « Quantité en cave (à cet emplacement) » dès que la fiche est liée, et une note juste en dessous affiche le total du vin tous emplacements confondus, pour que les deux chiffres cohabitent sans confusion possible."},
   { version:"1.12.5", date:"2026-08-31", notes:"Remplacé les flèches ⬅️/➡️ du panneau des emplacements liés par un stepper « − nombre + » — le même que celui déjà utilisé pour « Quantité en cave » dans la fiche, pour rester immédiatement reconnaissable. Surtout : le nom de l'emplacement et son stepper sont désormais dans une seule et même carte encadrée, pour qu'il n'y ait plus aucune ambiguïté sur ce que le − ou le + modifie — c'est toujours le stock de l'emplacement écrit dans cette carte-là, jamais celui d'ailleurs."},
   { version:"1.12.4", date:"2026-08-31", notes:"Réorganisation ergonomique de la zone des emplacements liés dans la fiche : au lieu de quatre boutons disposés selon l'ordre du code (et donc mal alignés), un panneau dédié liste chaque emplacement lié sur sa propre ligne, avec ses deux flèches d'échange (⬅️ faire venir / ➡️ envoyer) juste à côté — chacune grisée quand l'action n'a pas de sens (rien à faire venir si l'autre est vide, rien à envoyer si celui-ci l'est). En dessous, « Ajouter un emplacement » et « Délier » sont désormais sur la même ligne, à largeur égale. Simplifie au passage le fonctionnement : plus besoin de fenêtre de choix pour ces échanges, chaque emplacement a directement ses propres flèches."},
   { version:"1.12.3", date:"2026-08-31", notes:"Corrigé : le bouton « Déplacer une bouteille » de la 1.12.2 (jamais livrée) ne fonctionnait que dans un sens (sortir de la fiche ouverte). Remplacé par deux boutons indépendants — « ➡️ Envoyer une bouteille » et « ⬅️ Faire venir une bouteille » — disponibles dans chacune des deux fiches liées, pour sortir une bouteille vers l'autre emplacement ou en faire venir une depuis l'autre emplacement, sans jamais avoir à changer de fiche. Le total de bouteilles ne change jamais dans les deux cas."},
@@ -1914,12 +1919,16 @@ function majZoneLienEmplacement(){
   const panel = document.getElementById("lienEmplacementPanel");
   const liste = document.getElementById("lienEmplacementListe");
   const btnDelier = document.getElementById("btnDelierEmplacement");
+  const labelQuantite = document.getElementById("labelQuantiteEnCave");
+  const noteTotalLien = document.getElementById("quantiteTotaleLien");
   const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
   if(!freres.length){
     panel.style.display = "none";
     liste.innerHTML = "";
     btnDelier.style.display = "none";
+    labelQuantite.textContent = "Quantité en cave";
+    noteTotalLien.style.display = "none";
     return;
   }
   const stockIci = Number(b.quantite)||0;
@@ -1946,6 +1955,13 @@ function majZoneLienEmplacement(){
   });
   panel.style.display = "block";
   btnDelier.style.display = "inline-flex";
+  // Ce vin a plusieurs emplacements : le champ ci-dessus ne compte QUE celui de cette fiche (ajouter/
+  // retirer ici ne touche que son propre quota) — on le précise dans le libellé, et on affiche le total
+  // tous emplacements confondus juste en dessous, pour qu'aucun des deux chiffres ne soit ambigu.
+  const totalTousEmplacements = stockIci + freres.reduce((s,f)=>s+(Number(f.quantite)||0), 0);
+  labelQuantite.textContent = "Quantité en cave (à cet emplacement)";
+  noteTotalLien.textContent = `Total du vin, tous emplacements confondus : ${totalTousEmplacements} bouteille(s)`;
+  noteTotalLien.style.display = "block";
 }
 
 /* Identifiant propre à ce local storage (ce navigateur, sur cet appareil) : deux navigateurs sur le même appareil ont chacun le leur. Sert à savoir si une sauvegarde GitHub provient de cet endroit précis ou d'ailleurs. */

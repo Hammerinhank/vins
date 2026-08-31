@@ -1,0 +1,24 @@
+=== 2026-08-31 ===
+[15:46:29] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 2358402).
+[15:46:29] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[15:46:30] → Lecture réussie : 34 vin(s) sur GitHub (maj=2026-08-31T12:44:19.913Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[15:46:30] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[15:46:30] → syncDirty=true — local=34 vin(s)/47 bouteille(s) · distant=34 vin(s)/47 bouteille(s) (maj=2026-08-31T12:44:19.913Z) · dernière maj connue=2026-08-31T12:48:04.327Z · estNonPriseEnCompte=true
+[15:46:30] → Conflit au lancement : modifications locales non envoyées ET version GitHub différente de la dernière connue. Fenêtre de conflit affichée.
+[15:46:30] afficherConflitSync() affichée — local=34 vin(s)/47 bouteille(s) · distant=34 vin(s)/47 bouteille(s) (31/08/2026 14:44:19).
+[15:47:20] restaurerVersion(87088547f3a696396a0f1db304ff4a7c0abfe5ac) confirmé — bottles.length (avant)=34 · syncDirty (avant)=true
+[15:47:20] → Version 8708854 récupérée depuis le cache : 49 vin(s), 91 bouteille(s).
+[15:47:20] → Écriture locale (localStorage) après restauration : ÉCHOUÉE (stockage plein — voir bannière).
+[15:47:20] → RESTAURATION EFFECTUÉE : bottles.length (après)=49 vin(s), 91 bouteille(s) · marqueur de maj fixé à 2026-08-31T13:47:20.258Z · écriture locale ÉCHOUÉE.
+[15:47:20] → ATTENTION : tant que le stockage local reste plein, un rechargement de la page perdrait cette restauration (elle n'existe que dans la mémoire de cet onglet). Envoie vers GitHub avant de recharger ou de fermer l'app.
+[15:48:01] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=49
+[15:48:01] → Lecture distante (avant envoi) : statut 200
+[15:48:03] → Contenu distant actuel : 34 vin(s), maj=2026-08-31T12:44:19.913Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=73f2c13d98bd8fa5684dc2dd649866cb4c1baad5
+[15:48:03] → dernière maj connue=2026-08-31T13:47:20.258Z · maj distante=2026-08-31T12:44:19.913Z · estNonPriseEnCompte=true
+[15:48:03] → ARRÊT : fenêtre de conflit affichée, envoi suspendu en attente de confirmation.
+[15:48:16] effectuerEnvoiVersGitHub() appelé — sha=73f2c13d98bd8fa5684dc2dd649866cb4c1baad5 · bottles.length=49
+[15:48:16] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[15:48:16] → Préparation du contenu à envoyer : 49 vin(s), 91 bouteille(s), maj=2026-08-31T13:48:16.462Z, 3301725 caractère(s)
+[15:48:20] → Réponse de l'envoi (PUT) : statut 200
+[15:48:20] → SUCCÈS (réponse HTTP) : 49 vin(s)/91 bouteille(s) envoyé(s) (app v1.11.13).
+[15:48:21] → VÉRIFICATION post-envoi : GitHub contient maintenant 49 vin(s)/91 bouteille(s) — attendu 49 vin(s)/91 bouteille(s).

@@ -33,7 +33,7 @@
   "sortKey": "ajout_desc",
   "filtreStatut": "cave",
   "filtreCouleur": "toutes",
-  "filtreMarque": "marques",
+  "filtreMarque": "non_marques",
   "filtreApogeeOnly": false,
-  "maj": "2026-08-31T07:42:37.341Z"
+  "maj": "2026-08-31T07:45:25.093Z"
 }

@@ -1415,6 +1415,14 @@
       <p class="panel-note">« Init » scanne toutes les fiches existantes, récupère les valeurs du champ Région, retire les doublons et les classe par ordre alphabétique. La liste est ensuite envoyée sur GitHub avec les autres réglages, au clic sur Enregistrer.</p>
     </div>
     <div class="field">
+      <label>Photos</label>
+      <label class="checkbox-chip" for="paramUtiliserMiniatures" data-tt-titre="Utiliser les miniatures" data-tt-desc="Génère et utilise une petite version compressée de la photo pour l'aperçu immédiat juste après l'ajout.">
+        <input type="checkbox" id="paramUtiliserMiniatures">
+        Utiliser les miniatures
+      </label>
+      <p class="panel-note">Décochée (par défaut) : aucune miniature séparée n'est générée ni utilisée — seule la photo pleine résolution existe, y compris pour l'aperçu affiché juste après l'ajout d'une photo, avant même son envoi vers GitHub. Cochée : une petite version compressée (480 px) est en plus générée à l'ajout et utilisée pour cet aperçu immédiat, comme avant la v1.13.5 — sans effet sur les photos déjà en cave, qui utilisent de toute façon la pleine résolution récupérée à la demande depuis GitHub.</p>
+    </div>
+    <div class="field">
       <label>Accès</label>
       <label class="checkbox-chip" for="paramForcerModeEdition" data-tt-titre="Forcer le mode édition" data-tt-desc="Garde l'édition toujours disponible, quoi qu'il arrive — prioritaire sur tous les autres réglages d'accès ci-dessous.">
         <input type="checkbox" id="paramForcerModeEdition">
@@ -1494,8 +1502,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.4";
+const VERSION = "1.13.5";
 const HISTORY = [
+  { version:"1.13.5", date:"2026-09-01", notes:"Nouveau réglage dans Paramètres → Photos : « Utiliser les miniatures », décoché par défaut. Décoché (nouveau comportement par défaut) : plus aucune miniature séparée n'est générée ni utilisée nulle part — à l'ajout d'une photo, seule la version pleine résolution (1600 px) est compressée et sert aussi à l'aperçu immédiat avant envoi (via photoPendingBase64, déjà disponible en mémoire, sans compression ni cache supplémentaire). Coché : restaure le comportement précédent (petite version 480 px générée en plus à l'ajout, pour un aperçu immédiat plus léger). Sans effet sur les vins déjà en cave, qui s'appuyaient déjà uniquement sur la pleine résolution récupérée à la demande depuis GitHub (voir v1.13.4) — ce réglage ne concerne que le chemin encore emprunté par une miniature : la compression à l'ajout d'une nouvelle photo."},
   { version:"1.13.4", date:"2026-09-01", notes:"Changement majeur pour lutter contre la saturation du stockage local : les miniatures des photos ne sont plus conservées en permanence sur chaque vin (c'était, de loin, la plus grosse source de volume — de vraies données d'image, pour chaque vin en ayant une, systématiquement recopiées dans le gros bloc unique écrit à chaque sauvegarde, indépendamment de tout affichage). Elles sont désormais récupérées depuis GitHub à la demande — case « Avec photo » cochée, bascule par carte, ou bouton dans la fiche — et gardées seulement en mémoire pour le reste de la session, jamais réenregistrées. Migration automatique au chargement : les miniatures déjà stockées sont retirées des vins existants, mais uniquement s'il existe une copie de secours ailleurs (sur GitHub, ou en attente d'envoi) — jamais si c'était la seule copie existante. Dans la grille, un espace réservé animé (⏳) s'affiche le temps de la récupération, sans bloquer le reste de la carte. Testé de bout en bout : migration avec et sans copie de secours, chargement à la demande dans la grille et dans la fiche, mise en cache évitant tout nouveau téléchargement au sein d'une même session."},
   { version:"1.13.3", date:"2026-09-01", notes:"Liseré bleu, dans la grille comme dans la fiche détaillée, pour signaler qu'une carte ou une fiche ne représente qu'UN SEUL des emplacements d'un vin réparti sur plusieurs — jamais sur une carte fusionnée (qui montre déjà le total de tous les emplacements) ni sur un vin simple. Concrètement : seul le regroupement « par emplacement » peut faire apparaître ce liseré dans la grille, puisque c'est le seul mode qui n'affiche pas les vins liés fusionnés en une seule carte."},
   { version:"1.13.2", date:"2026-09-01", notes:"CORRECTIF CRITIQUE, identifié grâce à un log détaillé transmis par l'utilisateur (repérable par l'alerte « confirmCallback était déjà vide ! » ajoutée en 1.11.14 — exactement à ça qu'elle devait servir). Bug de fond dans le mécanisme partagé de confirmation (demanderConfirmation) : quand confirmer une fenêtre en déclenche aussitôt une seconde (ex. « Restaurer cette version » → « Envoyer la version restaurée ? »), la seconde posait bien son callback, mais la ligne de nettoyage de la première l'effaçait juste après — rendant tout « Confirmer » sur la fenêtre enchaînée totalement silencieux, sans aucune erreur visible. Corrigé (le callback est désormais capturé puis remis à zéro AVANT d'être exécuté, jamais après) et vérifié par un test de bout en bout reproduisant exactement le scénario réel (lister les versions, restaurer, confirmer l'envoi) : l'envoi part désormais bien. Deuxième correctif, tout aussi important : quatre endroits (résolution de conflit, application automatique au lancement, récupération manuelle, restauration d'une version) écrivaient le marqueur « dernière maj connue » même quand l'écriture locale avait échoué (stockage plein) — créant un décalage durable entre ce que l'app croit avoir localement et ce qui y est vraiment, jusqu'à provoquer l'écrasement accidentel d'une version GitHub plus complète par une version locale incomplète. Ce marqueur n'est désormais écrit que si l'écriture locale a réellement réussi."},
@@ -1781,6 +1790,7 @@ let marqueFicheCourante = false; // état "marqué" du vin actuellement ouvert d
 let marqueFicheCouleur = "jaune"; // couleur du repère quand marqué : "jaune" ou "vert" — sans effet si marqueFicheCourante est false
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
+let utiliserMiniatures = false;    // Paramètres → Photos : si coché, génère et utilise une petite miniature compressée (480px) pour l'aperçu immédiat d'une photo tout juste ajoutée ; décoché par défaut (photo pleine résolution utilisée partout, y compris juste après l'ajout), persistant via cave-reglages.json
 const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute "couleur : " suivi de la couleur du vin, en utilisant l'un des mot clef suivant : "Rouge", "Blanc", "Rosé", "Champagne","Crémant","CIdre",,"Liquoreux", "Autre".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible .`;
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par deux lignes séparées, au format exact : « Note : X/5 » (ta note sur 5) et « Prix : Y € » (un prix indicatif au détail).";
@@ -2553,7 +2563,7 @@ function chargerReglagesLocal(){
 }
 function sauvegarderReglagesLocal(){
   try{
-    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
     masquerBanniereStockagePlein();
     return true;
   }catch(e){
@@ -2570,7 +2580,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -3446,10 +3456,14 @@ let photoChoisieMiniature = "";
 document.getElementById("photoInput").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
-  Promise.all([
-    compresserImage(file, 1600, 0.82),
-    compresserImage(file, 480, 0.65)
-  ]).then(([pleine, miniature])=>{
+  // Paramètres → Photos → « Utiliser les miniatures » décoché (par défaut) : on ne compresse et n'utilise
+  // que la pleine résolution, nulle part une miniature séparée n'est générée ni gardée en cache — voir
+  // appliquerPhotoChoisieALaFiche() et enregistrerFiche(), qui laissent alors cachePhotosMemoire vide pour
+  // ce vin et s'appuient sur photoPendingBase64 (déjà la pleine résolution) pour l'aperçu immédiat.
+  const compressions = utiliserMiniatures
+    ? Promise.all([compresserImage(file, 1600, 0.82), compresserImage(file, 480, 0.65)])
+    : compresserImage(file, 1600, 0.82).then(pleine => [pleine, ""]);
+  compressions.then(([pleine, miniature])=>{
     photoChoisiePleine = pleine;
     photoChoisieMiniature = miniature;
     document.getElementById("photoChoisieApercu").src = pleine;
@@ -4710,6 +4724,7 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   selectionnerAssistant(assistantIA);
   document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
   document.getElementById("paramForcerModeEdition").checked = forcerModeEdition;
+  document.getElementById("paramUtiliserMiniatures").checked = utiliserMiniatures;
   document.getElementById("paramEmplacementGauche").value = listeVersTexte(emplacementGaucheListe);
   document.getElementById("paramEmplacementDroite").value = listeVersTexte(emplacementDroiteListe);
   construireSelectRegionsParametres();
@@ -4735,6 +4750,7 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   majLibelleAssistant();
   limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
   forcerModeEdition = document.getElementById("paramForcerModeEdition").checked;
+  utiliserMiniatures = document.getElementById("paramUtiliserMiniatures").checked;
   appliquerModeEdition();
   majBoutonDernierEmplacement();
   emplacementGaucheListe = texteVersListe(document.getElementById("paramEmplacementGauche").value);
@@ -5451,6 +5467,12 @@ async function initialiserSynchronisationGitHub(){
       document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
       changement = true;
     }
+    if(typeof distant.utiliserMiniatures === "boolean" && distant.utiliserMiniatures !== utiliserMiniatures){
+      utiliserMiniatures = distant.utiliserMiniatures;
+      const chk = document.getElementById("paramUtiliserMiniatures");
+      if(chk) chk.checked = utiliserMiniatures;
+      changement = true;
+    }
     if(typeof distant.questionChatGPT === "string" && distant.questionChatGPT && distant.questionChatGPT !== questionChatGPT){
       questionChatGPT = distant.questionChatGPT;
       changement = true;
@@ -5934,6 +5956,7 @@ chargerBouteilles();
 remplirChampsConfig();
 const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
+utiliserMiniatures = reglagesLocaux.utiliserMiniatures === true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
 assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";

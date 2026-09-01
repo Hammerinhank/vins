@@ -499,3 +499,22 @@
 [15:26:40] → Réponse de l'envoi (PUT) : statut 200
 [15:26:40] → SUCCÈS (réponse HTTP) : 53 vin(s)/90 bouteille(s) envoyé(s) (app v1.14.2).
 [15:26:41] → VÉRIFICATION post-envoi : GitHub contient maintenant 53 vin(s)/90 bouteille(s) — attendu 53 vin(s)/90 bouteille(s).
+[17:22:11] chargerBouteilles() — lu depuis localStorage : 53 vin(s), 90 bouteille(s) en cave (octets bruts : 87449).
+[17:22:11] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[17:22:12] → Lecture réussie : 53 vin(s) sur GitHub (maj=2026-09-01T13:26:39.661Z, origine=bdd3462f-a0c3-4357-88f4-b6e3793d2fda).
+[17:22:12] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[17:22:12] → syncDirty=false — remplacement automatique : local=53 vin(s)/90 bouteille(s) → distant=53 vin(s)/90 bouteille(s) (maj=2026-09-01T13:26:39.661Z).
+[17:22:12] → Données GitHub appliquées (53 vin(s)) et localStorage mis à jour : OK.
+[17:22:19] ouvrirFiche(9c191956-8c75-41cd-a242-e29578a0383f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[17:22:34] ouvrirFiche(10d134fd-ad4c-441e-8043-49861dc2759c) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[17:22:46] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=53
+[17:22:47] → Lecture distante (avant envoi) : statut 200
+[17:22:48] → Contenu distant actuel : 53 vin(s), maj=2026-09-01T13:26:39.661Z, origine=bdd3462f-a0c3-4357-88f4-b6e3793d2fda · sha=07877a7ce125781c4ccd302312c44f91a01a809d
+[17:22:48] → dernière maj connue=2026-09-01T13:26:39.661Z · maj distante=2026-09-01T13:26:39.661Z · estNonPriseEnCompte=false
+[17:22:48] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[17:22:48] effectuerEnvoiVersGitHub() appelé — sha=07877a7ce125781c4ccd302312c44f91a01a809d · bottles.length=53
+[17:22:48] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[17:22:48] → Préparation du contenu à envoyer : 53 vin(s), 90 bouteille(s), maj=2026-09-01T15:22:48.101Z, 99741 caractère(s)
+[17:22:51] → Réponse de l'envoi (PUT) : statut 200
+[17:22:51] → SUCCÈS (réponse HTTP) : 53 vin(s)/90 bouteille(s) envoyé(s) (app v1.14.4).
+[17:22:51] → VÉRIFICATION post-envoi : GitHub contient maintenant 53 vin(s)/90 bouteille(s) — attendu 53 vin(s)/90 bouteille(s).

@@ -1395,11 +1395,16 @@
     </div>
     <div class="field">
       <label>Accès</label>
+      <label class="checkbox-chip" for="paramForcerModeEdition" data-tt-titre="Forcer le mode édition" data-tt-desc="Garde l'édition toujours disponible, quoi qu'il arrive — prioritaire sur tous les autres réglages d'accès ci-dessous.">
+        <input type="checkbox" id="paramForcerModeEdition">
+        Forcer le mode édition
+      </label>
+      <p class="panel-note">Cochée (par défaut) : l'édition reste toujours disponible, même si GitHub s'avère injoignable au lancement ou si « Limiter l'URL… » ci-dessous est cochée — prioritaire sur tout le reste. Décochée : les protections habituelles s'appliquent normalement (mode consultation forcé si GitHub est injoignable, pour ne jamais modifier par erreur des données pas encore synchronisées).</p>
       <label class="checkbox-chip" for="paramLimitationConsultation" data-tt-titre="Limiter l'URL sans ?edition" data-tt-desc="Active la séparation entre lien de consultation et lien d'édition.">
         <input type="checkbox" id="paramLimitationConsultation">
         Limiter l'URL sans ?edition à la consultation seule
       </label>
-      <p class="panel-note">Décochée (par défaut) : l'URL habituelle permet toujours de modifier la cave, comme avant. Cochée : seule l'URL avec « ?edition » à la fin permet de modifier quoi que ce soit — l'URL habituelle passe en lecture seule.</p>
+      <p class="panel-note">Décochée (par défaut) : l'URL habituelle permet toujours de modifier la cave, comme avant. Cochée : seule l'URL avec « ?edition » à la fin permet de modifier quoi que ce soit — l'URL habituelle passe en lecture seule. Sans effet tant que « Forcer le mode édition » ci-dessus reste cochée.</p>
       <div class="panel-row">
         <button class="btn btn-ghost" id="btnApercuConsultation" type="button" data-tt-titre="Aperçu du mode consultation" data-tt-desc="Ouvre un nouvel onglet en lecture seule, sans rien activer, pour vérifier le rendu.">👁 Aperçu du mode consultation</button>
       </div>
@@ -1468,8 +1473,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.0";
+const VERSION = "1.13.1";
 const HISTORY = [
+  { version:"1.13.1", date:"2026-08-31", notes:"Correction du bandeau de regroupement (« CAVE · 1 vin · 13 bouteilles ») qui comptait le total partagé au lieu de la quantité propre à l'emplacement affiché — corrigé, comme tous les autres décomptes de diagnostic (log de chargement, envoi, restauration, comparaison local/distant) qui souffraient du même défaut avec la liste brute des fiches. Nouveau réglage dans Paramètres → Accès : « Forcer le mode édition », coché par défaut et persistant sur GitHub comme les autres réglages — l'édition reste toujours disponible quoi qu'il arrive (prioritaire sur le verrou de sécurité GitHub-injoignable et sur « Limiter l'URL… »), décochable pour retrouver les protections habituelles. Audit exhaustif des 33 usages restants de « quantite » dans le code : une dernière faille corrigée (le bouton « Marquer une bouteille comme bue » de la fiche pouvait apparaître à tort si le stock propre à l'emplacement était nul mais le total partagé positif) ; tout le reste vérifié correct."},
   { version:"1.13.0", date:"2026-08-31", notes:"Refonte du modèle de données des vins liés, suite à une incohérence repérée sur capture d'écran (« Quantité en cave » et « Pour cet emplacement » affichaient la même valeur, alors que la première doit être le TOTAL). Nouveau principe, strict : « Quantité en cave » est désormais le total partagé, identique sur toutes les fiches d'un même vin — TOUJOURS égal à la somme des quantités propres de chaque emplacement, jamais une valeur indépendante. « Pour cet emplacement » affiche cette quantité propre, distincte du total. Éditer « Quantité en cave » directement applique l'écart à l'emplacement de la fiche ouverte, puis recalcule et propage le vrai total. Un transfert (− / + sur les cartes d'emplacements) ne change jamais le total, seulement la répartition. Marquer/annuler une bue met à jour la quantité propre à l'emplacement ET le total. Délier un emplacement lui rend sa seule quantité propre. Migration automatique et silencieuse des vins déjà liés au chargement (la répartition actuelle est conservée, le total est calculé comme leur somme). Au passage, un bug réel a été trouvé et corrigé dans le bouton Délier (l'ordre des opérations empêchait le recalcul de la fiche déliée elle-même). Validé par une suite de tests dans un vrai DOM simulé : migration, affichage, transfert, édition du total, bue/annuler bue, délien, création d'un nouveau lien — tous corrects, y compris l'invariant total = somme des emplacements vérifié à chaque étape."},
   { version:"1.12.8", date:"2026-08-31", notes:"CORRECTIF CRITIQUE : la 1.12.7 laissait par erreur un reliquat de code (référence à labelQuantite/noteTotalLien, supprimés de la page) en fin de majZoneLienEmplacement() — dès qu'une fiche liée à un autre emplacement était ouverte, une exception silencieuse interrompait ouvrirFiche() avant l'affichage de la fenêtre, rendant le bouton « Détails » inopérant sur ces fiches. Corrigé, et vérifié cette fois avec un vrai test dans un DOM simulé (pas seulement une vérification de syntaxe) : ouverture d'un vin simple et d'un vin lié, dans les deux cas la fiche s'ouvre correctement."},
   { version:"1.12.7", date:"2026-08-31", notes:"Reprise complète de la clarification précédente, jugée pas satisfaisante. Le champ « Quantité en cave » redevient strictement identique, que la fiche soit simple ou liée — plus aucun changement de libellé ni de note. À la place, un nouvel encadré « Pour cet emplacement » apparaît en tête du panneau, au-dessus des autres emplacements liés : il recopie en lecture seule le nom et la quantité de la fiche ouverte (bordure neutre, pas dorée, pour bien le distinguer des cartes actionnables) — sans aucun +/-, puisque toute modification directe passe par les champs Emplacement et Quantité en cave habituels. Ce chiffre ne bouge ici que par ricochet, quand un transfert est déclenché depuis l'une des cartes des autres emplacements juste en dessous."},
@@ -1757,6 +1763,7 @@ const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par 
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
+let forcerModeEdition = true;   // si vrai, le mode édition reste actif quoi qu'il arrive (même si GitHub s'avère injoignable au lancement) — coché par défaut ; persistant via cave-reglages.json
 let emplacementGaucheListe = [];   // valeurs proposées pour la partie gauche du champ Emplacement, persistantes via cave-reglages.json
 let emplacementDroiteListe = [];   // valeurs proposées pour la partie droite du champ Emplacement, persistantes via cave-reglages.json
 let regionsListe = [];   // régions proposées dans la fiche (champ Région), construites via « Init » depuis les fiches existantes, persistantes via cave-reglages.json
@@ -1941,6 +1948,25 @@ function quantiteAffichee(b){
   if(b._lienFusion) return Number(b.quantite)||0;
   if(b.lienId) return Number(b.quantiteIci)||0;
   return Number(b.quantite)||0;
+}
+/* Nombre total RÉEL de bouteilles dans une liste BRUTE, non fusionnée (utilisé pour les décomptes de
+   diagnostic/log — journal au chargement, avant/après un envoi ou une restauration, comparaison
+   local/distant…) : sur une telle liste, "quantite" est désormais identique sur toutes les fiches d'un
+   même lien (le total partagé) — le sommer directement le compterait donc en double, triple, etc. Chaque
+   groupe de lien n'est compté qu'une seule fois ; les fiches non liées sont comptées normalement. Les
+   affichages utilisateur (grille, stats, PDF) passent déjà par fusionnerParLien() et n'ont pas besoin de
+   cet utilitaire. */
+function totalBouteillesReel(list){
+  const dejaComptes = new Set();
+  let total = 0;
+  list.forEach(b=>{
+    if(b.lienId){
+      if(dejaComptes.has(b.lienId)) return;
+      dejaComptes.add(b.lienId);
+    }
+    total += Number(b.quantite)||0;
+  });
+  return total;
 }
 /* Affiche un choix simple (un bouton par emplacement lié) pour savoir de quel emplacement précis une
    action (marquer une bue / annuler une bue) doit être appliquée, quand elle est déclenchée depuis une
@@ -2273,15 +2299,20 @@ function annulerEditionNumero(){
 }
 
 function chargerBouteilles(){
+  let raw = null;
   try{
-    const raw = localStorage.getItem(LS_BOTTLES);
+    raw = localStorage.getItem(LS_BOTTLES);
     bottles = raw ? JSON.parse(raw) : [];
-    logAjouter(`chargerBouteilles() — lu depuis localStorage : ${bottles.length} vin(s), ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s) en cave (octets bruts : ${raw ? raw.length : 0}).`);
   }catch(e){
     bottles = [];
     logAjouter("chargerBouteilles() — ERREUR de lecture/parsing localStorage : " + (e && e.message ? e.message : String(e)) + " → repart sur une cave vide.");
   }
   migrerBouteilles();
+  // Journalisé APRÈS la migration (et non avant) : sur des données pas encore migrées, un vin lié a
+  // encore une quantité indépendante par fiche à ce stade — totalBouteillesReel() la compterait à tort
+  // une seule fois (dédoublonnage par lienId, pensé pour le format déjà migré) et sous-estimerait le
+  // total. Après migration, le total partagé est fiable et ce calcul est exact.
+  logAjouter(`chargerBouteilles() — lu depuis localStorage : ${bottles.length} vin(s), ${totalBouteillesReel(bottles)} bouteille(s) en cave (octets bruts : ${raw ? raw.length : 0}).`);
 }
 /* Migration depuis l'ancien schéma (statut « cave »/« bue » sur toute la fiche) vers un suivi par quantités : quantite (en cave) et quantiteBue (bues), qui peuvent cohabiter sur une même fiche. */
 function migrerBouteilles(){
@@ -2445,7 +2476,7 @@ function chargerReglagesLocal(){
 }
 function sauvegarderReglagesLocal(){
   try{
-    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
     masquerBanniereStockagePlein();
     return true;
   }catch(e){
@@ -2462,7 +2493,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -2706,7 +2737,7 @@ function renderGrille(){
         ? ` style="border-left-color:var(--${couleurKey});background:color-mix(in srgb, var(--${couleurKey}) 30%, var(--bg-panel))"`
         : "";
       const nbVins = groupes[g].length;
-      const nbBouteilles = groupes[g].reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      const nbBouteilles = groupes[g].reduce((s,b)=>s+quantiteAffichee(b),0);
       const libelleVins = nbVins > 1 ? "vins" : "vin";
       const libelleBouteilles = nbBouteilles > 1 ? "bouteilles" : "bouteille";
       return `
@@ -3132,7 +3163,7 @@ function ouvrirFiche(id){
     });
     zoneSupprimer.appendChild(btnSupprimer);
 
-    if((Number(b.quantite)||0) > 0){
+    if(quantiteAffichee(b) > 0){
       const btnBue = document.createElement("button");
       btnBue.type = "button";
       btnBue.className = "btn-bue-principal";
@@ -4210,10 +4241,7 @@ function passerEnModeConsultationHorsLigne(motif){  //CHATGPT
 
 function informerModeHorsLigne(motif){  //CHATGPT
   const nbVins = bottles.length;
-  const nbBouteilles = bottles.reduce(
-    (total, b) => total + (Number(b.quantite) || 0),
-    0
-  );
+  const nbBouteilles = totalBouteillesReel(bottles);
 
   alerteHorodatee(
     "Connexion à GitHub impossible" + (motif ? " (" + motif + ")" : "") + ".\n\n" +
@@ -4230,18 +4258,29 @@ function informerModeHorsLigne(motif){  //CHATGPT
 
 
 function appliquerModeEdition(){
-  if(verrouConsultationForcee){
+  const parametresUrl = new URLSearchParams(location.search);
+  if(parametresUrl.has("apercu")){
+    // ?apercu reste prioritaire sur tout le reste, y compris « Forcer le mode édition » : c'est un
+    // forçage de prévisualisation en lecture seule pour un lien partagé à un tiers, sans rapport avec
+    // les préférences d'édition habituelles de l'appareil.
+    MODE_EDITION = false;
+    document.body.classList.add("mode-consultation");
+  }else if(forcerModeEdition){
+    // « Forcer le mode édition » (case cochée par défaut, réglage ACCÈS) prime sur TOUT le reste — y
+    // compris le verrou absolu posé par un échec GitHub au lancement (verrouConsultationForcee) et le
+    // réglage « Limiter l'URL sans ?edition ». C'est explicitement son rôle : rendre l'édition toujours
+    // disponible sans jamais avoir à s'en préoccuper, quitte à accepter le risque d'éditer des données
+    // pas encore synchronisées si GitHub est injoignable — décocher ce réglage pour retrouver la
+    // protection habituelle.
+    MODE_EDITION = true;
+    document.body.classList.remove("mode-consultation");
+  }else if(verrouConsultationForcee){
     // Verrou absolu posé par un échec GitHub au lancement : on ignore volontairement l'URL et les
     // réglages tant que l'app n'a pas été rechargée, pour ne jamais repasser silencieusement en édition.
     MODE_EDITION = false;
     document.body.classList.add("mode-consultation");
   }else{
-    const parametresUrl = new URLSearchParams(location.search);
-    if(parametresUrl.has("apercu")){
-      MODE_EDITION = false; // forçage de prévisualisation, indépendant du réglage et de ?edition
-    }else{
-      MODE_EDITION = !limitationConsultationActive || parametresUrl.has("edition");
-    }
+    MODE_EDITION = !limitationConsultationActive || parametresUrl.has("edition");
     document.body.classList.toggle("mode-consultation", !MODE_EDITION);
   }
   ["fNom","fDomaine","fAppellation","fRegion","fPays","fMillesime","fCepages","fQuantite","fPrix",
@@ -4550,6 +4589,7 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionAvis").value = questionAvisChatGPT;
   selectionnerAssistant(assistantIA);
   document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
+  document.getElementById("paramForcerModeEdition").checked = forcerModeEdition;
   document.getElementById("paramEmplacementGauche").value = listeVersTexte(emplacementGaucheListe);
   document.getElementById("paramEmplacementDroite").value = listeVersTexte(emplacementDroiteListe);
   construireSelectRegionsParametres();
@@ -4574,6 +4614,7 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   assistantIA = choixActif ? choixActif.dataset.key : "chatgpt";
   majLibelleAssistant();
   limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
+  forcerModeEdition = document.getElementById("paramForcerModeEdition").checked;
   appliquerModeEdition();
   majBoutonDernierEmplacement();
   emplacementGaucheListe = texteVersListe(document.getElementById("paramEmplacementGauche").value);
@@ -4978,7 +5019,7 @@ async function lancerEnvoiVersGitHub(){
 async function envoyerDirectementVersGitHub(){
   const cfg = lireChampsConfig();
   const statusEl = document.getElementById("syncStatus");
-  logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}, ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s).`);
+  logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}, ${totalBouteillesReel(bottles)} bouteille(s).`);
   if(!cfg.user || !cfg.repo || !cfg.token){
     logAjouter("→ ARRÊT : configuration GitHub incomplète.");
     toast("Renseigne utilisateur, dépôt et jeton");
@@ -5029,7 +5070,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     // la miniature (petite) et le chemin du fichier image correspondant dans le dépôt.
     const nouvelleMaj = new Date().toISOString();
     const bouteillesAEnvoyer = bouteillesPourExportGitHub();
-    const totalBouteillesEnvoyees = bouteillesAEnvoyer.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const totalBouteillesEnvoyees = totalBouteillesReel(bouteillesAEnvoyer);
     const contenu = JSON.stringify({ bottles: bouteillesAEnvoyer, maj: nouvelleMaj, origine: INSTANCE_ID }, null, 2);
     logAjouter(`→ Préparation du contenu à envoyer : ${bouteillesAEnvoyer.length} vin(s), ${totalBouteillesEnvoyees} bouteille(s), maj=${nouvelleMaj}, ${contenu.length} caractère(s)`);
     const body = {
@@ -5064,7 +5105,7 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
       const verifTexte = await verifRes.text();
       const verifData = JSON.parse(verifTexte);
       const verifBottles = Array.isArray(verifData.bottles) ? verifData.bottles : [];
-      const totalVerifie = verifBottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      const totalVerifie = totalBouteillesReel(verifBottles);
       logAjouter(`→ VÉRIFICATION post-envoi : GitHub contient maintenant ${verifBottles.length} vin(s)/${totalVerifie} bouteille(s) — attendu ${bouteillesAEnvoyer.length} vin(s)/${totalBouteillesEnvoyees} bouteille(s).`);
       if(verifBottles.length !== bouteillesAEnvoyer.length || totalVerifie !== totalBouteillesEnvoyees){
         logAjouter("→ ⚠️ DIVERGENCE DÉTECTÉE entre ce qui a été envoyé et ce que GitHub renvoie juste après !");
@@ -5105,8 +5146,8 @@ document.getElementById("btnPush").addEventListener("click", lancerEnvoiVersGitH
    l'utilisateur. « Garder mes modifications locales » ne modifie rien (juste un rappel de les envoyer) ;
    seul « Utiliser la version GitHub » est destructeur pour le local, d'où sa couleur d'alerte. */
 function afficherConflitSync(distantes, donneesDistantes, onUtiliserDistant){
-  const totalLocal = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-  const totalDistant = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+  const totalLocal = totalBouteillesReel(bottles);
+  const totalDistant = totalBouteillesReel(distantes);
   const dateDistante = donneesDistantes.maj ? new Date(donneesDistantes.maj).toLocaleString("fr-FR") : "date inconnue";
   logAjouter(`afficherConflitSync() affichée — local=${bottles.length} vin(s)/${totalLocal} bouteille(s) · distant=${distantes.length} vin(s)/${totalDistant} bouteille(s) (${dateDistante}).`);
   document.getElementById("conflitSyncTitre").innerHTML = `Version différente sur GitHub <span class="heure-message">${heureAvecSecondes()}</span>`;
@@ -5227,9 +5268,9 @@ async function initialiserSynchronisationGitHub(){
   }else{
     const donneesDistantes = resCave.donneesDistantes;
     const nbVinsDistants = resCave.distantes.length;
-    const nbBouteillesDistantes = resCave.distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const nbBouteillesDistantes = totalBouteillesReel(resCave.distantes);
     const nbVinsLocaux = bottles.length;
-    const nbBouteillesLocales = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const nbBouteillesLocales = totalBouteillesReel(bottles);
     if(syncDirty){
       const connue = lireDerniereMajConnue();
       const estNonPriseEnCompte = donneesDistantes.maj && (!connue || connue.maj !== donneesDistantes.maj);
@@ -5293,6 +5334,11 @@ async function initialiserSynchronisationGitHub(){
     }
     if(typeof distant.limitationConsultationActive === "boolean" && distant.limitationConsultationActive !== limitationConsultationActive){
       limitationConsultationActive = distant.limitationConsultationActive;
+      changement = true;
+      changementModeEdition = true;
+    }
+    if(typeof distant.forcerModeEdition === "boolean" && distant.forcerModeEdition !== forcerModeEdition){
+      forcerModeEdition = distant.forcerModeEdition;
       changement = true;
       changementModeEdition = true;
     }
@@ -5366,8 +5412,8 @@ document.getElementById("btnPull").addEventListener("click", async function(){
     const texte = await res.text();
     const data = JSON.parse(texte);
     const distantes = data.bottles || [];
-    const totalLocalPull = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
-    const totalDistantPull = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+    const totalLocalPull = totalBouteillesReel(bottles);
+    const totalDistantPull = totalBouteillesReel(distantes);
     demanderConfirmation(
       "Récupérer depuis GitHub",
       `Remplacer la cave locale (${bottles.length} vin(s), ${totalLocalPull} bouteille(s) en cave) par la version GitHub (${distantes.length} vin(s), ${totalDistantPull} bouteille(s) en cave) ?`,
@@ -5536,7 +5582,7 @@ async function listerVersionsSauvegardees(limite, btn){
           const dataFichier = JSON.parse(texteFichier);
           const bouteillesVersion = Array.isArray(dataFichier.bottles) ? dataFichier.bottles : [];
           nbVins = bouteillesVersion.length;
-          nbBouteilles = bouteillesVersion.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+          nbBouteilles = totalBouteillesReel(bouteillesVersion);
           cacheVersions[commit.sha] = bouteillesVersion;
         }
       }catch(e){ /* cette version reste marquée "?" mais n'interrompt pas la liste */ }
@@ -5599,7 +5645,7 @@ async function restaurerVersion(sha, btn){
         }
       }
       const nbVinsSource = distantes.length;
-      const nbBouteillesSource = distantes.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      const nbBouteillesSource = totalBouteillesReel(distantes);
       logAjouter(`→ Version ${sha.slice(0,7)} récupérée depuis le ${source} : ${nbVinsSource} vin(s), ${nbBouteillesSource} bouteille(s).`);
 
       // 1. Remplacer les bouteilles locales — IMPORTANT : copie profonde, jamais une simple affectation de
@@ -5621,7 +5667,7 @@ async function restaurerVersion(sha, btn){
       // 4. Mettre à jour l'interface
       rafraichirTout();
       const nbVinsApres = bottles.length;
-      const nbBouteillesApres = bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0);
+      const nbBouteillesApres = totalBouteillesReel(bottles);
       toast(`Version restaurée (${nbVinsApres} vin(s)) — à sauvegarder vers GitHub`);
       journalAjouter(`Version ${sha.slice(0,7)} restaurée avec succès (${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s)). Horodatage mis à jour.`);
       logAjouter(`→ RESTAURATION EFFECTUÉE : bottles.length (après)=${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s) · marqueur de maj fixé à ${nouvelleMajRestauration} · écriture locale ${ecritureLocaleOk ? "OK" : "ÉCHOUÉE"}.`);
@@ -5635,7 +5681,7 @@ async function restaurerVersion(sha, btn){
         "Envoyer la version restaurée ?",
         `La version restaurée (${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s)) est actuellement en mémoire sur cet appareil${ecritureLocaleOk ? "" : " (elle n'a PAS pu être enregistrée localement — stockage plein)"}. Voulez-vous l'envoyer immédiatement vers GitHub pour qu'elle devienne la version officielle sur tous vos appareils ?`,
         ()=>{
-          logAjouter(`→ Confirmation « Envoyer la version restaurée » acceptée — bottles.length (juste avant l'envoi)=${bottles.length}, ${bottles.reduce((s,b)=>s+(Number(b.quantite)||0),0)} bouteille(s).`);
+          logAjouter(`→ Confirmation « Envoyer la version restaurée » acceptée — bottles.length (juste avant l'envoi)=${bottles.length}, ${totalBouteillesReel(bottles)} bouteille(s).`);
           envoyerDirectementVersGitHub();
         }
       );
@@ -5749,6 +5795,7 @@ questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
 assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
+forcerModeEdition = reglagesLocaux.forcerModeEdition !== undefined ? reglagesLocaux.forcerModeEdition : true;
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];
 emplacementDroiteListe = Array.isArray(reglagesLocaux.emplacementDroiteListe) ? reglagesLocaux.emplacementDroiteListe : [];
 regionsListe = Array.isArray(reglagesLocaux.regionsListe) ? reglagesLocaux.regionsListe : [];

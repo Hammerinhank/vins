@@ -4,6 +4,7 @@
   "questionAvisChatGPT": "Que penses-tu de ce vin ? Pourras-tu compléter ta réponse par deux champs présentés comme suit : \nnote : xxx \nPrix : yyy euros",
   "assistantIA": "claude",
   "limitationConsultationActive": false,
+  "forcerModeEdition": true,
   "emplacementGaucheListe": [
     "Casier G",
     "Casier D",
@@ -34,7 +35,7 @@
   "sortKey": "ajout_desc",
   "filtreStatut": "cave",
   "filtreCouleur": "toutes",
-  "filtreMarque": "marques",
+  "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-01T04:16:58.835Z"
+  "maj": "2026-09-01T04:56:20.658Z"
 }

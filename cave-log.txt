@@ -376,3 +376,53 @@
 [14:13:22] → Réponse de l'envoi (PUT) : statut 200
 [14:13:22] → SUCCÈS (réponse HTTP) : 52 vin(s)/90 bouteille(s) envoyé(s) (app v1.14.0).
 [14:13:22] → VÉRIFICATION post-envoi : GitHub contient maintenant 52 vin(s)/90 bouteille(s) — attendu 52 vin(s)/90 bouteille(s).
+[14:27:34] chargerBouteilles() — lu depuis localStorage : 52 vin(s), 90 bouteille(s) en cave (octets bruts : 85503).
+[14:27:34] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[14:27:35] → Lecture réussie : 52 vin(s) sur GitHub (maj=2026-09-01T12:13:20.543Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[14:27:35] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[14:27:35] → syncDirty=false — remplacement automatique : local=52 vin(s)/90 bouteille(s) → distant=52 vin(s)/90 bouteille(s) (maj=2026-09-01T12:13:20.543Z).
+[14:27:35] → Données GitHub appliquées (52 vin(s)) et localStorage mis à jour : OK.
+[14:27:39] [Phase 1 — rapide] Vérification API GitHub — repos/Hammerinhank/vins/contents/index.html
+[14:27:40] [Phase 1] → Statut HTTP 200
+[14:27:40] [Phase 1] → Version enregistrée sur le dépôt : 1.14.2
+[14:27:40] [Phase 1] → Aucune version différente sur le dépôt, arrêt immédiat (pas de phase 2).
+[14:27:51] ouvrirFiche(ef9bc26e-dd77-42aa-9644-13ac3abf189f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:27:53] btnDelierEmplacement — refusé : ATest a encore 1 bouteille(s), délier interdit tant qu'il en reste.
+[14:28:05] deplacerBouteilleVers — 1 bouteille déplacée de ef9bc26e-dd77-42aa-9644-13ac3abf189f (ATest, désormais 0) vers 9c191956-8c75-41cd-a242-e29578a0383f (Cave, désormais 11). Total du groupe inchangé (12).
+[14:28:07] demanderConfirmation() affichée — titre="Délier cet emplacement ?"
+[14:28:15] → Fenêtre de confirmation « Délier cet emplacement ? » : Confirmer (callback exécuté).
+[14:28:15] btnDelierEmplacement — fiche ef9bc26e-dd77-42aa-9644-13ac3abf189f (ATest) déliée de Cave, Hors casier (lienId était 01bd5a38-db65-4443-b9c4-b27c38839ac6, quantiteIci=0).
+[14:28:15] delierFiche(ef9bc26e-dd77-42aa-9644-13ac3abf189f) — groupe 01bd5a38-db65-4443-b9c4-b27c38839ac6 : 2 membre(s) restant(s) après retrait (Cave, Hors casier).
+[14:28:34] enregistrerFiche() appelé — ficheEnCours=ef9bc26e-dd77-42aa-9644-13ac3abf189f · nom="Crémant de Bourgogne – Brut Tradition" · pendante:vide · miniature:vide · fichier:images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:28:34] → Vin existant mis à jour (id=ef9bc26e-dd77-42aa-9644-13ac3abf189f) — miniature en cache mémoire=vide · photoFichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg · photoPendingBase64=vide
+[14:28:44] ouvrirFiche(9c191956-8c75-41cd-a242-e29578a0383f) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:28:53] btnAjouterEmplacementLie — nouvelle fiche liée créée (id=f9c1d61b-f6a6-4807-8fc4-88f489588e28, lienId=01bd5a38-db65-4443-b9c4-b27c38839ac6) à partir de 9c191956-8c75-41cd-a242-e29578a0383f — total partagé=12, quantiteIci=0.
+[14:28:53] ouvrirFiche(f9c1d61b-f6a6-4807-8fc4-88f489588e28) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:29:13] deplacerBouteilleVers — 1 bouteille déplacée de 59b6e617-3244-435e-8361-dfd26dad5824 (Hors casier, désormais 0) vers f9c1d61b-f6a6-4807-8fc4-88f489588e28 (?, désormais 1). Total du groupe inchangé (12).
+[14:29:14] deplacerBouteilleVers — 1 bouteille déplacée de f9c1d61b-f6a6-4807-8fc4-88f489588e28 (?, désormais 0) vers 59b6e617-3244-435e-8361-dfd26dad5824 (Hors casier, désormais 1). Total du groupe inchangé (12).
+[14:29:16] deplacerBouteilleVers — 1 bouteille déplacée de 9c191956-8c75-41cd-a242-e29578a0383f (Cave, désormais 10) vers f9c1d61b-f6a6-4807-8fc4-88f489588e28 (?, désormais 1). Total du groupe inchangé (12).
+[14:29:19] enregistrerFiche() appelé — ficheEnCours=f9c1d61b-f6a6-4807-8fc4-88f489588e28 · nom="Crémant de Bourgogne – Brut Tradition" · pendante:vide · miniature:vide · fichier:images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:29:19] → Vin lié : quantité saisie=12 (delta=+0) → quantiteIci de cette fiche passe de 1 à 1 · total réel du groupe recalculé=12.
+[14:29:19] → Vin existant mis à jour (id=f9c1d61b-f6a6-4807-8fc4-88f489588e28) — miniature en cache mémoire=vide · photoFichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg · photoPendingBase64=vide
+[14:29:19] propagerVersLiens(f9c1d61b-f6a6-4807-8fc4-88f489588e28) — champs partagés recopiés vers 2 fiche(s) liée(s) (lienId=01bd5a38-db65-4443-b9c4-b27c38839ac6).
+[14:29:26] ouvrirFiche(f9c1d61b-f6a6-4807-8fc4-88f489588e28) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:29:38] btnDelierEmplacement — refusé : Test a encore 1 bouteille(s), délier interdit tant qu'il en reste.
+[14:29:43] deplacerBouteilleVers — 1 bouteille déplacée de f9c1d61b-f6a6-4807-8fc4-88f489588e28 (Test, désormais 0) vers 59b6e617-3244-435e-8361-dfd26dad5824 (Hors casier, désormais 2). Total du groupe inchangé (12).
+[14:29:46] demanderConfirmation() affichée — titre="Délier cet emplacement ?"
+[14:29:49] → Fenêtre de confirmation « Délier cet emplacement ? » : Confirmer (callback exécuté).
+[14:29:49] btnDelierEmplacement — fiche f9c1d61b-f6a6-4807-8fc4-88f489588e28 (Test) déliée de Cave, Hors casier (lienId était 01bd5a38-db65-4443-b9c4-b27c38839ac6, quantiteIci=0).
+[14:29:49] delierFiche(f9c1d61b-f6a6-4807-8fc4-88f489588e28) — groupe 01bd5a38-db65-4443-b9c4-b27c38839ac6 : 2 membre(s) restant(s) après retrait (Cave, Hors casier).
+[14:30:29] enregistrerFiche() appelé — ficheEnCours=f9c1d61b-f6a6-4807-8fc4-88f489588e28 · nom="Crémant de Bourgogne – Brut Tradition" · pendante:vide · miniature:vide · fichier:images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:30:29] → Vin existant mis à jour (id=f9c1d61b-f6a6-4807-8fc4-88f489588e28) — miniature en cache mémoire=vide · photoFichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg · photoPendingBase64=vide
+[14:30:31] ouvrirFiche(59b6e617-3244-435e-8361-dfd26dad5824) appelé — nom="Crémant de Bourgogne – Brut Tradition" · numero=1 · photo: en cache=non pendante=non fichier=images/9c191956-8c75-41cd-a242-e29578a0383f.jpg
+[14:30:54] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=53
+[14:30:55] → Lecture distante (avant envoi) : statut 200
+[14:30:56] → Contenu distant actuel : 52 vin(s), maj=2026-09-01T12:13:20.543Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=03e01e6332f42c1baf3bd58ee3c76b422c447030
+[14:30:56] → dernière maj connue=2026-09-01T12:13:20.543Z · maj distante=2026-09-01T12:13:20.543Z · estNonPriseEnCompte=false
+[14:30:56] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[14:30:56] effectuerEnvoiVersGitHub() appelé — sha=03e01e6332f42c1baf3bd58ee3c76b422c447030 · bottles.length=53
+[14:30:56] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[14:30:56] → Préparation du contenu à envoyer : 53 vin(s), 114 bouteille(s), maj=2026-09-01T12:30:56.300Z, 99618 caractère(s)
+[14:30:58] → Réponse de l'envoi (PUT) : statut 200
+[14:30:58] → SUCCÈS (réponse HTTP) : 53 vin(s)/114 bouteille(s) envoyé(s) (app v1.14.2).
+[14:30:58] → VÉRIFICATION post-envoi : GitHub contient maintenant 53 vin(s)/114 bouteille(s) — attendu 53 vin(s)/114 bouteille(s).

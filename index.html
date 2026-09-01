@@ -32,6 +32,7 @@
     --ok:#6E8F5C;
     --orange:#D9822B;
     --vif:#FF3D68;
+    --bleu-emplacement:#4A90D9;
     --radius:10px;
     --radius-lg:16px;
     --shadow:0 10px 30px rgba(0,0,0,.5);
@@ -254,6 +255,18 @@
     border:3px solid var(--gold-soft);
     box-shadow:0 0 0 1px var(--gold), var(--shadow);
   }
+  /* Vin lié dont CETTE carte précise ne représente qu'UN SEUL de ses emplacements (jamais le total) —
+     seul cas où ça peut arriver : regroupement « par emplacement », le seul mode qui n'affiche pas les
+     fiches liées fusionnées en une seule carte. Rappelle qu'il existe (probablement) d'autres bouteilles
+     de ce même vin ailleurs, non comptées ici. */
+  .bottle-card.emplacement-partiel{
+    border:2px solid var(--bleu-emplacement);
+    box-shadow:0 0 0 1px rgba(74,144,217,.35), var(--shadow);
+  }
+  .bottle-card.avec-photo.emplacement-partiel{
+    border:3px solid var(--bleu-emplacement);
+    box-shadow:0 0 0 1px var(--bleu-emplacement), var(--shadow);
+  }
   .bottle-photo{
     width:100%;aspect-ratio:4/3;
     background:var(--bg-panel-2);
@@ -406,6 +419,12 @@
     border:2px solid var(--vif);
     border-radius:20px;
     margin-bottom:max(14px, env(safe-area-inset-bottom));
+  }
+  /* Fiche d'un vin lié qui ne représente qu'UN de ses emplacements (pas un vin simple, dont la fiche
+     représente déjà tout) : liseré bleu à la place du liseré habituel, pour rappeler que ce qui est
+     affiché ici (nom, notes, mais aussi la quantité propre à cet emplacement) n'est qu'une partie du vin. */
+  #overlayFiche .modal.emplacement-partiel{
+    border-color:var(--bleu-emplacement);
   }
   .modal-header{
     position:sticky;top:0;background:var(--bg-panel);z-index:2;
@@ -926,7 +945,7 @@
 
 <!-- Modal fiche bouteille -->
 <div class="overlay" id="overlayFiche">
-  <div class="modal">
+  <div class="modal" id="ficheModal">
     <div class="modal-header">
       <h2 id="ficheTitre">Ajouter un vin</h2>
       <button class="modal-close" id="closeFiche" type="button" data-tt-titre="Fermer" data-tt-desc="Ferme cette fenêtre sans valider.">✕</button>
@@ -1473,8 +1492,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.2";
+const VERSION = "1.13.3";
 const HISTORY = [
+  { version:"1.13.3", date:"2026-09-01", notes:"Liseré bleu, dans la grille comme dans la fiche détaillée, pour signaler qu'une carte ou une fiche ne représente qu'UN SEUL des emplacements d'un vin réparti sur plusieurs — jamais sur une carte fusionnée (qui montre déjà le total de tous les emplacements) ni sur un vin simple. Concrètement : seul le regroupement « par emplacement » peut faire apparaître ce liseré dans la grille, puisque c'est le seul mode qui n'affiche pas les vins liés fusionnés en une seule carte."},
   { version:"1.13.2", date:"2026-09-01", notes:"CORRECTIF CRITIQUE, identifié grâce à un log détaillé transmis par l'utilisateur (repérable par l'alerte « confirmCallback était déjà vide ! » ajoutée en 1.11.14 — exactement à ça qu'elle devait servir). Bug de fond dans le mécanisme partagé de confirmation (demanderConfirmation) : quand confirmer une fenêtre en déclenche aussitôt une seconde (ex. « Restaurer cette version » → « Envoyer la version restaurée ? »), la seconde posait bien son callback, mais la ligne de nettoyage de la première l'effaçait juste après — rendant tout « Confirmer » sur la fenêtre enchaînée totalement silencieux, sans aucune erreur visible. Corrigé (le callback est désormais capturé puis remis à zéro AVANT d'être exécuté, jamais après) et vérifié par un test de bout en bout reproduisant exactement le scénario réel (lister les versions, restaurer, confirmer l'envoi) : l'envoi part désormais bien. Deuxième correctif, tout aussi important : quatre endroits (résolution de conflit, application automatique au lancement, récupération manuelle, restauration d'une version) écrivaient le marqueur « dernière maj connue » même quand l'écriture locale avait échoué (stockage plein) — créant un décalage durable entre ce que l'app croit avoir localement et ce qui y est vraiment, jusqu'à provoquer l'écrasement accidentel d'une version GitHub plus complète par une version locale incomplète. Ce marqueur n'est désormais écrit que si l'écriture locale a réellement réussi."},
   { version:"1.13.1", date:"2026-08-31", notes:"Correction du bandeau de regroupement (« CAVE · 1 vin · 13 bouteilles ») qui comptait le total partagé au lieu de la quantité propre à l'emplacement affiché — corrigé, comme tous les autres décomptes de diagnostic (log de chargement, envoi, restauration, comparaison local/distant) qui souffraient du même défaut avec la liste brute des fiches. Nouveau réglage dans Paramètres → Accès : « Forcer le mode édition », coché par défaut et persistant sur GitHub comme les autres réglages — l'édition reste toujours disponible quoi qu'il arrive (prioritaire sur le verrou de sécurité GitHub-injoignable et sur « Limiter l'URL… »), décochable pour retrouver les protections habituelles. Audit exhaustif des 33 usages restants de « quantite » dans le code : une dernière faille corrigée (le bouton « Marquer une bouteille comme bue » de la fiche pouvait apparaître à tort si le stock propre à l'emplacement était nul mais le total partagé positif) ; tout le reste vérifié correct."},
   { version:"1.13.0", date:"2026-08-31", notes:"Refonte du modèle de données des vins liés, suite à une incohérence repérée sur capture d'écran (« Quantité en cave » et « Pour cet emplacement » affichaient la même valeur, alors que la première doit être le TOTAL). Nouveau principe, strict : « Quantité en cave » est désormais le total partagé, identique sur toutes les fiches d'un même vin — TOUJOURS égal à la somme des quantités propres de chaque emplacement, jamais une valeur indépendante. « Pour cet emplacement » affiche cette quantité propre, distincte du total. Éditer « Quantité en cave » directement applique l'écart à l'emplacement de la fiche ouverte, puis recalcule et propage le vrai total. Un transfert (− / + sur les cartes d'emplacements) ne change jamais le total, seulement la répartition. Marquer/annuler une bue met à jour la quantité propre à l'emplacement ET le total. Délier un emplacement lui rend sa seule quantité propre. Migration automatique et silencieuse des vins déjà liés au chargement (la répartition actuelle est conservée, le total est calculé comme leur somme). Au passage, un bug réel a été trouvé et corrigé dans le bouton Délier (l'ordre des opérations empêchait le recalcul de la fiche déliée elle-même). Validé par une suite de tests dans un vrai DOM simulé : migration, affichage, transfert, édition du total, bue/annuler bue, délien, création d'un nouveau lien — tous corrects, y compris l'invariant total = somme des emplacements vérifié à chaque étape."},
@@ -2016,6 +2036,9 @@ function majZoneLienEmplacement(){
   const nombreCourant = document.getElementById("lienEmplacementNombreCourant");
   const b = ficheEnCours ? bottles.find(x=>x.id===ficheEnCours) : null;
   const freres = (b && b.lienId) ? bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id) : [];
+  // Liseré bleu sur la fiche elle-même dès qu'elle ne représente qu'UN emplacement parmi plusieurs —
+  // jamais sur un vin simple, dont la fiche représente déjà tout le vin.
+  document.getElementById("ficheModal").classList.toggle("emplacement-partiel", freres.length > 0);
   if(!freres.length){
     panel.style.display = "none";
     liste.innerHTML = "";
@@ -2692,7 +2715,7 @@ function carteBouteille(b){
     : `<span class="qty-lecture">${quantite} en cave</span>`;
 
   return `
-  <div class="bottle-card${photoVisible?' avec-photo':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
+  <div class="bottle-card${photoVisible?' avec-photo':''}${(b.lienId && !b._lienFusion)?' emplacement-partiel':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
     ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">

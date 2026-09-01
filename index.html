@@ -522,6 +522,9 @@
     font-size:11px;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.05em;
     font-weight:600;margin:0 0 8px 0;
   }
+  .lien-emplacement-titre-ligne{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .lien-emplacement-titre-ligne .lien-emplacement-titre{margin:0;}
+  .lien-emplacement-delier-btn{flex:none;padding:4px 10px;font-size:11.5px;}
   .lien-emplacement-titre-autres{margin-top:12px;}
   .lien-emplacement-liste{display:flex;flex-direction:column;gap:8px;}
   /* Une carte par emplacement lié : le nom ET le stepper qui modifie SON stock sont dans le même
@@ -1012,7 +1015,10 @@
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
           <div class="lien-emplacement-panel" id="lienEmplacementPanel" style="display:none;">
-            <p class="lien-emplacement-titre" data-tt-titre="Pour cet emplacement" data-tt-desc="Simple rappel en lecture seule de l'emplacement et de la quantité propres à la fiche actuellement ouverte.">Pour cet emplacement</p>
+            <div class="lien-emplacement-titre-ligne">
+              <p class="lien-emplacement-titre" data-tt-titre="Pour cet emplacement" data-tt-desc="Simple rappel en lecture seule de l'emplacement et de la quantité propres à la fiche actuellement ouverte.">Pour cet emplacement</p>
+              <button type="button" class="btn btn-sm btn-ghost action-edition lien-emplacement-delier-btn" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement. Impossible tant qu'il reste des bouteilles ici.">✂️ Délier</button>
+            </div>
             <div class="lien-emplacement-carte lien-emplacement-carte-lecture-seule">
               <span class="lien-emplacement-nom-statique" id="lienEmplacementNomCourant" data-tt-titre="Cet emplacement" data-tt-desc="Simple recopie du champ Emplacement ci-dessus — pour le modifier, utilise ce champ, pas cet encadré.">—</span>
               <span class="lien-emplacement-nombre" id="lienEmplacementNombreCourant" data-tt-titre="Quantité à cet emplacement" data-tt-desc="Recopie de « Quantité en cave » ci-dessus. Pour la faire varier par transfert plutôt qu'en la modifiant directement, utilise les − / + des autres emplacements ci-dessous.">—</span>
@@ -1022,7 +1028,6 @@
           </div>
           <div class="lien-emplacement-gestion">
             <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnAjouterEmplacementLie" data-tt-titre="Ajouter un emplacement" data-tt-desc="Crée une deuxième fiche pour ce même vin (tous les champs partagés, sauf emplacement et quantité), synchronisée avec celle-ci.">🔗 Ajouter un emplacement</button>
-            <button type="button" class="btn btn-sm btn-ghost action-edition" id="btnDelierEmplacement" style="display:none;" data-tt-titre="Délier cet emplacement" data-tt-desc="Ce vin ne sera plus synchronisé avec son autre emplacement — les deux fiches restent telles quelles, mais cessent de se recopier automatiquement.">✂️ Délier</button>
           </div>
         </div>
 
@@ -1507,8 +1512,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.14.0";
+const VERSION = "1.14.1";
 const HISTORY = [
+  { version:"1.14.1", date:"2026-09-01", notes:"Le bouton « ✂️ Délier » est déplacé juste à côté du titre « Pour cet emplacement » (au lieu d'être en bas du panneau, avec « Ajouter un emplacement ») — plus proche de l'emplacement qu'il concerne réellement. Il refuse maintenant explicitement de délier tant qu'il reste des bouteilles à cet emplacement (message dédié, invitant à les transférer d'abord vers l'autre emplacement), au lieu de le permettre silencieusement. Quand le délien est possible, le message de confirmation nomme désormais explicitement l'emplacement qui va être délié et celui (ou ceux) dont il va être délié, au lieu d'un texte générique « son ou ses autres emplacements »."},
   { version:"1.14.0", date:"2026-09-01", notes:"Trois évolutions. 1) Journal/Diagnostic : nouveau bouton « 🕘 40 dernières versions » — au-delà de ce premier lot, un bouton « Charger 10 versions supplémentaires » apparaît et permet de continuer à remonter dans l'historique 10 par 10, jusqu'à épuisement (message « Historique complet chargé »), sans jamais relire les versions déjà affichées. Les boutons « 5 » et « 30 » restent de simples instantanés figés, comme avant. 2) Les trois listes de versions affichent maintenant la taille approximative de chaque sauvegarde (o/Ko/Mo), en plus de la date et du nombre de vins/bouteilles. 3) Dans la fiche détaillée, les deux titres de la zone des emplacements liés (« Pour cet emplacement » et « 🔗 Également en cave à ») ont désormais eux aussi une infobulle explicative au survol — les boutons de cette zone (ouvrir une autre fiche, transférer une bouteille) en avaient déjà depuis la v1.12.1 ; seuls ces deux titres en étaient dépourvus, comme n'importe quel intitulé de champ ailleurs dans l'app."},
   { version:"1.13.9", date:"2026-09-01", notes:"Le nombre de bouteilles de chaque vin (dans la grille, à côté de 🍷 en mode édition, ou « N en cave » en mode consultation) s'affiche maintenant en gras et dans une police légèrement plus grande (13px → 15px), pour être plus lisible d'un coup d'œil. En mode consultation, seul le nombre est mis en valeur — « en cave » garde son style discret habituel."},
   { version:"1.13.8", date:"2026-09-01", notes:"Généralise le nettoyage des miniatures obsolètes (nouvelle fonction commune nettoyerMiniaturesObsoletes(), même règle partout : retrait seulement s'il existe une copie de secours ailleurs) à TOUS les points d'entrée de données GitHub dans bottles — jusqu'ici seuls le chargement normal (migrerBouteilles()) et la restauration (V1.13.6) en bénéficiaient. La synchronisation automatique au lancement (ses deux branches : remplacement direct et résolution de conflit) et le bouton « Récupérer depuis GitHub » écrasaient encore bottles avec les données GitHub brutes, non nettoyées. Important pour la suite immédiate de l'incident du jour : le fichier actuellement sur GitHub reste, pour l'instant, l'ancienne version alourdie (~3,3 Mo pour 51 vins) tant qu'un envoi propre n'a pas eu lieu depuis la V1.13.6 — sans cette généralisation, le tout prochain chargement de l'app l'aurait retéléchargée telle quelle et aurait refait échouer l'écriture locale par « stockage plein », quel que soit le chemin emprunté pour la récupérer."},
@@ -4562,11 +4568,20 @@ document.getElementById("btnDelierEmplacement").addEventListener("click", ()=>{
   if(!ficheEnCours) return;
   const b = bottles.find(x=>x.id===ficheEnCours);
   if(!b || !b.lienId) return;
+  const nomCourant = b.emplacement || "(sans emplacement)";
+  const stockIci = Number(b.quantiteIci)||0;
+  if(stockIci > 0){
+    toast(`Impossible de délier « ${nomCourant} » : il reste ${stockIci} bouteille(s) ici — transfère-les d'abord vers l'autre emplacement.`);
+    logAjouter(`btnDelierEmplacement — refusé : ${nomCourant} a encore ${stockIci} bouteille(s), délier interdit tant qu'il en reste.`);
+    return;
+  }
+  const freres = bottles.filter(x=>x.lienId===b.lienId && x.id!==b.id);
+  const nomsAutres = freres.map(f=>f.emplacement||"(sans emplacement)").join(", ");
   demanderConfirmation(
     "Délier cet emplacement ?",
-    "Ce vin ne sera plus synchronisé avec son ou ses autres emplacements. Les fiches existantes restent telles quelles, mais les futures modifications ne se recopieront plus automatiquement entre elles.",
+    `« ${nomCourant} » ne sera plus synchronisé avec ${freres.length>1?"ses autres emplacements":"son autre emplacement"} : ${nomsAutres}. Les fiches existantes restent telles quelles, mais les futures modifications ne se recopieront plus automatiquement entre elles.`,
     ()=>{
-      logAjouter(`btnDelierEmplacement — fiche ${b.id} déliée (lienId était ${b.lienId}, quantiteIci=${b.quantiteIci}).`);
+      logAjouter(`btnDelierEmplacement — fiche ${b.id} (${nomCourant}) déliée de ${nomsAutres} (lienId était ${b.lienId}, quantiteIci=${b.quantiteIci}).`);
       delierFiche(b);
       sauvegarderBouteilles();
       majZoneLienEmplacement();

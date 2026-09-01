@@ -355,7 +355,7 @@
     background:var(--bg-panel-2);color:var(--text);font-size:14px;line-height:1;
     display:flex;align-items:center;justify-content:center;
   }
-  .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:14px;text-align:center;}
+  .qty-control .qty-val{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;min-width:14px;text-align:center;}
   .qty-control button:disabled{opacity:.3;}
   .footer-actions{display:flex;align-items:center;gap:14px;}
   .icon-photo-btn{
@@ -494,7 +494,10 @@
   .version-item:last-child{border-bottom:none;}
   .version-item .v-date{color:var(--text);flex:1;min-width:120px;}
   .version-item .v-count{color:var(--gold-soft);font-weight:600;flex:none;white-space:nowrap;}
+  .version-item .v-taille{color:var(--text-muted);font-weight:400;flex:none;white-space:nowrap;}
   .version-item .version-restaurer-btn{flex:none;font-family:'Inter',sans-serif;}
+  .version-item-fin{justify-content:center;font-style:italic;}
+  #btnChargerPlusVersions{width:100%;justify-content:center;margin-top:8px;}
   .emplacement-row{display:flex;gap:6px;align-items:stretch;}
   .emplacement-row input, .emplacement-row textarea{flex:1;min-width:0;}
   .emplacement-select{
@@ -752,6 +755,7 @@
   .qty-lecture{
     font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-muted);
   }
+  .qty-lecture .qty-nombre{font-weight:700;font-size:15px;color:var(--text);}
 
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
@@ -1008,12 +1012,12 @@
             <button type="button" class="emplacement-icon-btn" id="btnEmplacementDernier" disabled data-tt-titre="Reprendre le dernier emplacement" data-tt-desc="Recopie dans le champ Emplacement la dernière valeur utilisée sur un autre vin.">🔁</button>
           </div>
           <div class="lien-emplacement-panel" id="lienEmplacementPanel" style="display:none;">
-            <p class="lien-emplacement-titre">Pour cet emplacement</p>
+            <p class="lien-emplacement-titre" data-tt-titre="Pour cet emplacement" data-tt-desc="Simple rappel en lecture seule de l'emplacement et de la quantité propres à la fiche actuellement ouverte.">Pour cet emplacement</p>
             <div class="lien-emplacement-carte lien-emplacement-carte-lecture-seule">
               <span class="lien-emplacement-nom-statique" id="lienEmplacementNomCourant" data-tt-titre="Cet emplacement" data-tt-desc="Simple recopie du champ Emplacement ci-dessus — pour le modifier, utilise ce champ, pas cet encadré.">—</span>
               <span class="lien-emplacement-nombre" id="lienEmplacementNombreCourant" data-tt-titre="Quantité à cet emplacement" data-tt-desc="Recopie de « Quantité en cave » ci-dessus. Pour la faire varier par transfert plutôt qu'en la modifiant directement, utilise les − / + des autres emplacements ci-dessous.">—</span>
             </div>
-            <p class="lien-emplacement-titre lien-emplacement-titre-autres">🔗 Également en cave à</p>
+            <p class="lien-emplacement-titre lien-emplacement-titre-autres" data-tt-titre="Également en cave à" data-tt-desc="Ce même vin existe aussi à ces autres emplacements. Touche le nom d'un emplacement pour ouvrir directement sa fiche, ou utilise les − / + pour transférer une bouteille entre les deux.">🔗 Également en cave à</p>
             <div class="lien-emplacement-liste" id="lienEmplacementListe"></div>
           </div>
           <div class="lien-emplacement-gestion">
@@ -1464,6 +1468,7 @@
     <div class="panel-row">
       <button class="btn btn-gold" id="btnListerVersions5" type="button" data-tt-titre="5 dernières versions" data-tt-desc="Liste les 5 dernières sauvegardes GitHub, avec leur date et leur nombre de vins/bouteilles.">🕘 5 dernières versions</button>
       <button class="btn" id="btnListerVersions30" type="button" data-tt-titre="30 dernières versions" data-tt-desc="Liste les 30 dernières sauvegardes GitHub, avec leur date et leur nombre de vins/bouteilles.">🕘 30 dernières versions</button>
+      <button class="btn" id="btnListerVersions40" type="button" data-tt-titre="40 dernières versions" data-tt-desc="Liste les 40 dernières sauvegardes GitHub. Une fois ces 40 affichées, un bouton permet de charger 10 versions plus anciennes supplémentaires, autant de fois que besoin, jusqu'au début de l'historique.">🕘 40 dernières versions</button>
     </div>
     <div class="versions-liste" id="versionsListe"></div>
   </div>
@@ -1502,8 +1507,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.8";
+const VERSION = "1.14.0";
 const HISTORY = [
+  { version:"1.14.0", date:"2026-09-01", notes:"Trois évolutions. 1) Journal/Diagnostic : nouveau bouton « 🕘 40 dernières versions » — au-delà de ce premier lot, un bouton « Charger 10 versions supplémentaires » apparaît et permet de continuer à remonter dans l'historique 10 par 10, jusqu'à épuisement (message « Historique complet chargé »), sans jamais relire les versions déjà affichées. Les boutons « 5 » et « 30 » restent de simples instantanés figés, comme avant. 2) Les trois listes de versions affichent maintenant la taille approximative de chaque sauvegarde (o/Ko/Mo), en plus de la date et du nombre de vins/bouteilles. 3) Dans la fiche détaillée, les deux titres de la zone des emplacements liés (« Pour cet emplacement » et « 🔗 Également en cave à ») ont désormais eux aussi une infobulle explicative au survol — les boutons de cette zone (ouvrir une autre fiche, transférer une bouteille) en avaient déjà depuis la v1.12.1 ; seuls ces deux titres en étaient dépourvus, comme n'importe quel intitulé de champ ailleurs dans l'app."},
+  { version:"1.13.9", date:"2026-09-01", notes:"Le nombre de bouteilles de chaque vin (dans la grille, à côté de 🍷 en mode édition, ou « N en cave » en mode consultation) s'affiche maintenant en gras et dans une police légèrement plus grande (13px → 15px), pour être plus lisible d'un coup d'œil. En mode consultation, seul le nombre est mis en valeur — « en cave » garde son style discret habituel."},
   { version:"1.13.8", date:"2026-09-01", notes:"Généralise le nettoyage des miniatures obsolètes (nouvelle fonction commune nettoyerMiniaturesObsoletes(), même règle partout : retrait seulement s'il existe une copie de secours ailleurs) à TOUS les points d'entrée de données GitHub dans bottles — jusqu'ici seuls le chargement normal (migrerBouteilles()) et la restauration (V1.13.6) en bénéficiaient. La synchronisation automatique au lancement (ses deux branches : remplacement direct et résolution de conflit) et le bouton « Récupérer depuis GitHub » écrasaient encore bottles avec les données GitHub brutes, non nettoyées. Important pour la suite immédiate de l'incident du jour : le fichier actuellement sur GitHub reste, pour l'instant, l'ancienne version alourdie (~3,3 Mo pour 51 vins) tant qu'un envoi propre n'a pas eu lieu depuis la V1.13.6 — sans cette généralisation, le tout prochain chargement de l'app l'aurait retéléchargée telle quelle et aurait refait échouer l'écriture locale par « stockage plein », quel que soit le chemin emprunté pour la récupérer."},
   { version:"1.13.7", date:"2026-09-01", notes:"Cause racine de la vraie perte de vins du 01/09 (pas seulement des restaurations ratées), trouvée en repassant tout le log de la journée (cave-log.txt) : migrerBouteilles() appelait sauvegarderBouteilles(), qui marque TOUJOURS l'état « à sauvegarder » (syncDirty=true) — y compris pour une simple réécriture de nettoyage, sans rapport avec une modification de l'utilisateur. Scénario observé plusieurs fois dans le log : un appareil dont le stockage local restait bloqué sur une ancienne cave, faute de place pour recevoir la version GitHub à jour (échecs répétés de la synchro descendante) ; au rechargement suivant, la migration nettoyait cette ANCIENNE cave et réussissait à la réenregistrer localement (elle est plus petite) — ce simple succès marquait « à sauvegarder » ; initialiserSynchronisationGitHub() voyait alors syncDirty=true et, croyant protéger de vraies modifications locales, refusait de retélécharger la version GitHub pourtant correcte et plus complète ; le prochain envoi manuel écrasait alors GitHub avec cette ancienne cave. Nouvelle fonction sauvegarderBouteillesSansMarquerDirty(), utilisée uniquement par migrerBouteilles() : réécrit localement sans jamais toucher à l'état de synchronisation, qui reste strictement ce qu'il était (vraies modifications déjà en attente toujours protégées, rien inventé si de toute façon rien n'était en attente)."},
   { version:"1.13.6", date:"2026-09-01", notes:"Corrigé un vrai bug trouvé via un incident réel (perte de 51 → 34 vins) : restaurerVersion() (Journal/Diagnostic → Restaurer une version) écrasait bottles avec le contenu brut d'une ancienne sauvegarde SANS repasser par le nettoyage des miniatures obsolètes (contrairement au chargement normal, migrerBouteilles()) — une version restaurée antérieure à la V1.13.4 pouvait ainsi réintroduire plusieurs mégaoctets de miniatures embarquées, faisant largement dépasser le quota de stockage local (constaté : 3,3 Mo pour 51 vins, échec d'écriture « stockage plein »). La restauration applique désormais la même règle de nettoyage (retrait d'une miniature seulement s'il existe une copie de secours ailleurs). Deuxième correction, jumelle de celle de la V1.13.2 mais qui ne couvrait jusqu'ici que la synchronisation automatique au lancement : effectuerEnvoiVersGitHub() (envoi manuel, y compris « Envoyer la version restaurée ») écrivait le marqueur « dernière maj connue » et affichait le badge comme synchronisé dès que GitHub acceptait l'envoi, SANS vérifier que le stockage local avait lui aussi réellement reçu les données — un envoi réussi juste après un échec d'écriture locale affichait donc un badge « à jour » trompeur (GitHub à jour, mais un rechargement de cette page aurait quand même perdu les données, sans aucun signal). L'envoi retente désormais l'écriture locale juste avant de décider de l'état du badge, et ne le marque « synchronisé » que si elle a réellement réussi ; sinon il reste « à sauvegarder », avec la bannière de stockage plein. Enfin, bouteillesPourExportGitHub() retire maintenant systématiquement le champ photoMiniature (comme il le faisait déjà pour photo et photoPendingBase64) avant tout envoi vers GitHub, en filet de sécurité supplémentaire : quelle que soit la façon dont une fiche aurait pu conserver ce champ obsolète, il ne sera plus jamais réexpédié vers le dépôt."},
@@ -2823,7 +2830,7 @@ function carteBouteille(b){
           <span class="qty-val">${quantite}</span>
           <button type="button" data-action="annulerBue" data-tt-titre="Annuler la dernière bue" data-tt-desc="Remet en cave la dernière bouteille marquée comme bue par erreur."${quantiteBue<=0?' style="display:none;"':""}>↩</button>
         </div>`
-    : `<span class="qty-lecture">${quantite} en cave</span>`;
+    : `<span class="qty-lecture"><span class="qty-nombre">${quantite}</span> en cave</span>`;
 
   return `
   <div class="bottle-card${(photoVisible && miniature)?' avec-photo':''}${(b.lienId && !b._lienFusion)?' emplacement-partiel':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
@@ -5773,11 +5780,44 @@ document.getElementById("btnLancerDiagnostic").addEventListener("click", async f
 /* Cache mémoire (le temps de la session) : sha du commit -> tableau de bouteilles à cette version,
    rempli pendant le listing pour permettre une restauration instantanée sans nouvelle requête. */
 let cacheVersions = {};
+let versionsListeAccumulee = []; // liste affichée pour le flux « 40 dernières + 10 de plus » — vide sinon
+let versionsProchainePageDix = 1; // prochaine page GitHub (per_page=10) pour « charger 10 de plus »
 
-/* Liste les versions successives (commits) du fichier de sauvegarde sur GitHub : pour chacune,
-   récupère le contenu à ce commit précis pour compter le nombre de bouteilles enregistrées, et
-   affiche la date de la sauvegarde ainsi qu'un bouton pour y restaurer la cave. */
-async function listerVersionsSauvegardees(limite, btn){
+/* Formate une taille en caractères (≈ octets, même convention que le reste du journal, ex. les envois
+   vers GitHub) en une chaîne lisible (o / Ko / Mo). */
+function formaterTailleVersion(caracteres){
+  if(caracteres === null || caracteres === undefined) return "taille inconnue";
+  if(caracteres < 1024) return caracteres + " o";
+  if(caracteres < 1024*1024) return (caracteres/1024).toFixed(1).replace(".0","") + " Ko";
+  return (caracteres/(1024*1024)).toFixed(2) + " Mo";
+}
+function rendreLigneVersion(r){
+  const dateTexte = r.date ? r.date.toLocaleString("fr-FR") : "Date inconnue";
+  return `<div class="version-item">
+    <span class="v-date">${escapeHtml(dateTexte)}</span>
+    <span class="v-count">${escapeHtml(String(r.nbVins))} vin(s) · ${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span>
+    <span class="v-taille">≈ ${escapeHtml(formaterTailleVersion(r.taille))}</span>
+    <button type="button" class="btn btn-sm btn-ghost version-restaurer-btn" data-sha="${r.sha}" data-tt-titre="Restaurer" data-tt-desc="Remplace la cave actuelle par cette version sauvegardée sur GitHub.">Restaurer</button>
+  </div>`;
+}
+function attacherBoutonsRestaurerVersions(conteneur){
+  conteneur.querySelectorAll(".version-restaurer-btn").forEach(boutonRestaurer=>{
+    boutonRestaurer.addEventListener("click", ()=>restaurerVersion(boutonRestaurer.dataset.sha, boutonRestaurer));
+  });
+}
+
+/* Liste les versions successives (commits) du fichier de sauvegarde sur GitHub : pour chacune, récupère
+   le contenu à ce commit précis pour compter le nombre de bouteilles enregistrées et connaître sa taille,
+   et affiche la date de la sauvegarde ainsi qu'un bouton pour y restaurer la cave.
+   - perPage/page : pagination GitHub standard (commits?per_page=&page=).
+   - accumuler=true : ajoute ce lot à la suite de la liste déjà affichée au lieu de tout remplacer —
+     utilisé uniquement par « charger 10 versions supplémentaires », pour ne jamais relire les versions
+     déjà affichées.
+   - supportePagination=true : à la fin du lot, propose un bouton pour charger 10 versions plus anciennes
+     supplémentaires (ou signale que l'historique est entièrement chargé) — réservé au bouton « 40
+     dernières versions » et à ses éventuels prolongements ; les boutons « 5 » et « 30 » restent de
+     simples instantanés figés, comme avant. */
+async function listerVersionsSauvegardees(perPage, page, btn, accumuler, supportePagination){
   const conteneur = document.getElementById("versionsListe");
   const cfg = chargerConfig();
   if(!cfg.user || !cfg.repo || !cfg.token){
@@ -5786,12 +5826,15 @@ async function listerVersionsSauvegardees(limite, btn){
     return;
   }
   btn.disabled = true;
-  conteneur.innerHTML = `<div class="version-item">Récupération de l'historique…</div>`;
+  if(!accumuler){
+    versionsListeAccumulee = [];
+    conteneur.innerHTML = `<div class="version-item">Récupération de l'historique…</div>`;
+  }
   const chemin = cfg.chemin || "cave.json";
   const branche = cfg.branche || "main";
-  journalAjouter(`=== Liste des ${limite} dernières versions sauvegardées de ${chemin} ===`);
+  journalAjouter(`=== Liste des versions sauvegardées de ${chemin} (per_page=${perPage}, page=${page}) ===`);
   try{
-    const urlCommits = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/commits?path=${encodeURIComponent(chemin)}&sha=${encodeURIComponent(branche)}&per_page=${limite}`;
+    const urlCommits = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/commits?path=${encodeURIComponent(chemin)}&sha=${encodeURIComponent(branche)}&per_page=${perPage}&page=${page}`;
     const resCommits = await githubAPI(urlCommits, cfg);
     journalAjouter("Statut HTTP (historique des versions) : " + resCommits.status);
     if(!resCommits.ok){
@@ -5800,23 +5843,24 @@ async function listerVersionsSauvegardees(limite, btn){
       throw new Error("Échec HTTP " + resCommits.status);
     }
     const commits = await resCommits.json();
-    journalAjouter("Nombre de versions trouvées : " + commits.length);
-    if(!commits.length){
+    journalAjouter("Nombre de versions trouvées dans ce lot : " + commits.length);
+    if(!commits.length && !versionsListeAccumulee.length){
       conteneur.innerHTML = `<div class="version-item">Aucune version trouvée.</div>`;
       btn.disabled = false;
       return;
     }
-    const resultats = [];
     for(let i=0; i<commits.length; i++){
-      conteneur.innerHTML = `<div class="version-item">Lecture des versions… (${i+1}/${commits.length})</div>`;
+      conteneur.innerHTML = versionsListeAccumulee.map(rendreLigneVersion).join("") + `<div class="version-item">Lecture des versions… (${i+1}/${commits.length})</div>`;
       const commit = commits[i];
       let nbVins = "?";
       let nbBouteilles = "?";
+      let taille = null;
       try{
         const urlFichier = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(chemin)}?ref=${commit.sha}`;
         const resFichier = await githubAPI(urlFichier, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
         if(resFichier.ok){
           const texteFichier = await resFichier.text();
+          taille = texteFichier.length;
           const dataFichier = JSON.parse(texteFichier);
           const bouteillesVersion = Array.isArray(dataFichier.bottles) ? dataFichier.bottles : [];
           nbVins = bouteillesVersion.length;
@@ -5825,30 +5869,33 @@ async function listerVersionsSauvegardees(limite, btn){
         }
       }catch(e){ /* cette version reste marquée "?" mais n'interrompt pas la liste */ }
       const dateISO = commit.commit && commit.commit.author ? commit.commit.author.date : null;
-      resultats.push({ sha: commit.sha, date: dateISO ? new Date(dateISO) : null, nbVins, nbBouteilles });
+      versionsListeAccumulee.push({ sha: commit.sha, date: dateISO ? new Date(dateISO) : null, nbVins, nbBouteilles, taille });
     }
-    journalAjouter("=== Liste des versions terminée ===");
-    conteneur.innerHTML = resultats.map(r=>{
-      const dateTexte = r.date ? r.date.toLocaleString("fr-FR") : "Date inconnue";
-      return `<div class="version-item">
-        <span class="v-date">${escapeHtml(dateTexte)}</span>
-        <span class="v-count">${escapeHtml(String(r.nbVins))} vin(s) · ${escapeHtml(String(r.nbBouteilles))} bouteille(s)</span>
-        <button type="button" class="btn btn-sm btn-ghost version-restaurer-btn" data-sha="${r.sha}" data-tt-titre="Restaurer" data-tt-desc="Remplace la cave actuelle par cette version sauvegardée sur GitHub.">Restaurer</button>
-      </div>`;
-    }).join("");
-    conteneur.querySelectorAll(".version-restaurer-btn").forEach(boutonRestaurer=>{
-      boutonRestaurer.addEventListener("click", ()=>restaurerVersion(boutonRestaurer.dataset.sha, boutonRestaurer));
-    });
+    journalAjouter(`=== Lot terminé — ${versionsListeAccumulee.length} version(s) au total affichée(s) ===`);
+
+    const finHistorique = commits.length < perPage;
+    let suite = "";
+    if(supportePagination){
+      versionsProchainePageDix = Math.round(versionsListeAccumulee.length/10) + 1;
+      suite = finHistorique
+        ? `<div class="version-item version-item-fin">Historique complet chargé (${versionsListeAccumulee.length} version(s)).</div>`
+        : `<button type="button" class="btn btn-sm" id="btnChargerPlusVersions" data-tt-titre="Charger plus de versions" data-tt-desc="Récupère 10 versions plus anciennes supplémentaires, sans recharger celles déjà affichées.">🕘 Charger 10 versions supplémentaires</button>`;
+    }
+    conteneur.innerHTML = versionsListeAccumulee.map(rendreLigneVersion).join("") + suite;
+    attacherBoutonsRestaurerVersions(conteneur);
+    const btnPlus = document.getElementById("btnChargerPlusVersions");
+    if(btnPlus) btnPlus.addEventListener("click", function(){ listerVersionsSauvegardees(10, versionsProchainePageDix, this, true, true); });
     toast("Liste des versions récupérée");
   }catch(err){
     journalAjouter("ERREUR (liste des versions) : " + (err && err.message ? err.message : String(err)));
-    conteneur.innerHTML = `<div class="version-item">Échec de la récupération — voir le journal.</div>`;
+    if(!versionsListeAccumulee.length) conteneur.innerHTML = `<div class="version-item">Échec de la récupération — voir le journal.</div>`;
     toast("Échec de la récupération des versions — voir le journal");
   }
   btn.disabled = false;
 }
-document.getElementById("btnListerVersions30").addEventListener("click", function(){ listerVersionsSauvegardees(30, this); });
-document.getElementById("btnListerVersions5").addEventListener("click", function(){ listerVersionsSauvegardees(5, this); });
+document.getElementById("btnListerVersions30").addEventListener("click", function(){ listerVersionsSauvegardees(30, 1, this, false, false); });
+document.getElementById("btnListerVersions5").addEventListener("click", function(){ listerVersionsSauvegardees(5, 1, this, false, false); });
+document.getElementById("btnListerVersions40").addEventListener("click", function(){ listerVersionsSauvegardees(40, 1, this, false, true); });
 
 /* Restaurer une version passée (identifiée par le sha du commit GitHub), après confirmation — utilise le cache rempli pendant le listing, ou récupère à nouveau si besoin. */
 async function restaurerVersion(sha, btn){

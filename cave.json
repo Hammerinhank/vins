@@ -1494,7 +1494,7 @@
       "marque": true,
       "marqueCouleur": "jaune",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
-      "quantiteIci": 1
+      "quantiteIci": 2
     },
     {
       "id": "ef9bc26e-dd77-42aa-9644-13ac3abf189f",
@@ -1527,10 +1527,42 @@
       "noteIncertaine": "",
       "marque": true,
       "marqueCouleur": "jaune",
-      "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
-      "quantiteIci": 1
+      "lienId": ""
+    },
+    {
+      "id": "f9c1d61b-f6a6-4807-8fc4-88f489588e28",
+      "dateAjout": "2026-09-01",
+      "statut": "cave",
+      "dateBue": "",
+      "nom": "Crémant de Bourgogne – Brut Tradition",
+      "domaine": "Fichet (Vins de Bourgogne)",
+      "appellation": "",
+      "region": "Bourgogne",
+      "pays": "France",
+      "couleur": "cremant",
+      "millesime": "",
+      "cepages": "",
+      "quantite": 12,
+      "prixUnitaire": 9,
+      "dateAchat": "",
+      "lieuAchat": "",
+      "emplacement": "Test",
+      "boireDe": "",
+      "boireA": "",
+      "note": 4,
+      "commentaire": "Le Crémant de Bourgogne du domaine Fichet est une valeur assez sûre du Mâconnais (Igé) : le domaine est sorti de la cave coopérative en 1976 par Francis Fichet, repris depuis 1999 par ses fils Pierre-Yves et Olivier, qui cultivent une trentaine d'hectares. C'est l'un des trois seuls producteurs du village d'Igé, sur des terroirs parmi les plus réputés du Mâconnais.\n\nLeur crémant, élaboré selon la méthode traditionnelle, à dominante chardonnay, est décrit avec des parfums intenses de fleurs blanches, de poire et d'agrumes, une bouche fraîche avec une touche beurrée et un dosage mesuré. Le Guide Hachette a noté une de leurs cuvées d'une étoile, et sur Wine-Searcher la moyenne des notes critiques tourne autour de 89/100 — une bulle honnête et bien faite, sans être exceptionnelle, plutôt destinée à l'apéritif ou à accompagner poisson grillé et tarte aux fruits.\n\nnote : 3,5/5\nPrix : 9 euros",
+      "photoFichier": "images/9c191956-8c75-41cd-a242-e29578a0383f.jpg",
+      "quantiteBue": 0,
+      "dateDerniereDegustation": "",
+      "numero": 1,
+      "etiquette": "- Monogramme « Fh » sur médaillon doré en forme de losange\n- FICHET\n- VINS DE BOURGOGNE\n- CRÉMANT DE BOURGOGNE\n- Appellation d'Origine Protégée\n- Brut Tradition\n- Frise dorée décorative en bas d'étiquette\n\nAucun millésime n'apparaît sur l'étiquette (cohérent avec un Crémant \"Brut Tradition\", généralement non millésimé).",
+      "noteNumerique": 82,
+      "noteIncertaine": "",
+      "marque": true,
+      "marqueCouleur": "jaune",
+      "lienId": ""
     }
   ],
-  "maj": "2026-09-01T12:13:20.543Z",
+  "maj": "2026-09-01T12:30:56.300Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

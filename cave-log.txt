@@ -276,3 +276,28 @@
 [09:17:10] → Réponse de l'envoi (PUT) : statut 200
 [09:17:10] → SUCCÈS (réponse HTTP) : 34 vin(s)/47 bouteille(s) envoyé(s) (app v1.13.4).
 [09:17:10] → VÉRIFICATION post-envoi : GitHub contient maintenant 34 vin(s)/47 bouteille(s) — attendu 34 vin(s)/47 bouteille(s).
+[09:30:34] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 65000).
+[09:30:34] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[09:30:35] → Lecture réussie : 34 vin(s) sur GitHub (maj=2026-09-01T07:17:09.150Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[09:30:35] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[09:30:35] → syncDirty=false — remplacement automatique : local=34 vin(s)/47 bouteille(s) → distant=34 vin(s)/47 bouteille(s) (maj=2026-09-01T07:17:09.150Z).
+[09:30:35] → Données GitHub appliquées (34 vin(s)) et localStorage mis à jour : OK.
+[09:32:05] demanderConfirmation() affichée — titre="Restaurer cette version"
+[09:32:10] → Fenêtre de confirmation « Restaurer cette version » : Confirmer (callback exécuté).
+[09:32:10] restaurerVersion(0cfc2a162ad8269786929f00eabe65066eda5665) confirmé — bottles.length (avant)=34 · syncDirty (avant)=false
+[09:32:10] → Version 0cfc2a1 récupérée depuis le cache : 51 vin(s), 90 bouteille(s).
+[09:32:10] → Écriture locale (localStorage) après restauration : ÉCHOUÉE (stockage plein — voir bannière).
+[09:32:10] → RESTAURATION EFFECTUÉE : bottles.length (après)=51 vin(s), 90 bouteille(s) · marqueur de maj volontairement PAS mis à jour (écriture locale échouée) · écriture locale ÉCHOUÉE.
+[09:32:10] → ATTENTION : tant que le stockage local reste plein, un rechargement de la page perdrait cette restauration (elle n'existe que dans la mémoire de cet onglet). Envoie vers GitHub avant de recharger ou de fermer l'app.
+[09:32:10] demanderConfirmation() affichée — titre="Envoyer la version restaurée ?"
+[09:32:24] → Fenêtre de confirmation « Envoyer la version restaurée ? » : Confirmer (callback exécuté).
+[09:32:24] → Confirmation « Envoyer la version restaurée » acceptée — bottles.length (juste avant l'envoi)=51, 90 bouteille(s).
+[09:32:24] envoyerDirectementVersGitHub() appelé — bottles.length=51, 90 bouteille(s).
+[09:32:24] → Lecture du sha courant : statut 200
+[09:32:24] → Envoi direct, sans re-vérification de conflit (choix déjà fait explicitement).
+[09:32:24] effectuerEnvoiVersGitHub() appelé — sha=2b5e65db1c4bec41c1a7fed3d58259b27c2fb60e · bottles.length=51
+[09:32:24] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[09:32:24] → Préparation du contenu à envoyer : 51 vin(s), 90 bouteille(s), maj=2026-09-01T07:32:24.850Z, 3338920 caractère(s)
+[09:32:29] → Réponse de l'envoi (PUT) : statut 200
+[09:32:29] → SUCCÈS (réponse HTTP) : 51 vin(s)/90 bouteille(s) envoyé(s) (app v1.13.5).
+[09:32:30] → VÉRIFICATION post-envoi : GitHub contient maintenant 51 vin(s)/90 bouteille(s) — attendu 51 vin(s)/90 bouteille(s).

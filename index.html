@@ -1502,8 +1502,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.5";
+const VERSION = "1.13.8";
 const HISTORY = [
+  { version:"1.13.8", date:"2026-09-01", notes:"Généralise le nettoyage des miniatures obsolètes (nouvelle fonction commune nettoyerMiniaturesObsoletes(), même règle partout : retrait seulement s'il existe une copie de secours ailleurs) à TOUS les points d'entrée de données GitHub dans bottles — jusqu'ici seuls le chargement normal (migrerBouteilles()) et la restauration (V1.13.6) en bénéficiaient. La synchronisation automatique au lancement (ses deux branches : remplacement direct et résolution de conflit) et le bouton « Récupérer depuis GitHub » écrasaient encore bottles avec les données GitHub brutes, non nettoyées. Important pour la suite immédiate de l'incident du jour : le fichier actuellement sur GitHub reste, pour l'instant, l'ancienne version alourdie (~3,3 Mo pour 51 vins) tant qu'un envoi propre n'a pas eu lieu depuis la V1.13.6 — sans cette généralisation, le tout prochain chargement de l'app l'aurait retéléchargée telle quelle et aurait refait échouer l'écriture locale par « stockage plein », quel que soit le chemin emprunté pour la récupérer."},
+  { version:"1.13.7", date:"2026-09-01", notes:"Cause racine de la vraie perte de vins du 01/09 (pas seulement des restaurations ratées), trouvée en repassant tout le log de la journée (cave-log.txt) : migrerBouteilles() appelait sauvegarderBouteilles(), qui marque TOUJOURS l'état « à sauvegarder » (syncDirty=true) — y compris pour une simple réécriture de nettoyage, sans rapport avec une modification de l'utilisateur. Scénario observé plusieurs fois dans le log : un appareil dont le stockage local restait bloqué sur une ancienne cave, faute de place pour recevoir la version GitHub à jour (échecs répétés de la synchro descendante) ; au rechargement suivant, la migration nettoyait cette ANCIENNE cave et réussissait à la réenregistrer localement (elle est plus petite) — ce simple succès marquait « à sauvegarder » ; initialiserSynchronisationGitHub() voyait alors syncDirty=true et, croyant protéger de vraies modifications locales, refusait de retélécharger la version GitHub pourtant correcte et plus complète ; le prochain envoi manuel écrasait alors GitHub avec cette ancienne cave. Nouvelle fonction sauvegarderBouteillesSansMarquerDirty(), utilisée uniquement par migrerBouteilles() : réécrit localement sans jamais toucher à l'état de synchronisation, qui reste strictement ce qu'il était (vraies modifications déjà en attente toujours protégées, rien inventé si de toute façon rien n'était en attente)."},
+  { version:"1.13.6", date:"2026-09-01", notes:"Corrigé un vrai bug trouvé via un incident réel (perte de 51 → 34 vins) : restaurerVersion() (Journal/Diagnostic → Restaurer une version) écrasait bottles avec le contenu brut d'une ancienne sauvegarde SANS repasser par le nettoyage des miniatures obsolètes (contrairement au chargement normal, migrerBouteilles()) — une version restaurée antérieure à la V1.13.4 pouvait ainsi réintroduire plusieurs mégaoctets de miniatures embarquées, faisant largement dépasser le quota de stockage local (constaté : 3,3 Mo pour 51 vins, échec d'écriture « stockage plein »). La restauration applique désormais la même règle de nettoyage (retrait d'une miniature seulement s'il existe une copie de secours ailleurs). Deuxième correction, jumelle de celle de la V1.13.2 mais qui ne couvrait jusqu'ici que la synchronisation automatique au lancement : effectuerEnvoiVersGitHub() (envoi manuel, y compris « Envoyer la version restaurée ») écrivait le marqueur « dernière maj connue » et affichait le badge comme synchronisé dès que GitHub acceptait l'envoi, SANS vérifier que le stockage local avait lui aussi réellement reçu les données — un envoi réussi juste après un échec d'écriture locale affichait donc un badge « à jour » trompeur (GitHub à jour, mais un rechargement de cette page aurait quand même perdu les données, sans aucun signal). L'envoi retente désormais l'écriture locale juste avant de décider de l'état du badge, et ne le marque « synchronisé » que si elle a réellement réussi ; sinon il reste « à sauvegarder », avec la bannière de stockage plein. Enfin, bouteillesPourExportGitHub() retire maintenant systématiquement le champ photoMiniature (comme il le faisait déjà pour photo et photoPendingBase64) avant tout envoi vers GitHub, en filet de sécurité supplémentaire : quelle que soit la façon dont une fiche aurait pu conserver ce champ obsolète, il ne sera plus jamais réexpédié vers le dépôt."},
   { version:"1.13.5", date:"2026-09-01", notes:"Nouveau réglage dans Paramètres → Photos : « Utiliser les miniatures », décoché par défaut. Décoché (nouveau comportement par défaut) : plus aucune miniature séparée n'est générée ni utilisée nulle part — à l'ajout d'une photo, seule la version pleine résolution (1600 px) est compressée et sert aussi à l'aperçu immédiat avant envoi (via photoPendingBase64, déjà disponible en mémoire, sans compression ni cache supplémentaire). Coché : restaure le comportement précédent (petite version 480 px générée en plus à l'ajout, pour un aperçu immédiat plus léger). Sans effet sur les vins déjà en cave, qui s'appuyaient déjà uniquement sur la pleine résolution récupérée à la demande depuis GitHub (voir v1.13.4) — ce réglage ne concerne que le chemin encore emprunté par une miniature : la compression à l'ajout d'une nouvelle photo."},
   { version:"1.13.4", date:"2026-09-01", notes:"Changement majeur pour lutter contre la saturation du stockage local : les miniatures des photos ne sont plus conservées en permanence sur chaque vin (c'était, de loin, la plus grosse source de volume — de vraies données d'image, pour chaque vin en ayant une, systématiquement recopiées dans le gros bloc unique écrit à chaque sauvegarde, indépendamment de tout affichage). Elles sont désormais récupérées depuis GitHub à la demande — case « Avec photo » cochée, bascule par carte, ou bouton dans la fiche — et gardées seulement en mémoire pour le reste de la session, jamais réenregistrées. Migration automatique au chargement : les miniatures déjà stockées sont retirées des vins existants, mais uniquement s'il existe une copie de secours ailleurs (sur GitHub, ou en attente d'envoi) — jamais si c'était la seule copie existante. Dans la grille, un espace réservé animé (⏳) s'affiche le temps de la récupération, sans bloquer le reste de la carte. Testé de bout en bout : migration avec et sans copie de secours, chargement à la demande dans la grille et dans la fiche, mise en cache évitant tout nouveau téléchargement au sein d'une même session."},
   { version:"1.13.3", date:"2026-09-01", notes:"Liseré bleu, dans la grille comme dans la fiche détaillée, pour signaler qu'une carte ou une fiche ne représente qu'UN SEUL des emplacements d'un vin réparti sur plusieurs — jamais sur une carte fusionnée (qui montre déjà le total de tous les emplacements) ni sur un vin simple. Concrètement : seul le regroupement « par emplacement » peut faire apparaître ce liseré dans la grille, puisque c'est le seul mode qui n'affiche pas les vins liés fusionnés en une seule carte."},
@@ -2426,7 +2429,10 @@ function migrerBouteilles(){
     logAjouter(`migrerBouteilles() — migration du lien ${lienId} : ${groupe.map(b=>`${b.emplacement||"?"}=${b.quantiteIci}`).join(", ")} → total partagé=${total}.`);
     modifie = true;
   });
-  if(modifie) sauvegarderBouteilles();
+  if(modifie){
+    const ecritureOk = sauvegarderBouteillesSansMarquerDirty();
+    logAjouter(`migrerBouteilles() — écriture locale après migration : ${ecritureOk ? "réussie" : "ÉCHOUÉE (stockage plein)"} — état de synchronisation volontairement inchangé (une migration n'est pas une modification faite par l'utilisateur, voir sauvegarderBouteillesSansMarquerDirty()).`);
+  }
 }
 function sauvegarderBouteilles(){
   try{
@@ -2440,12 +2446,56 @@ function sauvegarderBouteilles(){
     return false;
   }
 }
+/* Comme sauvegarderBouteilles(), mais SANS jamais toucher à l'état « à sauvegarder » (syncDirty) : réservé
+   aux réécritures locales qui ne représentent PAS une modification de l'utilisateur (ex. migrerBouteilles()
+   qui nettoie ou réorganise des champs). BUG RÉEL corrigé en V1.13.6, retrouvé via le log complet d'un
+   incident de perte de vins (51 → 34, le 01/09) : sauvegarderBouteilles() marquait « à sauvegarder » même
+   pour ce genre de réécriture purement technique. Concrètement, à chaque fois qu'un appareil dont le
+   stockage local restait bloqué sur une ancienne cave (échec répété de la synchro descendante, faute de
+   place) rechargeait la page, la migration réussissait à réécrire localement cette ancienne cave — et ce
+   simple succès marquait « à sauvegarder », ce qui faisait ensuite croire à initialiserSynchronisationGitHub()
+   que l'utilisateur avait de vraies modifications locales à protéger. Résultat : la version GitHub correcte,
+   plus complète, n'était jamais retéléchargée — et le prochain envoi manuel écrasait GitHub avec cette
+   ancienne cave locale, causant une perte réelle de vins. Cette fonction laisse l'état de synchronisation
+   strictement inchangé, qu'il soit déjà vrai (de vraies modifications restent protégées) ou faux. */
+function sauvegarderBouteillesSansMarquerDirty(){
+  try{
+    localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
+    masquerBanniereStockagePlein();
+    return true;
+  }catch(e){
+    afficherBanniereStockagePlein();
+    return false;
+  }
+}
+/* Retire le champ photoMiniature obsolète (abandonné depuis la V1.13.4) d'une liste de vins, EN PLACE, mais
+   seulement quand une copie de secours existe ailleurs (photoFichier sur GitHub, ou photoPendingBase64 en
+   attente d'envoi) — jamais si c'était la seule copie existante de l'image. Retourne le nombre retiré.
+   Centralise la règle déjà utilisée par migrerBouteilles() et l'applique aussi partout où des données
+   peuvent entrer dans bottles sans être passées par ce chargement normal : restauration d'une ancienne
+   version, synchronisation automatique au lancement, et récupération manuelle depuis GitHub (V1.13.7 —
+   avant cette généralisation, retélécharger un cave.json encore alourdi par ces vieilles miniatures, ce
+   qui est le cas du fichier actuellement sur GitHub tant qu'un envoi propre n'a pas eu lieu, faisait
+   échouer l'écriture locale par « stockage plein » quel que soit le chemin emprunté pour le récupérer). */
+function nettoyerMiniaturesObsoletes(liste){
+  let nb = 0;
+  liste.forEach(b=>{
+    if(b.photoMiniature && (b.photoFichier || b.photoPendingBase64)){
+      delete b.photoMiniature;
+      nb++;
+    }
+  });
+  return nb;
+}
 /* Retire les champs volumineux (photo pleine résolution en attente, ancien champ) avant un envoi vers GitHub : le fichier de données reste petit quel que soit le nombre de photos. */
 function bouteillesPourExportGitHub(){
   return bottles.map(b=>{
     const copie = Object.assign({}, b);
     delete copie.photoPendingBase64;
     delete copie.photo;
+    delete copie.photoMiniature; // ne doit plus jamais être réenvoyée sur GitHub depuis la V1.13.4 — filet de
+                                  // sécurité, en plus du nettoyage à la migration et à la restauration, pour
+                                  // le cas où une fiche l'aurait conservée par un chemin non prévu.
     return copie;
   });
 }
@@ -5221,7 +5271,25 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
       const err = await putRes.json().catch(()=>({}));
       throw new Error(err.message || ("Erreur " + putRes.status));
     }
-    ecrireDerniereMajConnue(nouvelleMaj, INSTANCE_ID);
+    // Le marqueur "dernière maj connue" et l'état "synchronisé" ne doivent refléter que ce qui est
+    // RÉELLEMENT acquis sur cet appareil — pas seulement ce que GitHub a accepté. Sans cette garde, un envoi
+    // réussi juste après une écriture locale déjà en échec (stockage plein) affichait un badge "à jour"
+    // trompeur : GitHub avait la bonne version, mais un rechargement de cette page perdrait quand même les
+    // données, sans aucun signal. Même principe que la garde déjà en place dans
+    // initialiserSynchronisationGitHub() pour la synchronisation automatique au lancement.
+    let ecritureLocaleApresEnvoiOk = true;
+    try{
+      localStorage.setItem(LS_BOTTLES, JSON.stringify(bottles));
+      masquerBanniereStockagePlein();
+    }catch(eLocal){
+      ecritureLocaleApresEnvoiOk = false;
+      afficherBanniereStockagePlein();
+    }
+    if(ecritureLocaleApresEnvoiOk){
+      ecrireDerniereMajConnue(nouvelleMaj, INSTANCE_ID);
+    }else{
+      logAjouter("→ Envoi réussi sur GitHub, mais l'écriture locale reste ÉCHOUÉE (stockage plein) : le marqueur « dernière maj connue » n'est volontairement PAS mis à jour, et le badge restera « à sauvegarder » — voir la bannière de stockage plein.");
+    }
     const cfgSauv = lireChampsConfig();
     cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
     sauvegarderConfig(cfgSauv);
@@ -5230,7 +5298,11 @@ async function effectuerEnvoiVersGitHub(cfg, sha){
     feedbackBouton(btn, "✓ Envoyé");
     toast((resPhotos.echecs ? "Cave envoyée (certaines photos ont échoué)" : "Cave envoyée sur GitHub") + ` — app v${VERSION}`);
     logAjouter(`→ SUCCÈS (réponse HTTP) : ${bouteillesAEnvoyer.length} vin(s)/${totalBouteillesEnvoyees} bouteille(s) envoyé(s) (app v${VERSION}).`);
-    marquerSynchronise();
+    if(ecritureLocaleApresEnvoiOk){
+      marquerSynchronise();
+    }else{
+      marquerNonSynchronise();
+    }
 
     // VÉRIFICATION IMMÉDIATE : on relit ce que GitHub contient réellement juste après l'écriture, et on le
     // compare à ce qu'on voulait envoyer. Un statut HTTP 200/201 confirme que GitHub a accepté la requête,
@@ -5416,6 +5488,8 @@ async function initialiserSynchronisationGitHub(){
         afficherConflitSync(resCave.distantes, donneesDistantes, ()=>{
           logAjouter(`→ « Utiliser la version GitHub » choisi — remplacement de ${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) locaux par ${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) distants.`);
           bottles = resCave.distantes;
+          const nbNettoyees1 = nettoyerMiniaturesObsoletes(bottles);
+          if(nbNettoyees1) logAjouter(`→ ${nbNettoyees1} miniature(s) obsolète(s) retirée(s) de la version GitHub reçue avant écriture locale.`);
           const ecritureOk = sauvegarderBouteilles();
           // Le marqueur "dernière maj connue" et l'état "synchronisé" ne sont écrits QUE si l'écriture
           // locale a réellement réussi — sinon, le marqueur mentirait au prochain lancement (il
@@ -5437,6 +5511,8 @@ async function initialiserSynchronisationGitHub(){
     }else{
       logAjouter(`→ syncDirty=false — remplacement automatique : local=${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) → distant=${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) (maj=${donneesDistantes.maj}).`);
       bottles = resCave.distantes;
+      const nbNettoyees2 = nettoyerMiniaturesObsoletes(bottles);
+      if(nbNettoyees2) logAjouter(`→ ${nbNettoyees2} miniature(s) obsolète(s) retirée(s) de la version GitHub reçue avant écriture locale.`);
       const ecritureOk = sauvegarderBouteilles();
       // Voir la correction jumelle plus haut (résolution de conflit) : le marqueur "dernière maj connue"
       // ne doit JAMAIS être écrit si l'écriture locale a échoué, sous peine de faire croire au prochain
@@ -5573,6 +5649,8 @@ document.getElementById("btnPull").addEventListener("click", async function(){
       `Remplacer la cave locale (${bottles.length} vin(s), ${totalLocalPull} bouteille(s) en cave) par la version GitHub (${distantes.length} vin(s), ${totalDistantPull} bouteille(s) en cave) ?`,
       ()=>{
       bottles = distantes;
+      const nbNettoyees3 = nettoyerMiniaturesObsoletes(bottles);
+      if(nbNettoyees3) logAjouter(`→ ${nbNettoyees3} miniature(s) obsolète(s) retirée(s) de la version GitHub reçue avant écriture locale.`);
       const ecritureOk = sauvegarderBouteilles();
       // Même règle que pour les deux corrections jumelles plus haut : ne jamais écrire le marqueur de
       // synchro si l'écriture locale a échoué (stockage plein), sous peine de créer un décalage silencieux
@@ -5813,6 +5891,19 @@ async function restaurerVersion(sha, btn){
       // vers le même tableau/objets, la moindre modification ultérieure (marquer une bue, éditer un champ…)
       // aurait aussi silencieusement modifié la version mise en cache.
       bottles = JSON.parse(JSON.stringify(distantes));
+
+      // 1bis. Une version restaurée peut dater d'avant la migration V1.13.4 (retrait des miniatures
+      // embarquées) : contrairement au chargement normal (chargerBouteilles() → migrerBouteilles()), la
+      // restauration écrasait bottles SANS repasser par ce nettoyage, réintroduisant potentiellement des
+      // mégaoctets de vieilles miniatures — cause directe d'un échec d'écriture locale par stockage plein.
+      // Même règle que partout ailleurs (nettoyerMiniaturesObsoletes, V1.13.7) : on ne retire une miniature
+      // que s'il existe une copie de secours ailleurs (photoFichier déjà sur GitHub, ou photoPendingBase64
+      // en attente d'envoi).
+      const miniaturesRetireesRestauration = nettoyerMiniaturesObsoletes(bottles);
+      if(miniaturesRetireesRestauration){
+        logAjouter(`→ Nettoyage post-restauration : ${miniaturesRetireesRestauration} miniature(s) obsolète(s) retirée(s) de la version restaurée — réduit d'autant la taille à écrire localement.`);
+      }
+
       const ecritureLocaleOk = sauvegarderBouteilles();
       logAjouter(`→ Écriture locale (localStorage) après restauration : ${ecritureLocaleOk ? "réussie" : "ÉCHOUÉE (stockage plein — voir bannière)"}.`);
 

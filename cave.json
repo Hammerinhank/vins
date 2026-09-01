@@ -13,7 +13,7 @@
       "couleur": "cremant",
       "millesime": "",
       "cepages": "",
-      "quantite": 13,
+      "quantite": 12,
       "prixUnitaire": 9,
       "dateAchat": "",
       "lieuAchat": "",
@@ -33,7 +33,7 @@
       "marque": false,
       "marqueCouleur": "",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
-      "quantiteIci": 12
+      "quantiteIci": 11
     },
     {
       "id": "85d9eac7-55af-44c7-836a-73b83adaeb9c",
@@ -1525,7 +1525,7 @@
       "couleur": "cremant",
       "millesime": "",
       "cepages": "",
-      "quantite": 13,
+      "quantite": 12,
       "prixUnitaire": 9,
       "dateAchat": "",
       "lieuAchat": "",
@@ -1548,6 +1548,6 @@
       "quantiteIci": 1
     }
   ],
-  "maj": "2026-09-01T05:38:40.581Z",
+  "maj": "2026-09-01T05:53:19.734Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

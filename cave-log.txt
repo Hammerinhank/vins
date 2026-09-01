@@ -16,3 +16,59 @@
 [06:39:43] → Réponse de l'envoi (PUT) : statut 200
 [06:39:43] → SUCCÈS (réponse HTTP) : 34 vin(s)/47 bouteille(s) envoyé(s) (app v1.13.0).
 [06:39:43] → VÉRIFICATION post-envoi : GitHub contient maintenant 34 vin(s)/47 bouteille(s) — attendu 34 vin(s)/47 bouteille(s).
+[06:39:32] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 2358402).
+[06:39:32] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[06:39:34] → Lecture réussie : 51 vin(s) sur GitHub (maj=2026-08-31T22:13:19.511Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[06:39:34] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[06:39:34] → syncDirty=true — local=34 vin(s)/47 bouteille(s) · distant=51 vin(s)/104 bouteille(s) (maj=2026-08-31T22:13:19.511Z) · dernière maj connue=2026-08-31T22:13:19.511Z · estNonPriseEnCompte=false
+[06:39:34] → Modifications locales non envoyées, mais la version GitHub n'a pas changé depuis la dernière synchro connue : rien n'est écrasé.
+[06:39:39] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=34
+[06:39:39] → Lecture distante (avant envoi) : statut 200
+[06:39:40] → Contenu distant actuel : 51 vin(s), maj=2026-08-31T22:13:19.511Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=ac1708603a263e1fb8acae9a591c01e04773febd
+[06:39:40] → dernière maj connue=2026-08-31T22:13:19.511Z · maj distante=2026-08-31T22:13:19.511Z · estNonPriseEnCompte=false
+[06:39:40] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[06:39:40] effectuerEnvoiVersGitHub() appelé — sha=ac1708603a263e1fb8acae9a591c01e04773febd · bottles.length=34
+[06:39:40] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[06:39:40] → Préparation du contenu à envoyer : 34 vin(s), 47 bouteille(s), maj=2026-09-01T04:39:40.823Z, 2366108 caractère(s)
+[06:39:43] → Réponse de l'envoi (PUT) : statut 200
+[06:39:43] → SUCCÈS (réponse HTTP) : 34 vin(s)/47 bouteille(s) envoyé(s) (app v1.13.0).
+[06:39:43] → VÉRIFICATION post-envoi : GitHub contient maintenant 34 vin(s)/47 bouteille(s) — attendu 34 vin(s)/47 bouteille(s).
+[06:39:44] sauvegarderLogSurGitHub() — aucun fichier log existant sur GitHub : création.
+[06:39:44] sauvegarderLogSurGitHub() — envoyé avec succès (cave-log.txt, 1984 caractère(s) au total pour aujourd'hui).
+[06:39:50] [Phase 1 — rapide] Vérification API GitHub — repos/Hammerinhank/vins/contents/index.html
+[06:39:51] [Phase 1] → Statut HTTP 200
+[06:39:51] [Phase 1] → Version enregistrée sur le dépôt : 1.13.1
+[06:39:51] [Phase 2 — lente] Une v1.13.1 existe sur le dépôt (tu as la v1.13.0) — scrutin de l'URL publiée pour savoir quand elle devient disponible.
+[06:39:51] [Phase 2] → URL publiée sert actuellement : 1.13.0
+[06:40:02] [Phase 2] → URL publiée sert actuellement : 1.13.0
+[06:40:12] [Phase 2] → URL publiée sert actuellement : 1.13.0
+[06:40:22] [Phase 2] → URL publiée sert actuellement : 1.13.0
+[06:40:33] [Phase 2] → URL publiée sert actuellement : 1.13.0
+[06:40:43] [Phase 2] → URL publiée sert actuellement : 1.13.1
+[06:40:43] [Phase 2] → La v1.13.1 est maintenant disponible via l'URL.
+[06:40:43] demanderConfirmation() affichée — titre="Version 1.13.1 disponible"
+[06:40:46] → Fenêtre de confirmation « Version 1.13.1 disponible » : Confirmer (callback exécuté).
+[06:41:51] demanderConfirmation() affichée — titre="Restaurer cette version"
+[06:41:53] → Fenêtre de confirmation « Restaurer cette version » fermée via ✕ (sans confirmer, callback NON exécuté).
+[06:42:05] demanderConfirmation() affichée — titre="Restaurer cette version"
+[06:42:07] → Fenêtre de confirmation « Restaurer cette version » : Confirmer (callback exécuté).
+[06:42:07] restaurerVersion(e14daae90b63ccae97d4239d4478a3c9a89ae5dd) confirmé — bottles.length (avant)=34 · syncDirty (avant)=false
+[06:42:07] → Version e14daae récupérée depuis le cache : 51 vin(s), 104 bouteille(s).
+[06:42:07] → Écriture locale (localStorage) après restauration : ÉCHOUÉE (stockage plein — voir bannière).
+[06:42:07] → RESTAURATION EFFECTUÉE : bottles.length (après)=51 vin(s), 104 bouteille(s) · marqueur de maj fixé à 2026-09-01T04:42:07.327Z · écriture locale ÉCHOUÉE.
+[06:42:07] → ATTENTION : tant que le stockage local reste plein, un rechargement de la page perdrait cette restauration (elle n'existe que dans la mémoire de cet onglet). Envoie vers GitHub avant de recharger ou de fermer l'app.
+[06:42:07] demanderConfirmation() affichée — titre="Envoyer la version restaurée ?"
+[06:42:25] → Fenêtre de confirmation « Envoyer la version restaurée ? » : Confirmer (callback exécuté — ATTENTION : confirmCallback était déjà vide !).
+[06:42:34] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=51
+[06:42:34] → Lecture distante (avant envoi) : statut 200
+[06:42:35] → Contenu distant actuel : 34 vin(s), maj=2026-09-01T04:39:40.823Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=b1a43358ed748e9b01601139ba1563faad5f40d5
+[06:42:35] → dernière maj connue=2026-09-01T04:42:07.327Z · maj distante=2026-09-01T04:39:40.823Z · estNonPriseEnCompte=true
+[06:42:35] → ARRÊT : fenêtre de conflit affichée, envoi suspendu en attente de confirmation.
+[06:42:35] demanderConfirmation() affichée — titre="Version distante différente"
+[06:42:54] → Fenêtre de confirmation « Version distante différente » : Confirmer (callback exécuté).
+[06:42:54] effectuerEnvoiVersGitHub() appelé — sha=b1a43358ed748e9b01601139ba1563faad5f40d5 · bottles.length=51
+[06:42:54] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[06:42:54] → Préparation du contenu à envoyer : 51 vin(s), 104 bouteille(s), maj=2026-09-01T04:42:54.008Z, 3338920 caractère(s)
+[06:42:57] → Réponse de l'envoi (PUT) : statut 200
+[06:42:57] → SUCCÈS (réponse HTTP) : 51 vin(s)/104 bouteille(s) envoyé(s) (app v1.13.0).
+[06:42:58] → VÉRIFICATION post-envoi : GitHub contient maintenant 51 vin(s)/104 bouteille(s) — attendu 51 vin(s)/104 bouteille(s).

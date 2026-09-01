@@ -1473,8 +1473,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.1";
+const VERSION = "1.13.2";
 const HISTORY = [
+  { version:"1.13.2", date:"2026-09-01", notes:"CORRECTIF CRITIQUE, identifié grâce à un log détaillé transmis par l'utilisateur (repérable par l'alerte « confirmCallback était déjà vide ! » ajoutée en 1.11.14 — exactement à ça qu'elle devait servir). Bug de fond dans le mécanisme partagé de confirmation (demanderConfirmation) : quand confirmer une fenêtre en déclenche aussitôt une seconde (ex. « Restaurer cette version » → « Envoyer la version restaurée ? »), la seconde posait bien son callback, mais la ligne de nettoyage de la première l'effaçait juste après — rendant tout « Confirmer » sur la fenêtre enchaînée totalement silencieux, sans aucune erreur visible. Corrigé (le callback est désormais capturé puis remis à zéro AVANT d'être exécuté, jamais après) et vérifié par un test de bout en bout reproduisant exactement le scénario réel (lister les versions, restaurer, confirmer l'envoi) : l'envoi part désormais bien. Deuxième correctif, tout aussi important : quatre endroits (résolution de conflit, application automatique au lancement, récupération manuelle, restauration d'une version) écrivaient le marqueur « dernière maj connue » même quand l'écriture locale avait échoué (stockage plein) — créant un décalage durable entre ce que l'app croit avoir localement et ce qui y est vraiment, jusqu'à provoquer l'écrasement accidentel d'une version GitHub plus complète par une version locale incomplète. Ce marqueur n'est désormais écrit que si l'écriture locale a réellement réussi."},
   { version:"1.13.1", date:"2026-08-31", notes:"Correction du bandeau de regroupement (« CAVE · 1 vin · 13 bouteilles ») qui comptait le total partagé au lieu de la quantité propre à l'emplacement affiché — corrigé, comme tous les autres décomptes de diagnostic (log de chargement, envoi, restauration, comparaison local/distant) qui souffraient du même défaut avec la liste brute des fiches. Nouveau réglage dans Paramètres → Accès : « Forcer le mode édition », coché par défaut et persistant sur GitHub comme les autres réglages — l'édition reste toujours disponible quoi qu'il arrive (prioritaire sur le verrou de sécurité GitHub-injoignable et sur « Limiter l'URL… »), décochable pour retrouver les protections habituelles. Audit exhaustif des 33 usages restants de « quantite » dans le code : une dernière faille corrigée (le bouton « Marquer une bouteille comme bue » de la fiche pouvait apparaître à tort si le stock propre à l'emplacement était nul mais le total partagé positif) ; tout le reste vérifié correct."},
   { version:"1.13.0", date:"2026-08-31", notes:"Refonte du modèle de données des vins liés, suite à une incohérence repérée sur capture d'écran (« Quantité en cave » et « Pour cet emplacement » affichaient la même valeur, alors que la première doit être le TOTAL). Nouveau principe, strict : « Quantité en cave » est désormais le total partagé, identique sur toutes les fiches d'un même vin — TOUJOURS égal à la somme des quantités propres de chaque emplacement, jamais une valeur indépendante. « Pour cet emplacement » affiche cette quantité propre, distincte du total. Éditer « Quantité en cave » directement applique l'écart à l'emplacement de la fiche ouverte, puis recalcule et propage le vrai total. Un transfert (− / + sur les cartes d'emplacements) ne change jamais le total, seulement la répartition. Marquer/annuler une bue met à jour la quantité propre à l'emplacement ET le total. Délier un emplacement lui rend sa seule quantité propre. Migration automatique et silencieuse des vins déjà liés au chargement (la répartition actuelle est conservée, le total est calculé comme leur somme). Au passage, un bug réel a été trouvé et corrigé dans le bouton Délier (l'ordre des opérations empêchait le recalcul de la fiche déliée elle-même). Validé par une suite de tests dans un vrai DOM simulé : migration, affichage, transfert, édition du total, bue/annuler bue, délien, création d'un nouveau lien — tous corrects, y compris l'invariant total = somme des emplacements vérifié à chaque étape."},
   { version:"1.12.8", date:"2026-08-31", notes:"CORRECTIF CRITIQUE : la 1.12.7 laissait par erreur un reliquat de code (référence à labelQuantite/noteTotalLien, supprimés de la page) en fin de majZoneLienEmplacement() — dès qu'une fiche liée à un autre emplacement était ouverte, une exception silencieuse interrompait ouvrirFiche() avant l'affichage de la fenêtre, rendant le bouton « Détails » inopérant sur ces fiches. Corrigé, et vérifié cette fois avec un vrai test dans un DOM simulé (pas seulement une vérification de syntaxe) : ouverture d'un vin simple et d'un vin lié, dans les deux cas la fiche s'ouvre correctement."},
@@ -2231,8 +2232,15 @@ document.getElementById("btnConfirmNon").addEventListener("click", ()=>{
 document.getElementById("btnConfirmOui").addEventListener("click", ()=>{
   logAjouter(`→ Fenêtre de confirmation « ${confirmTitreCourant} » : Confirmer (callback exécuté${confirmCallback ? "" : " — ATTENTION : confirmCallback était déjà vide !"}).`);
   document.getElementById("overlayConfirm").classList.remove("show");
-  if(confirmCallback) confirmCallback();
+  // Capturer puis remettre confirmCallback à zéro AVANT d'exécuter, pas après : si ce callback déclenche
+  // lui-même une nouvelle fenêtre de confirmation (ex. restaurerVersion() qui enchaîne aussitôt sur
+  // « Envoyer la version restaurée ? »), cette nouvelle fenêtre pose SON PROPRE confirmCallback pendant
+  // l'exécution — un « confirmCallback = null » placé après l'appel effacerait alors ce nouveau callback
+  // fraîchement posé, au lieu de nettoyer celui qui vient de s'exécuter. C'est exactement ce qui rendait
+  // « Confirmer » sur une fenêtre enchaînée totalement silencieux (bug confirmé par le journal).
+  const callbackACourir = confirmCallback;
   confirmCallback = null;
+  if(callbackACourir) callbackACourir();
 });
 
 /* ===================== PERSISTANCE LOCALE ===================== */
@@ -5281,12 +5289,19 @@ async function initialiserSynchronisationGitHub(){
           logAjouter(`→ « Utiliser la version GitHub » choisi — remplacement de ${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) locaux par ${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) distants.`);
           bottles = resCave.distantes;
           const ecritureOk = sauvegarderBouteilles();
-          ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
-          marquerSynchronise();
+          // Le marqueur "dernière maj connue" et l'état "synchronisé" ne sont écrits QUE si l'écriture
+          // locale a réellement réussi — sinon, le marqueur mentirait au prochain lancement (il
+          // prétendrait que cette version est acquise localement, alors que le stockage local ne l'a
+          // jamais reçue) : c'est précisément ce décalage qui a causé l'écrasement accidentel du 31/08
+          // (une version incomplète poussée par-dessus la bonne version GitHub, faute de conflit détecté).
+          if(ecritureOk){
+            ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
+            marquerSynchronise();
+          }
           rafraichirTout();
           const statusEl = document.getElementById("syncStatus");
           if(statusEl) statusEl.textContent = "Version GitHub appliquée (conflit résolu au lancement).";
-          logAjouter(`→ Conflit résolu au lancement : version GitHub appliquée (${bottles.length} vin(s)), écriture locale ${ecritureOk ? "OK" : "ÉCHOUÉE (stockage plein)"}.`);
+          logAjouter(`→ Conflit résolu au lancement : version GitHub appliquée (${bottles.length} vin(s)), écriture locale ${ecritureOk ? "OK" : "ÉCHOUÉE (stockage plein) — marqueur de synchro volontairement PAS mis à jour"}.`);
         });
       }else{
         logAjouter("→ Modifications locales non envoyées, mais la version GitHub n'a pas changé depuis la dernière synchro connue : rien n'est écrasé.");
@@ -5295,8 +5310,13 @@ async function initialiserSynchronisationGitHub(){
       logAjouter(`→ syncDirty=false — remplacement automatique : local=${nbVinsLocaux} vin(s)/${nbBouteillesLocales} bouteille(s) → distant=${nbVinsDistants} vin(s)/${nbBouteillesDistantes} bouteille(s) (maj=${donneesDistantes.maj}).`);
       bottles = resCave.distantes;
       const ecritureOk = sauvegarderBouteilles();
-      ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
-      marquerSynchronise();
+      // Voir la correction jumelle plus haut (résolution de conflit) : le marqueur "dernière maj connue"
+      // ne doit JAMAIS être écrit si l'écriture locale a échoué, sous peine de faire croire au prochain
+      // lancement que cette version GitHub est acquise localement alors qu'elle ne l'est pas.
+      if(ecritureOk){
+        ecrireDerniereMajConnue(donneesDistantes.maj || null, donneesDistantes.origine || null);
+        marquerSynchronise();
+      }
 
       const cfgSauv = chargerConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
@@ -5305,7 +5325,7 @@ async function initialiserSynchronisationGitHub(){
       const statusEl = document.getElementById("syncStatus");
       if(statusEl) statusEl.textContent = "Chargé automatiquement depuis GitHub le " + cfgSauv.derniereSync;
 
-      logAjouter(`→ Données GitHub appliquées (${bottles.length} vin(s)) et localStorage mis à jour : ${ecritureOk ? "OK" : "ÉCHEC (stockage plein)"}.`);
+      logAjouter(`→ Données GitHub appliquées (${bottles.length} vin(s)) et localStorage mis à jour : ${ecritureOk ? "OK" : "ÉCHEC (stockage plein) — marqueur de synchro volontairement PAS mis à jour"}.`);
     }
   }
 
@@ -5419,9 +5439,15 @@ document.getElementById("btnPull").addEventListener("click", async function(){
       `Remplacer la cave locale (${bottles.length} vin(s), ${totalLocalPull} bouteille(s) en cave) par la version GitHub (${distantes.length} vin(s), ${totalDistantPull} bouteille(s) en cave) ?`,
       ()=>{
       bottles = distantes;
-      sauvegarderBouteilles();
-      marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub
-      ecrireDerniereMajConnue(data.maj || null, data.origine || null);
+      const ecritureOk = sauvegarderBouteilles();
+      // Même règle que pour les deux corrections jumelles plus haut : ne jamais écrire le marqueur de
+      // synchro si l'écriture locale a échoué (stockage plein), sous peine de créer un décalage silencieux
+      // entre ce que l'app croit avoir localement et ce qui y est réellement.
+      if(ecritureOk){
+        marquerSynchronise(); // le local correspond désormais exactement au dépôt GitHub
+        ecrireDerniereMajConnue(data.maj || null, data.origine || null);
+      }
+      logAjouter(`→ Récupération manuelle depuis GitHub : écriture locale ${ecritureOk ? "OK" : "ÉCHOUÉE (stockage plein) — marqueur de synchro volontairement PAS mis à jour"}.`);
       rafraichirTout();
       const cfgSauv = lireChampsConfig();
       cfgSauv.derniereSync = new Date().toLocaleString("fr-FR");
@@ -5661,8 +5687,13 @@ async function restaurerVersion(sha, btn){
 
       // 3. FIX CRITIQUE : Générer un nouvel horodatage du moment présent
       // pour que initialiserSynchronisationGitHub() ne considère plus le fichier GitHub comme "plus récent".
+      // Comme pour les 3 corrections jumelles (résolution de conflit, application automatique, récupération
+      // manuelle) : n'écrire ce marqueur QUE si l'écriture locale a réellement réussi. Ici la protection est
+      // moins critique (un horodatage fabriqué à l'instant ne coïncidera quasiment jamais par hasard avec un
+      // vrai maj GitHub, donc un conflit sera quand même détecté au prochain lancement) — mais il n'y a
+      // aucune raison de prétendre "on a cette version" quand ce n'est pas vraiment le cas localement.
       const nouvelleMajRestauration = new Date().toISOString();
-      ecrireDerniereMajConnue(nouvelleMajRestauration, INSTANCE_ID);
+      if(ecritureLocaleOk) ecrireDerniereMajConnue(nouvelleMajRestauration, INSTANCE_ID);
 
       // 4. Mettre à jour l'interface
       rafraichirTout();
@@ -5670,7 +5701,7 @@ async function restaurerVersion(sha, btn){
       const nbBouteillesApres = totalBouteillesReel(bottles);
       toast(`Version restaurée (${nbVinsApres} vin(s)) — à sauvegarder vers GitHub`);
       journalAjouter(`Version ${sha.slice(0,7)} restaurée avec succès (${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s)). Horodatage mis à jour.`);
-      logAjouter(`→ RESTAURATION EFFECTUÉE : bottles.length (après)=${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s) · marqueur de maj fixé à ${nouvelleMajRestauration} · écriture locale ${ecritureLocaleOk ? "OK" : "ÉCHOUÉE"}.`);
+      logAjouter(`→ RESTAURATION EFFECTUÉE : bottles.length (après)=${nbVinsApres} vin(s), ${nbBouteillesApres} bouteille(s) · marqueur de maj ${ecritureLocaleOk ? "fixé à " + nouvelleMajRestauration : "volontairement PAS mis à jour (écriture locale échouée)"} · écriture locale ${ecritureLocaleOk ? "OK" : "ÉCHOUÉE"}.`);
       if(!ecritureLocaleOk){
         logAjouter("→ ATTENTION : tant que le stockage local reste plein, un rechargement de la page perdrait cette restauration (elle n'existe que dans la mémoire de cet onglet). Envoie vers GitHub avant de recharger ou de fermer l'app.");
       }

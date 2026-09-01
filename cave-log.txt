@@ -72,3 +72,20 @@
 [06:42:57] → Réponse de l'envoi (PUT) : statut 200
 [06:42:57] → SUCCÈS (réponse HTTP) : 51 vin(s)/104 bouteille(s) envoyé(s) (app v1.13.0).
 [06:42:58] → VÉRIFICATION post-envoi : GitHub contient maintenant 51 vin(s)/104 bouteille(s) — attendu 51 vin(s)/104 bouteille(s).
+[07:38:31] chargerBouteilles() — lu depuis localStorage : 34 vin(s), 47 bouteille(s) en cave (octets bruts : 2358402).
+[07:38:31] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[07:38:33] → Lecture réussie : 51 vin(s) sur GitHub (maj=2026-09-01T04:42:54.008Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[07:38:33] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[07:38:33] → syncDirty=false — remplacement automatique : local=34 vin(s)/47 bouteille(s) → distant=51 vin(s)/91 bouteille(s) (maj=2026-09-01T04:42:54.008Z).
+[07:38:33] → Données GitHub appliquées (51 vin(s)) et localStorage mis à jour : ÉCHEC (stockage plein) — marqueur de synchro volontairement PAS mis à jour.
+[07:38:38] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=51
+[07:38:39] → Lecture distante (avant envoi) : statut 200
+[07:38:40] → Contenu distant actuel : 51 vin(s), maj=2026-09-01T04:42:54.008Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=d68f4ae33a4d03f8a5765df81ad1884ae4205e17
+[07:38:40] → dernière maj connue=2026-09-01T04:42:54.008Z · maj distante=2026-09-01T04:42:54.008Z · estNonPriseEnCompte=false
+[07:38:40] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[07:38:40] effectuerEnvoiVersGitHub() appelé — sha=d68f4ae33a4d03f8a5765df81ad1884ae4205e17 · bottles.length=51
+[07:38:40] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[07:38:40] → Préparation du contenu à envoyer : 51 vin(s), 91 bouteille(s), maj=2026-09-01T05:38:40.581Z, 3338920 caractère(s)
+[07:38:43] → Réponse de l'envoi (PUT) : statut 200
+[07:38:43] → SUCCÈS (réponse HTTP) : 51 vin(s)/91 bouteille(s) envoyé(s) (app v1.13.2).
+[07:38:44] → VÉRIFICATION post-envoi : GitHub contient maintenant 51 vin(s)/91 bouteille(s) — attendu 51 vin(s)/91 bouteille(s).

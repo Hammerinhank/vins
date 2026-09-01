@@ -11,7 +11,8 @@
     "Casier D",
     "Hors casier",
     "Réfrigérateur",
-    "Cave"
+    "Cave",
+    "Existe-t-elle ?"
   ],
   "emplacementDroiteListe": [
     "Rang Haut",
@@ -39,5 +40,5 @@
   "filtreCouleur": "toutes",
   "filtreMarque": "marques",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-01T12:27:00.355Z"
+  "maj": "2026-09-01T12:32:26.409Z"
 }

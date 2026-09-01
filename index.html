@@ -274,6 +274,8 @@
     overflow:hidden;position:relative;
   }
   .bottle-photo img{width:100%;height:100%;object-fit:cover;}
+  .bottle-photo-spinner{font-size:22px;opacity:.55;animation:tourner-spinner 1.4s linear infinite;}
+  @keyframes tourner-spinner{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   .bottle-body{padding:12px 14px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1;}
   .bottle-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
   .bottle-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;line-height:1.25;}
@@ -1492,8 +1494,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.13.3";
+const VERSION = "1.13.4";
 const HISTORY = [
+  { version:"1.13.4", date:"2026-09-01", notes:"Changement majeur pour lutter contre la saturation du stockage local : les miniatures des photos ne sont plus conservées en permanence sur chaque vin (c'était, de loin, la plus grosse source de volume — de vraies données d'image, pour chaque vin en ayant une, systématiquement recopiées dans le gros bloc unique écrit à chaque sauvegarde, indépendamment de tout affichage). Elles sont désormais récupérées depuis GitHub à la demande — case « Avec photo » cochée, bascule par carte, ou bouton dans la fiche — et gardées seulement en mémoire pour le reste de la session, jamais réenregistrées. Migration automatique au chargement : les miniatures déjà stockées sont retirées des vins existants, mais uniquement s'il existe une copie de secours ailleurs (sur GitHub, ou en attente d'envoi) — jamais si c'était la seule copie existante. Dans la grille, un espace réservé animé (⏳) s'affiche le temps de la récupération, sans bloquer le reste de la carte. Testé de bout en bout : migration avec et sans copie de secours, chargement à la demande dans la grille et dans la fiche, mise en cache évitant tout nouveau téléchargement au sein d'une même session."},
   { version:"1.13.3", date:"2026-09-01", notes:"Liseré bleu, dans la grille comme dans la fiche détaillée, pour signaler qu'une carte ou une fiche ne représente qu'UN SEUL des emplacements d'un vin réparti sur plusieurs — jamais sur une carte fusionnée (qui montre déjà le total de tous les emplacements) ni sur un vin simple. Concrètement : seul le regroupement « par emplacement » peut faire apparaître ce liseré dans la grille, puisque c'est le seul mode qui n'affiche pas les vins liés fusionnés en une seule carte."},
   { version:"1.13.2", date:"2026-09-01", notes:"CORRECTIF CRITIQUE, identifié grâce à un log détaillé transmis par l'utilisateur (repérable par l'alerte « confirmCallback était déjà vide ! » ajoutée en 1.11.14 — exactement à ça qu'elle devait servir). Bug de fond dans le mécanisme partagé de confirmation (demanderConfirmation) : quand confirmer une fenêtre en déclenche aussitôt une seconde (ex. « Restaurer cette version » → « Envoyer la version restaurée ? »), la seconde posait bien son callback, mais la ligne de nettoyage de la première l'effaçait juste après — rendant tout « Confirmer » sur la fenêtre enchaînée totalement silencieux, sans aucune erreur visible. Corrigé (le callback est désormais capturé puis remis à zéro AVANT d'être exécuté, jamais après) et vérifié par un test de bout en bout reproduisant exactement le scénario réel (lister les versions, restaurer, confirmer l'envoi) : l'envoi part désormais bien. Deuxième correctif, tout aussi important : quatre endroits (résolution de conflit, application automatique au lancement, récupération manuelle, restauration d'une version) écrivaient le marqueur « dernière maj connue » même quand l'écriture locale avait échoué (stockage plein) — créant un décalage durable entre ce que l'app croit avoir localement et ce qui y est vraiment, jusqu'à provoquer l'écrasement accidentel d'une version GitHub plus complète par une version locale incomplète. Ce marqueur n'est désormais écrit que si l'écriture locale a réellement réussi."},
   { version:"1.13.1", date:"2026-08-31", notes:"Correction du bandeau de regroupement (« CAVE · 1 vin · 13 bouteilles ») qui comptait le total partagé au lieu de la quantité propre à l'emplacement affiché — corrigé, comme tous les autres décomptes de diagnostic (log de chargement, envoi, restauration, comparaison local/distant) qui souffraient du même défaut avec la liste brute des fiches. Nouveau réglage dans Paramètres → Accès : « Forcer le mode édition », coché par défaut et persistant sur GitHub comme les autres réglages — l'édition reste toujours disponible quoi qu'il arrive (prioritaire sur le verrou de sécurité GitHub-injoignable et sur « Limiter l'URL… »), décochable pour retrouver les protections habituelles. Audit exhaustif des 33 usages restants de « quantite » dans le code : une dernière faille corrigée (le bouton « Marquer une bouteille comme bue » de la fiche pouvait apparaître à tort si le stock propre à l'emplacement était nul mais le total partagé positif) ; tout le reste vérifié correct."},
@@ -1867,16 +1870,18 @@ const CHAMPS_PARTAGES_LIEN = [
   "nom","domaine","pays","couleur","millesime","region","appellation","cepages",
   "prixUnitaire","dateAchat","lieuAchat","boireDe","boireA","note","noteNumerique",
   "noteIncertaine","etiquette","commentaire","marque","marqueCouleur","numero",
-  "photoMiniature","photoFichier","quantite"
+  "photoFichier","quantite"
   // quantite est désormais LE TOTAL, partagé et identique sur toutes les fiches d'un même lien (jamais la
   // quantité propre à un emplacement — voir quantiteIci, volontairement absent de cette liste). Sa
   // propagation ici suppose que la valeur du champ ait déjà été recalculée comme la vraie somme des
   // quantiteIci du groupe AVANT l'appel à propagerVersLiens() — jamais recopiée telle quelle sans ce
   // recalcul préalable (voir enregistrerFiche, marquerBue, annulerBue).
+  // photoMiniature n'existe plus (voir cachePhotosMemoire, jamais persistée) — propagerVersLiens()
+  // recopie plutôt l'entrée du cache mémoire correspondante, séparément, plus bas.
   // photoPendingBase64 volontairement exclu : c'est une photo pleine résolution pas encore envoyée sur
   // GitHub, propre à cet appareil — la dupliquer entre fiches liées doublerait inutilement l'espace
   // utilisé en local (voir l'historique des incidents de stockage saturé). Une fois envoyée, c'est
-  // photoFichier/photoMiniature (légers) qui se propagent normalement.
+  // photoFichier (léger, une simple référence) qui se propage normalement.
 ];
 /* Recopie les champs partagés d'une fiche vers toutes les autres fiches liées à elle (même lienId) —
    appelé après chaque enregistrement d'une fiche. Sans effet si la fiche n'est liée à aucune autre. */
@@ -1887,6 +1892,11 @@ function propagerVersLiens(id){
   bottles.forEach(b=>{
     if(b.id !== id && b.lienId === source.lienId){
       CHAMPS_PARTAGES_LIEN.forEach(champ=>{ b[champ] = source[champ]; });
+      // La miniature n'est jamais stockée sur le vin lui-même : on recopie l'entrée du cache mémoire de
+      // CETTE session (si elle existe) vers les fiches liées, pour qu'elles s'affichent aussi
+      // immédiatement sans devoir la retélécharger — jamais persisté, comme le reste du cache.
+      if(cachePhotosMemoire[id]) cachePhotosMemoire[b.id] = cachePhotosMemoire[id];
+      else delete cachePhotosMemoire[b.id];
       nbPropages++;
     }
   });
@@ -2348,6 +2358,8 @@ function chargerBouteilles(){
 /* Migration depuis l'ancien schéma (statut « cave »/« bue » sur toute la fiche) vers un suivi par quantités : quantite (en cave) et quantiteBue (bues), qui peuvent cohabiter sur une même fiche. */
 function migrerBouteilles(){
   let modifie = false;
+  let nbMiniaturesRetirees = 0;
+  let octetsLiberes = 0;
   bottles.forEach(b=>{
     if(b.quantiteBue === undefined){
       if(b.statut === "bue"){
@@ -2362,7 +2374,22 @@ function migrerBouteilles(){
       b.dateDerniereDegustation = b.dateBue || "";
       modifie = true;
     }
+    // Les miniatures ne sont plus conservées dans le stockage local (voir cachePhotosMemoire) : avec
+    // beaucoup de photos, c'était la première cause de saturation. On les retire des vins déjà enregistrés
+    // — mais SEULEMENT s'il existe une copie de secours ailleurs (sur GitHub via photoFichier, ou encore
+    // en attente d'envoi via photoPendingBase64) : sans ça, cette miniature serait la SEULE copie existante
+    // de l'image, et il ne faut jamais la perdre. Elles seront de nouveau récupérées à la demande, le temps
+    // de la session, dès qu'une photo est réellement affichée quelque part.
+    if(b.photoMiniature && (b.photoFichier || b.photoPendingBase64)){
+      octetsLiberes += b.photoMiniature.length;
+      delete b.photoMiniature;
+      nbMiniaturesRetirees++;
+      modifie = true;
+    }
   });
+  if(nbMiniaturesRetirees){
+    logAjouter(`migrerBouteilles() — ${nbMiniaturesRetirees} miniature(s) retirée(s) du stockage local (≈ ${Math.round(octetsLiberes/1024)} Ko libérés) — récupérées depuis GitHub à la demande désormais.`);
+  }
   const sansNumero = bottles.filter(b => !b.numero);
   if(sansNumero.length){
     sansNumero
@@ -2412,8 +2439,27 @@ function bouteillesPourExportGitHub(){
     return copie;
   });
 }
+/* Cache des photos récupérées depuis GitHub, valable seulement pour cette session en cours — jamais
+   persisté en localStorage. Depuis la 1.13.4, les vins ne stockent plus leur miniature en permanence
+   (voir migrerBouteilles) : avec beaucoup de photos, ces miniatures — de vraies données d'image — étaient
+   de loin la plus grosse part de ce qui saturait le stockage local, indépendamment de l'affichage réel.
+   Une photo n'est désormais récupérée qu'à la demande (case « Avec photo » cochée, bascule par carte, ou
+   fiche détaillée) et gardée seulement en mémoire pour le reste de la session — jamais réenregistrée. */
+const cachePhotosMemoire = {};
+/* Retourne la photo affichable d'un vin : le cache mémoire en priorité (déjà récupérée cette session), la
+   version en attente d'envoi si elle existe (photoPendingBase64, déjà en mémoire par nature), sinon la
+   récupère depuis GitHub via photoFichier et la met en cache pour la suite de la session. Retourne null
+   si aucune photo n'existe pour ce vin. */
+async function obtenirPhotoAffichable(b){
+  if(cachePhotosMemoire[b.id]) return cachePhotosMemoire[b.id];
+  if(b.photoPendingBase64) return b.photoPendingBase64;
+  if(!b.photoFichier) return null;
+  const data = await obtenirPhotoDepuisGitHub(b.photoFichier);
+  if(data) cachePhotosMemoire[b.id] = data;
+  return data;
+}
 function meilleureMiniature(b){
-  return b.photoMiniature || b.photo || "";
+  return cachePhotosMemoire[b.id] || b.photoPendingBase64 || b.photoMiniature || b.photo || "";
 }
 async function obtenirPhotoDepuisGitHub(cheminFichier){
   const cfg = chargerConfig();
@@ -2676,14 +2722,19 @@ function carteBouteille(b){
   const coul = COULEURS.find(c=>c.key===b.couleur) || COULEURS[COULEURS.length-1];
   const ap = statutApogee(b);
   const miniature = meilleureMiniature(b);
-  const photoVisible = photoEstVisible(b) && !!miniature;
+  const aUnePhoto = !!(miniature || b.photoFichier);
+  const photoVisible = photoEstVisible(b) && aUnePhoto;
+  // Photo demandée (case « Avec photo » ou bascule par carte) mais pas encore récupérée cette session :
+  // espace réservé le temps du chargement — voir le déclenchement en fin de renderGrille().
   const photoHtml = photoVisible
-    ? `<div class="bottle-photo" data-action="ouvrir"><img src="${miniature}" alt="Étiquette"></div>`
+    ? (miniature
+        ? `<div class="bottle-photo" data-action="ouvrir"><img src="${miniature}" alt="Étiquette"></div>`
+        : `<div class="bottle-photo bottle-photo-chargement" data-action="ouvrir" data-photo-attente="${b.id}"><span class="bottle-photo-spinner">⏳</span></div>`)
     : "";
-  const iconePhoto = miniature
+  const iconePhoto = aUnePhoto
     ? (photoVisible
         ? `<button type="button" class="icon-photo-btn" data-action="togglePhoto" data-tt-titre="Masquer la photo" data-tt-desc="Cache la photo de ce vin dans la liste.">${ICONE_CAMERA_MASQUEE}</button>`
-        : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" data-tt-titre="Voir la photo" data-tt-desc="Affiche la photo de ce vin dans la liste.">${ICONE_CAMERA}</button>`)
+        : `<button type="button" class="icon-photo-btn" data-action="togglePhoto" data-tt-titre="Voir la photo" data-tt-desc="Affiche la photo de ce vin dans la liste (la récupère depuis GitHub si besoin).">${ICONE_CAMERA}</button>`)
     : "";
   const iconeAvis = MODE_EDITION
     ? `<button type="button" class="icon-photo-btn" data-action="voirAvis" data-tt-titre="Avis — étiquette" data-tt-desc="Ouvre la page Avis pour demander à l'assistant IA une note et un prix indicatif sur ce vin.">📝</button>`
@@ -2715,7 +2766,7 @@ function carteBouteille(b){
     : `<span class="qty-lecture">${quantite} en cave</span>`;
 
   return `
-  <div class="bottle-card${photoVisible?' avec-photo':''}${(b.lienId && !b._lienFusion)?' emplacement-partiel':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
+  <div class="bottle-card${(photoVisible && miniature)?' avec-photo':''}${(b.lienId && !b._lienFusion)?' emplacement-partiel':''}" data-id="${b.id}"${b._idsLies ? ` data-lien-ids="${b._idsLies.join(',')}"` : ""}>
     ${photoHtml}
     <div class="bottle-body">
       <div data-action="ouvrir">
@@ -2816,6 +2867,30 @@ function renderGrille(){
         basculerMarque(id);
       });
     }
+  });
+  lancerRecuperationPhotosEnAttente();
+}
+/* Récupère en arrière-plan, depuis GitHub, chaque photo demandée mais pas encore en cache (espaces
+   réservés « ⏳ » posés par carteBouteille()) — jamais plus d'une fois par vin par session grâce à
+   cachePhotosMemoire. Patche uniquement le CONTENU de l'espace réservé (jamais l'élément lui-même : il
+   garde ainsi l'écouteur de clic « Détails » déjà posé lors du rendu) et seulement si cet espace réservé
+   est encore présent et attend toujours cette même photo — la grille peut très bien s'être re-rendue
+   entre-temps (changement de filtre, de tri…), auquel cas on abandonne silencieusement. */
+function lancerRecuperationPhotosEnAttente(){
+  document.querySelectorAll('[data-photo-attente]').forEach(el=>{
+    const id = el.dataset.photoAttente;
+    const b = bottles.find(x=>x.id===id);
+    if(!b) return;
+    obtenirPhotoAffichable(b).then(data=>{
+      if(!data) return;
+      const elActuel = document.querySelector(`[data-photo-attente="${CSS.escape(id)}"]`);
+      if(!elActuel) return;
+      elActuel.innerHTML = `<img src="${data}" alt="Étiquette">`;
+      elActuel.classList.remove("bottle-photo-chargement");
+      elActuel.removeAttribute("data-photo-attente");
+      const carte = elActuel.closest(".bottle-card");
+      if(carte) carte.classList.add("avec-photo");
+    });
   });
 }
 
@@ -3093,12 +3168,19 @@ function afficherPhotoFiche(){
   if(immediate){
     document.getElementById("photoPreview").src = immediate;
     document.getElementById("photoPreview").style.display = "block";
+  }else{
+    // Rien d'immédiatement disponible (miniature plus persistée depuis la 1.13.4) : on masque plutôt que
+    // de laisser affichée par erreur la photo d'un vin précédemment consulté, le temps de la récupérer.
+    document.getElementById("photoPreview").style.display = "none";
   }
   // Si une version pleine résolution existe déjà sur GitHub, on l'affiche dès qu'elle arrive (l'aperçu miniature reste visible en attendant).
   if(!photoEnCoursPendante && photoEnCoursFichier){
     obtenirPhotoDepuisGitHub(photoEnCoursFichier).then(data=>{
       if(data && ficheEnCours === idAuMoment){
         document.getElementById("photoPreview").src = data;
+        document.getElementById("photoPreview").style.display = "block";
+        photoEnCoursMiniature = data;
+        cachePhotosMemoire[idAuMoment] = data; // profite aussi à la grille, sans nouvelle récupération
       }
     });
   }
@@ -3107,7 +3189,7 @@ function afficherPhotoFiche(){
 function ouvrirFiche(id){
   const b = bottles.find(x=>x.id===id);
   if(!b) return;
-  logAjouter(`ouvrirFiche(${id}) appelé — nom="${b.nom}" · numero=${b.numero} · photo: miniature=${b.photoMiniature?"oui":"non"} pendante=${b.photoPendingBase64?"oui":"non"} fichier=${b.photoFichier||"non"}`);
+  logAjouter(`ouvrirFiche(${id}) appelé — nom="${b.nom}" · numero=${b.numero} · photo: en cache=${cachePhotosMemoire[id]?"oui":"non"} pendante=${b.photoPendingBase64?"oui":"non"} fichier=${b.photoFichier||"non"}`);
   document.getElementById("btnAppliquerReponseFiche").classList.remove("suggestion-verte");
   ficheEnCours = id;
   marqueFicheCourante = !!b.marque;
@@ -3297,10 +3379,14 @@ function enregistrerFiche(){
     noteIncertaine: document.getElementById("fNoteIncertaine").value.trim() === "?" ? "?" : "",
     etiquette: document.getElementById("fEtiquette").value.trim(),
     commentaire: document.getElementById("fCommentaire").value.trim(),
-    photoMiniature: photoSupprimee ? "" : photoEnCoursMiniature,
     photoFichier: photoSupprimee ? "" : photoEnCoursFichier,
     photoPendingBase64: photoSupprimee ? "" : photoEnCoursPendante
   };
+  // La miniature n'est plus persistée sur le vin (voir cachePhotosMemoire, en haut du fichier) — elle est
+  // seulement gardée en mémoire pour le reste de cette session, pour un affichage immédiat dans la grille
+  // sans devoir la retélécharger tout de suite depuis GitHub (utile en particulier juste après l'ajout
+  // d'une photo, avant même qu'elle n'y ait été envoyée).
+  const miniaturePourCache = photoSupprimee ? "" : photoEnCoursMiniature;
 
   if(ficheEnCours){
     const b = bottles.find(x=>x.id===ficheEnCours);
@@ -3309,6 +3395,8 @@ function enregistrerFiche(){
     Object.assign(b, data);
     b.numero = numeroFicheCourant;
     delete b.photo; // migration : ancien champ remplacé par photoMiniature/photoFichier/photoPendingBase64
+    delete b.photoMiniature; // migration : plus persistée (voir cachePhotosMemoire)
+    if(miniaturePourCache) cachePhotosMemoire[b.id] = miniaturePourCache; else delete cachePhotosMemoire[b.id];
     if(b.lienId){
       // Vin lié : "Quantité en cave" représente le TOTAL du groupe, jamais une valeur indépendante — tout
       // écart entre l'ancien et le nouveau total saisi est reporté sur la quantité PROPRE à cette fiche
@@ -3320,7 +3408,7 @@ function enregistrerFiche(){
       const totalReel = recalculerTotalLien(b.lienId);
       logAjouter(`→ Vin lié : quantité saisie=${nouveauTotalSaisi} (delta=${delta>=0?"+":""}${delta}) → quantiteIci de cette fiche passe de ${ancienIci} à ${b.quantiteIci} · total réel du groupe recalculé=${totalReel}.`);
     }
-    logAjouter(`→ Vin existant mis à jour (id=${ficheEnCours}) — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
+    logAjouter(`→ Vin existant mis à jour (id=${ficheEnCours}) — miniature en cache mémoire=${miniaturePourCache?miniaturePourCache.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
     propagerVersLiens(ficheEnCours);
   }else{
     const nouvelId = uuid();
@@ -3331,7 +3419,8 @@ function enregistrerFiche(){
       quantiteBue: 0,
       dateDerniereDegustation: ""
     }, data));
-    logAjouter(`→ Nouveau vin créé — photoMiniature=${data.photoMiniature?data.photoMiniature.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
+    if(miniaturePourCache) cachePhotosMemoire[nouvelId] = miniaturePourCache;
+    logAjouter(`→ Nouveau vin créé — miniature en cache mémoire=${miniaturePourCache?miniaturePourCache.length+"o":"vide"} · photoFichier=${data.photoFichier||"vide"} · photoPendingBase64=${data.photoPendingBase64?data.photoPendingBase64.length+"o":"vide"}`);
     propagerVersLiens(nouvelId);
   }
   sauvegarderBouteilles();

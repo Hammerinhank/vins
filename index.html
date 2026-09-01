@@ -1512,8 +1512,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.14.1";
+const VERSION = "1.14.2";
 const HISTORY = [
+  { version:"1.14.2", date:"2026-09-01", notes:"Bug réel corrigé, signalé après usage réel avec 3 emplacements liés pour un même vin : délier l'un d'eux déliait TOUT le groupe d'un coup, au lieu de ne retirer que l'emplacement choisi. Cause : delierFiche() passait par nettoyerLiensOrphelins(), une fonction générique qui recalcule tous les groupes de liens de toute la cave à chaque appel. delierFiche() ne touche plus désormais qu'au seul groupe concerné par ce délien précis (filtré strictement sur son lienId) : à partir de 3 emplacements, délier l'un d'eux laisse les autres liés entre eux, jusqu'à ce qu'il n'en reste plus qu'un seul — qui devient alors autonome à son tour, un groupe à un seul membre n'ayant plus de sens. Journalise désormais le nombre de membres restants après chaque délien, pour vérification."},
   { version:"1.14.1", date:"2026-09-01", notes:"Le bouton « ✂️ Délier » est déplacé juste à côté du titre « Pour cet emplacement » (au lieu d'être en bas du panneau, avec « Ajouter un emplacement ») — plus proche de l'emplacement qu'il concerne réellement. Il refuse maintenant explicitement de délier tant qu'il reste des bouteilles à cet emplacement (message dédié, invitant à les transférer d'abord vers l'autre emplacement), au lieu de le permettre silencieusement. Quand le délien est possible, le message de confirmation nomme désormais explicitement l'emplacement qui va être délié et celui (ou ceux) dont il va être délié, au lieu d'un texte générique « son ou ses autres emplacements »."},
   { version:"1.14.0", date:"2026-09-01", notes:"Trois évolutions. 1) Journal/Diagnostic : nouveau bouton « 🕘 40 dernières versions » — au-delà de ce premier lot, un bouton « Charger 10 versions supplémentaires » apparaît et permet de continuer à remonter dans l'historique 10 par 10, jusqu'à épuisement (message « Historique complet chargé »), sans jamais relire les versions déjà affichées. Les boutons « 5 » et « 30 » restent de simples instantanés figés, comme avant. 2) Les trois listes de versions affichent maintenant la taille approximative de chaque sauvegarde (o/Ko/Mo), en plus de la date et du nombre de vins/bouteilles. 3) Dans la fiche détaillée, les deux titres de la zone des emplacements liés (« Pour cet emplacement » et « 🔗 Également en cave à ») ont désormais eux aussi une infobulle explicative au survol — les boutons de cette zone (ouvrir une autre fiche, transférer une bouteille) en avaient déjà depuis la v1.12.1 ; seuls ces deux titres en étaient dépourvus, comme n'importe quel intitulé de champ ailleurs dans l'app."},
   { version:"1.13.9", date:"2026-09-01", notes:"Le nombre de bouteilles de chaque vin (dans la grille, à côté de 🍷 en mode édition, ou « N en cave » en mode consultation) s'affiche maintenant en gras et dans une police légèrement plus grande (13px → 15px), pour être plus lisible d'un coup d'œil. En mode consultation, seul le nombre est mis en valeur — « en cave » garde son style discret habituel."},
@@ -1955,15 +1956,28 @@ function nettoyerLiensOrphelins(){
 }
 /* Délie explicitement UNE fiche précise de son groupe (bouton « Délier ») : elle redevient autonome, avec
    pour "quantite" sa seule quantité propre — elle ne représente plus la somme d'un groupe dont elle ne
-   fait plus partie. IMPORTANT : on retire son lienId AVANT d'appeler nettoyerLiensOrphelins(), pour que
-   celle-ci recalcule correctement le(s) membre(s) restant(s) du groupe (qui redevient orphelin si un seul
-   autre subsiste) — l'inverse (nettoyer avant de retirer le lien) laisserait cette fiche-ci de côté,
-   puisqu'elle ne serait alors plus détectée comme faisant partie d'un groupe à nettoyer. */
+   fait plus partie. BUG RÉEL corrigé en V1.14.2 : cette fonction appelait auparavant la générique
+   nettoyerLiensOrphelins(), qui recalcule TOUS les groupes de liens de toute la cave à chaque appel — un
+   vin à 3 emplacements ou plus se retrouvait donc entièrement délié au premier clic sur « Délier », au
+   lieu de ne perdre que l'emplacement choisi. Ici, on ne touche plus qu'au SEUL groupe concerné par ce
+   délien précis : les autres membres du groupe (s'il en reste 2 ou plus après le retrait de b) restent
+   liés entre eux, inchangés ; seul le cas où il n'en reste plus qu'UN SEUL dissout aussi ce dernier
+   (un groupe à un seul membre n'a plus de sens). */
 function delierFiche(b){
+  const lienIdPrecedent = b.lienId;
   b.quantite = Number(b.quantiteIci)||0;
   delete b.quantiteIci;
   b.lienId = "";
-  nettoyerLiensOrphelins();
+  if(!lienIdPrecedent) return;
+  const restants = bottles.filter(x=>x.lienId===lienIdPrecedent);
+  logAjouter(`delierFiche(${b.id}) — groupe ${lienIdPrecedent} : ${restants.length} membre(s) restant(s) après retrait${restants.length ? " (" + restants.map(x=>x.emplacement||"(sans emplacement)").join(", ") + ")" : ""}.`);
+  if(restants.length === 1){
+    const dernier = restants[0];
+    dernier.quantite = Number(dernier.quantiteIci)||0;
+    delete dernier.quantiteIci;
+    dernier.lienId = "";
+    logAjouter(`delierFiche(${b.id}) — dernier membre du groupe (${dernier.id}, ${dernier.emplacement||"(sans emplacement)"}) devenu autonome à son tour, groupe dissous.`);
+  }
 }
 /* Fusionne les fiches liées entre elles en une seule carte virtuelle par groupe de lien : "quantite" (le
    total) est déjà partagé et identique sur toutes les fiches du groupe (voir recalculerTotalLien) — on le

@@ -947,9 +947,9 @@
   <details class="panel">
     <summary data-tt-titre="Sauvegarde locale" data-tt-desc="Ouvre ou referme la section d'export/import d'un fichier de secours JSON.">Sauvegarde locale</summary>
     <div class="panel-body">
-      <p class="panel-note">Exporte un fichier de secours (JSON), ou récupère une sauvegarde précédente.</p>
+      <p class="panel-note">Exporte un fichier de secours (JSON) que ton téléphone te proposera d'enregistrer dans Fichiers, iCloud Drive, ou de partager (Mail, AirDrop…) — ou récupère une sauvegarde précédente.</p>
       <div class="panel-row">
-        <button class="btn" id="btnExport" type="button" data-tt-titre="Exporter en JSON" data-tt-desc="Télécharge un fichier de secours contenant toute la cave, à conserver ou réimporter plus tard.">Exporter en JSON</button>
+        <button class="btn" id="btnExport" type="button" data-tt-titre="Exporter en JSON" data-tt-desc="Prépare un fichier de secours contenant toute la cave, puis propose de l'enregistrer ou de le partager. À conserver pour le réimporter plus tard si besoin.">Exporter en JSON</button>
         <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON précédemment exporté.">Importer un JSON</button>
         <input type="file" id="importFile" accept="application/json" style="display:none">
       </div>
@@ -1523,8 +1523,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.14.4";
+const VERSION = "1.14.5";
 const HISTORY = [
+  { version:"1.14.5", date:"2026-09-01", notes:"« Exporter en JSON » (Sauvegarde locale) : le bouton ouvrait directement la fenêtre native de partage/enregistrement du téléphone, sans aucune explication ni confirmation — ce qui pouvait sembler incompréhensible. Un message explicatif s'affiche désormais avant, décrivant ce qui va se passer et recommandant l'option « Enregistrer dans Fichiers » pour un usage courant (ou une autre option — Mail, AirDrop… — pour partager ailleurs). Une confirmation (avec le nom du fichier) s'affiche après la préparation réussie, avec gestion d'erreur et entrée de journal en cas d'échec, comme le reste de l'app."},
   { version:"1.14.4", date:"2026-09-01", notes:"Nouvelle case à cocher « Mentionner les emplacements » sur la page PDF, cochée par défaut. Décochée, le rapport « Vins en cave par région » redevient strictement identique à ce qu'il était avant l'ajout des emplacements en V1.14.3 (titre région/couleur seul, jamais de sous-rubrique, quel que soit le nombre d'emplacements réellement présents) — la gestion du singulier/pluriel, elle, reste appliquée dans tous les cas."},
   { version:"1.14.3", date:"2026-09-01", notes:"Rapport PDF « Vins en cave par région » : deux évolutions. 1) Accord singulier/pluriel correct partout (« 1 bouteille », « 2 bouteilles », « 1 vin », « 3 vins »…) au lieu du raccourci « bouteille(s) »/« vin(s) ». 2) Sous-rubriques par emplacement au sein de chaque région/couleur : si tous les vins d'une région et d'une couleur sont au même emplacement, celui-ci est simplement ajouté entre parenthèses dans le titre de la rubrique (ex. « Bordeaux (Rouge, Cave A) ») ; sinon, une sous-rubrique apparaît pour chaque emplacement rencontré, avec son propre sous-total, sous le titre général de la région/couleur. S'applique à la fois au PDF téléchargé et à son aperçu affiché dans la page."},
   { version:"1.14.2", date:"2026-09-01", notes:"Bug réel corrigé, signalé après usage réel avec 3 emplacements liés pour un même vin : délier l'un d'eux déliait TOUT le groupe d'un coup, au lieu de ne retirer que l'emplacement choisi. Cause : delierFiche() passait par nettoyerLiensOrphelins(), une fonction générique qui recalcule tous les groupes de liens de toute la cave à chaque appel. delierFiche() ne touche plus désormais qu'au seul groupe concerné par ce délien précis (filtré strictement sur son lienId) : à partir de 3 emplacements, délier l'un d'eux laisse les autres liés entre eux, jusqu'à ce qu'il n'en reste plus qu'un seul — qui devient alors autonome à son tour, un groupe à un seul membre n'ayant plus de sens. Journalise désormais le nombre de membres restants après chaque délien, pour vérification."},
@@ -5133,15 +5134,29 @@ document.getElementById("closeHistory").addEventListener("click", ()=>document.g
 
 /* ===================== EXPORT / IMPORT JSON ===================== */
 document.getElementById("btnExport").addEventListener("click", ()=>{
-  const blob = new Blob([JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2)], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "cave-a-vin-"+todayISO()+".json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const nomFichier = "cave-a-vin-"+todayISO()+".json";
+  demanderConfirmation(
+    "Exporter la cave en JSON",
+    `Un fichier « ${nomFichier} » contenant toute la cave (${bottles.length} vin(s)) va être préparé. Ton téléphone te proposera ensuite où l'enregistrer : choisis « Enregistrer dans Fichiers » pour le garder sur cet appareil ou dans iCloud Drive, ou une autre option (Mail, AirDrop…) si tu préfères l'envoyer ailleurs. Ce fichier permet de tout restaurer plus tard via « Importer un JSON ».`,
+    ()=>{
+      try{
+        const blob = new Blob([JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2)], {type:"application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nomFichier;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        logAjouter(`btnExport — fichier de secours préparé : ${nomFichier} (${bottles.length} vin(s)).`);
+        toast(`« ${nomFichier} » prêt — choisis où l'enregistrer dans la fenêtre qui vient de s'ouvrir.`);
+      }catch(e){
+        logAjouter("btnExport — ERREUR : " + (e && e.message ? e.message : String(e)));
+        toast("Échec de la préparation du fichier — voir le journal");
+      }
+    }
+  );
 });
 document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("importFile").click());
 document.getElementById("importFile").addEventListener("change", function(e){

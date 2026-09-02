@@ -6,6 +6,7 @@
 <title>Cave à Vin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -945,17 +946,30 @@
     </div>
   </details>
   <details class="panel">
-    <summary data-tt-titre="Sauvegarde locale" data-tt-desc="Ouvre ou referme la section d'export/import d'un fichier de secours JSON.">Sauvegarde locale</summary>
+    <summary data-tt-titre="Sauvegarde Google Drive" data-tt-desc="Ouvre ou referme la section de sauvegarde/vérification sur Google Drive.">Sauvegarde Google Drive</summary>
     <div class="panel-body">
-      <p class="panel-note">Exporte un fichier de secours (JSON) — Safari demandera « Afficher » ou « Télécharger » : choisis « Télécharger » pour l'enregistrer réellement. Ou récupère une sauvegarde précédente.</p>
+      <p class="panel-note">Envoie un fichier de secours (JSON) directement sur ton Google Drive, sans passer par le téléchargement de Safari — avec une confirmation donnée par Google elle-même, pas une simple supposition. Demande une configuration Google Cloud une seule fois (marche à suivre détaillée dans l'historique des versions, page Journal/Diagnostic, entrée v1.15.1).</p>
+      <div class="field-row">
+        <div class="field"><label>Client ID Google</label><textarea id="cfgGdriveClientId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Client ID Google" data-tt-desc="Identifiant OAuth créé sur console.cloud.google.com (type « Application Web »), propre à ce site. Jamais synchronisé, gardé uniquement sur cet appareil."></textarea></div>
+        <div class="field"><label>Dossier Drive (optionnel)</label><textarea id="cfgGdriveFolderId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Dossier Google Drive" data-tt-desc="Identifiant du dossier Drive dédié, visible dans l'URL du dossier ouvert dans Drive (après le dernier /). Laisse vide pour enregistrer à la racine de « Mon Drive »."></textarea></div>
+      </div>
       <div class="panel-row">
-        <button class="btn" id="btnExport" type="button" data-tt-titre="Exporter en JSON" data-tt-desc="Prépare un fichier de secours contenant toute la cave, puis Safari demande « Afficher » ou « Télécharger » — choisis « Télécharger » pour l'enregistrer. À conserver pour le réimporter plus tard si besoin.">Exporter en JSON</button>
-        <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON précédemment exporté.">Importer un JSON</button>
+        <button class="btn btn-ghost" id="btnSaveGdriveCfg" type="button" data-tt-titre="Enregistrer les identifiants Google Drive" data-tt-desc="Sauvegarde localement le Client ID et le dossier Drive saisis ci-dessus.">Enregistrer les identifiants</button>
+        <button class="btn btn-ghost" id="btnDeconnecterGdrive" type="button" data-tt-titre="Se déconnecter de Google Drive" data-tt-desc="Révoque l'autorisation accordée pour cette session. Une prochaine sauvegarde ou vérification redemandera de se connecter.">Se déconnecter</button>
+      </div>
+      <div class="panel-row">
+        <button class="btn btn-gold" id="btnExportGDrive" type="button" data-tt-titre="Sauvegarder sur Google Drive" data-tt-desc="Envoie un fichier de secours contenant toute la cave directement vers ton Google Drive, avec confirmation donnée par Google elle-même.">☁️ Sauvegarder sur Google Drive</button>
+        <button class="btn" id="btnVerifierGDrive" type="button" data-tt-titre="Vérifier une sauvegarde Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet de relire l'une d'elles pour la comparer, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">🔍 Vérifier une sauvegarde Google Drive</button>
+      </div>
+      <div class="sync-status" id="gdriveStatus">Non connecté à Google Drive.</div>
+      <div class="versions-liste" id="gdriveListe" style="display:none;"></div>
+      <p class="panel-note">Pour restaurer un fichier JSON quelle que soit sa provenance (téléchargé depuis Drive, ancien export local, reçu par AirDrop…) :</p>
+      <div class="panel-row">
+        <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON, quelle que soit sa provenance.">Importer un fichier JSON</button>
         <input type="file" id="importFile" accept="application/json" style="display:none">
       </div>
-      <p class="panel-note">Aucune vérification n'est possible tant que le fichier n'a pas été relu : Safari ne permet pas de le confirmer automatiquement après un export. Choisis le fichier tout juste téléchargé pour une preuve certaine.</p>
       <div class="panel-row">
-        <button class="btn btn-sm" id="btnVerifierExport" type="button" data-tt-titre="Vérifier un fichier exporté" data-tt-desc="Relit un fichier JSON et le compare exactement au contenu actuellement en mémoire, SANS jamais remplacer la cave. En cas de correspondance parfaite, la sauvegarde de ce fichier est certifiée réussie.">🔍 Vérifier un fichier exporté</button>
+        <button class="btn btn-sm" id="btnVerifierExport" type="button" data-tt-titre="Vérifier un fichier local" data-tt-desc="Relit un fichier JSON local et le compare exactement au contenu actuellement en mémoire, SANS jamais remplacer la cave.">🔍 Vérifier un fichier local</button>
         <input type="file" id="verifierExportFile" accept="application/json" style="display:none">
       </div>
     </div>
@@ -1528,8 +1542,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.14.9";
+const VERSION = "1.15.1";
 const HISTORY = [
+  { version:"1.15.1", date:"2026-09-02", notes:"Remplace la sauvegarde locale (téléchargement Safari) par une vraie intégration Google Drive, dans Paramètres → Sauvegarde Google Drive. « ☁️ Sauvegarder sur Google Drive » envoie le fichier directement via l'API Google (scope drive.file : uniquement les fichiers créés par cette app, jamais le reste du Drive) — la confirmation est désormais donnée par la réponse de Google elle-même (id du fichier créé), pas une supposition sur ce que Safari a bien voulu faire. « 🔍 Vérifier une sauvegarde Google Drive » liste les sauvegardes récentes et permet d'en relire une pour la comparer, champ par champ, au contenu en mémoire — même logique et mêmes messages que la vérification locale (factorisée en une seule fonction commune, verifierContenuFaceAMemoire). Un dossier Drive dédié est optionnel (champ « Dossier Drive »). « Importer un fichier JSON » et « Vérifier un fichier local » sont conservés tels quels, en secours, pour rester capable de restaurer un fichier reçu autrement (AirDrop, ancien export...). — Mise en place, à faire une seule fois sur console.cloud.google.com : 1) Créer un projet (gratuit). 2) Menu ☰ → API et services → Bibliothèque → chercher « Google Drive API » → Activer. 3) API et services → Identifiants → Créer des identifiants → ID client OAuth → type « Application Web » → sous « Origines JavaScript autorisées », ajouter https://hammerinhank.github.io (sans / final) → Créer. 4) Copier le Client ID généré (se termine par .apps.googleusercontent.com, aucun mot de passe/clé secrète nécessaire pour ce type d'usage) et le coller dans Paramètres → Sauvegarde Google Drive → Client ID Google. 5) Écran de consentement OAuth (API et services → Écran de consentement) : type « Externe », rester en mode « Test » et s'ajouter soi-même comme utilisateur test (évite toute procédure de vérification Google, inutile pour un usage strictement personnel). Dossier Drive optionnel : ouvrir le dossier voulu sur drive.google.com, copier la suite de caractères à la fin de l'URL (après le dernier /) dans le champ « Dossier Drive »."},
+  { version:"1.15.0", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » distingue désormais deux cas bien différents, suite à un cas réel où un fichier d'une tout autre app (généalogie) avait été choisi par erreur. Avant : un tel fichier était juste signalé « 0 vin(s) dans le fichier », ce qui pouvait laisser croire un instant à un export vide plutôt qu'à un fichier sans rapport. Maintenant : si le JSON choisi n'a ni la forme d'une liste de vins ni de champ « bottles », un message distinct dit clairement « Ce n'est pas un fichier de cave à vin » et rappelle le nom exact à choisir (cave-a-vin-AAAA-MM-JJ.json), au lieu de l'annoncer comme un écart de contenu à comparer."},
   { version:"1.14.9", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » précise désormais, en cas d'écart, exactement quel champ diffère (ex. « Crémant de Bourgogne (position 3) — champ .quantite : « 12 » dans le fichier contre « 11 » en mémoire ») au lieu de se limiter au nombre de vins. La comparaison elle-même n'a pas changé : elle a toujours porté sur toutes les fiches, champ par champ, pas seulement leur nombre — seul le message d'écart manquait de précision."},
   { version:"1.14.8", date:"2026-09-02", notes:"Nouveau bouton « 🔍 Vérifier un fichier exporté » (Sauvegarde locale) : relit un fichier JSON choisi et le compare, champ par champ, au contenu actuellement en mémoire — SANS jamais le charger ni remplacer la cave, à la différence d'« Importer un JSON ». En cas de correspondance exacte, un message certifie sans ambiguïté que la sauvegarde de ce fichier a réussi. En cas d'écart, un message l'indique clairement, avec le nombre de vins de chaque côté, et rappelle qu'un écart est normal si la cave a été modifiée depuis l'export de ce fichier. Répond à une vraie limite signalée : jusqu'ici, rien ne garantissait qu'un export « réussi » selon l'app avait vraiment abouti à un fichier exploitable sur le disque — Safari ne permettant pas de le vérifier automatiquement, seule une relecture manuelle et une comparaison stricte peuvent réellement le certifier."},
   { version:"1.14.7", date:"2026-09-02", notes:"« Exporter en JSON » tient désormais un compteur « avant/après » du nombre d'exports réussis depuis cet appareil (localStorage), mentionné dans le message de confirmation avant l'export puis dans le rappel après (« Export n°N depuis cet appareil, N-1 précédemment »). Important : Safari interdisant à une page web de lire le dossier Téléchargements, ce n'est PAS une vérification du fichier réellement présent sur le disque — seulement le nombre de fois où ce bouton a réussi depuis cet appareil, propre à ce navigateur (remis à zéro si les données du site sont effacées, ou différent sur un autre appareil)."},
@@ -5144,39 +5160,171 @@ async function verifierNouvelleVersionDisponible(){
 }
 document.getElementById("closeHistory").addEventListener("click", ()=>document.getElementById("overlayHistory").classList.remove("show"));
 
-/* ===================== EXPORT / IMPORT JSON ===================== */
-document.getElementById("btnExport").addEventListener("click", ()=>{
+/* ===================== SAUVEGARDE GOOGLE DRIVE ===================== */
+const LS_COMPTEUR_EXPORTS_GDRIVE = "cave_compteur_exports_gdrive_v1"; // même principe que LS_COMPTEUR_EXPORTS_JSON,
+  // mais ici la confirmation est réelle : la réponse de l'API Google, pas une supposition.
+let gdriveTokenClient = null;
+let gdriveAccessToken = null; // en mémoire seulement pour cette session — jamais persisté nulle part
+
+function gdriveStatusEl(){ return document.getElementById("gdriveStatus"); }
+
+/* Prépare (une seule fois par Client ID) le client d'autorisation Google, puis déclenche la demande
+   d'accès — callback appelé UNIQUEMENT en cas de succès, avec le jeton déjà placé dans gdriveAccessToken.
+   Le scope drive.file est volontairement le plus restreint possible : l'app ne peut accéder qu'aux
+   fichiers qu'elle a elle-même créés sur Drive, jamais au reste du compte. */
+function demanderAccesGoogleDrive(callback){
+  const cfg = chargerConfig();
+  if(!cfg.gdriveClientId){
+    toast("Configure d'abord le Client ID Google Drive, puis « Enregistrer les identifiants »");
+    return;
+  }
+  if(!window.google || !window.google.accounts || !window.google.accounts.oauth2){
+    toast("La bibliothèque Google n'a pas encore fini de charger — réessaie dans un instant");
+    return;
+  }
+  if(!gdriveTokenClient || gdriveTokenClient._clientId !== cfg.gdriveClientId){
+    gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.gdriveClientId,
+      scope: "https://www.googleapis.com/auth/drive.file",
+      callback: ""
+    });
+    gdriveTokenClient._clientId = cfg.gdriveClientId;
+  }
+  gdriveTokenClient.callback = (resp)=>{
+    if(resp.error){
+      logAjouter("Google Drive — autorisation refusée ou échouée : " + resp.error);
+      toast("Autorisation Google Drive refusée ou échouée — voir le journal");
+      gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+      return;
+    }
+    gdriveAccessToken = resp.access_token;
+    gdriveStatusEl().textContent = "Connecté à Google Drive pour cette session.";
+    callback();
+  };
+  gdriveTokenClient.requestAccessToken({ prompt: gdriveAccessToken ? "" : "consent" });
+}
+document.getElementById("btnDeconnecterGdrive").addEventListener("click", ()=>{
+  if(!gdriveAccessToken){ toast("Déjà non connecté"); return; }
+  if(window.google && google.accounts && google.accounts.oauth2){
+    google.accounts.oauth2.revoke(gdriveAccessToken, ()=>{
+      logAjouter("Google Drive — autorisation révoquée pour cette session.");
+    });
+  }
+  gdriveAccessToken = null;
+  gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+  toast("Déconnecté de Google Drive");
+});
+
+async function uploaderVersGoogleDrive(nomFichier, contenuTexte, dossierId){
+  const metadata = { name: nomFichier, mimeType: "application/json" };
+  if(dossierId) metadata.parents = [dossierId];
+  const frontiere = "cave_a_vin_frontiere_314159";
+  const corps =
+    `\r\n--${frontiere}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
+    `\r\n--${frontiere}\r\nContent-Type: application/json\r\n\r\n${contenuTexte}` +
+    `\r\n--${frontiere}--`;
+  return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,createdTime", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + gdriveAccessToken,
+      "Content-Type": `multipart/related; boundary=${frontiere}`
+    },
+    body: corps
+  });
+}
+document.getElementById("btnExportGDrive").addEventListener("click", ()=>{
+  const cfg = chargerConfig();
+  if(!cfg.gdriveClientId){ toast("Configure d'abord le Client ID Google Drive, puis « Enregistrer les identifiants »"); return; }
   const nomFichier = "cave-a-vin-"+todayISO()+".json";
-  const exportsDejaRealises = parseInt(localStorage.getItem(LS_COMPTEUR_EXPORTS_JSON)||"0", 10) || 0;
+  const contenu = JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2);
+  const exportsDejaRealises = parseInt(localStorage.getItem(LS_COMPTEUR_EXPORTS_GDRIVE)||"0", 10) || 0;
   demanderConfirmation(
-    "Exporter la cave en JSON",
-    `Un fichier « ${nomFichier} » contenant toute la cave (${bottles.length} vin(s)) va être préparé${exportsDejaRealises ? " — ce sera le n°" + (exportsDejaRealises+1) + " depuis cet appareil (" + exportsDejaRealises + " précédemment)" : ""}. Safari va ensuite demander : « Voulez-vous télécharger "${nomFichier}" sur "${window.location.hostname}" ? » avec deux boutons — touche « Télécharger » pour l'enregistrer réellement (il ira dans le dossier Téléchargements de Safari, accessible via l'icône ⬇️ dans la barre d'adresse, ou dans l'app Fichiers). « Afficher » se contente d'ouvrir son contenu à l'écran, sans rien enregistrer. Une fois téléchargé, ce fichier permet de tout restaurer plus tard via « Importer un JSON ».`,
+    "Sauvegarder sur Google Drive",
+    `Un fichier « ${nomFichier} » contenant toute la cave (${bottles.length} vin(s)) va être envoyé directement sur ton Google Drive${cfg.gdriveFolderId ? " (dossier configuré)" : " (racine de « Mon Drive » — aucun dossier n'a été configuré)"}${exportsDejaRealises ? " — ce sera le n°" + (exportsDejaRealises+1) + " depuis cet appareil (" + exportsDejaRealises + " précédemment)" : ""}. Si ce n'est pas déjà fait cette session, Google va d'abord demander de se connecter et d'autoriser l'accès — uniquement aux fichiers créés par cette app, jamais au reste de ton Drive. La confirmation qui suivra sera donnée directement par la réponse de Google, pas une simple supposition.`,
     ()=>{
-      try{
-        const blob = new Blob([JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2)], {type:"application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = nomFichier;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        // Compteur interne "avant/après" — voir la déclaration de LS_COMPTEUR_EXPORTS_JSON : ce n'est PAS
-        // une vérification du fichier réellement présent dans Téléchargements (impossible depuis une page
-        // web), seulement le nombre d'exports réussis depuis cet appareil.
-        const compteurAvant = parseInt(localStorage.getItem(LS_COMPTEUR_EXPORTS_JSON)||"0", 10) || 0;
-        const compteurApres = compteurAvant + 1;
-        try{ localStorage.setItem(LS_COMPTEUR_EXPORTS_JSON, String(compteurApres)); }catch(e){ /* purement informatif, tant pis si ça échoue */ }
-        logAjouter(`btnExport — fichier de secours préparé : ${nomFichier} (${bottles.length} vin(s)) — export n°${compteurApres} depuis cet appareil (${compteurAvant} précédemment).`);
-        toast(`Export n°${compteurApres} depuis cet appareil (${compteurAvant} précédemment). Dans la fenêtre Safari qui s'ouvre, touche « Télécharger » (pas « Afficher ») pour enregistrer « ${nomFichier} ».`);
-      }catch(e){
-        logAjouter("btnExport — ERREUR : " + (e && e.message ? e.message : String(e)));
-        toast("Échec de la préparation du fichier — voir le journal");
-      }
+      demanderAccesGoogleDrive(async ()=>{
+        try{
+          const res = await uploaderVersGoogleDrive(nomFichier, contenu, cfg.gdriveFolderId);
+          if(!res.ok){
+            const texteErreur = await res.text().catch(()=>"");
+            logAjouter(`btnExportGDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
+            demanderConfirmation("❌ Échec de l'envoi", `Google Drive a refusé l'envoi (HTTP ${res.status}). ${res.status === 404 ? "Le dossier configuré n'existe peut-être plus ou son identifiant est incorrect — vérifie-le." : "Voir le journal pour le détail complet."}`, ()=>{});
+            return;
+          }
+          const data = await res.json();
+          const compteurApres = exportsDejaRealises + 1;
+          try{ localStorage.setItem(LS_COMPTEUR_EXPORTS_GDRIVE, String(compteurApres)); }catch(e){}
+          logAjouter(`btnExportGDrive — SUCCÈS CONFIRMÉ PAR L'API GOOGLE : « ${data.name} » créé sur Drive (id=${data.id}) — export n°${compteurApres} depuis cet appareil (${exportsDejaRealises} précédemment).`);
+          demanderConfirmation("✅ Envoyé sur Google Drive", `« ${data.name} » a bien été créé sur ton Google Drive — confirmé directement par la réponse de Google (id du fichier : ${data.id}), pas une simple supposition. Export n°${compteurApres} depuis cet appareil (${exportsDejaRealises} précédemment).`, ()=>{});
+        }catch(err){
+          logAjouter("btnExportGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
+          toast("Échec de l'envoi vers Google Drive — voir le journal");
+        }
+      });
     }
   );
 });
+document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
+  const cfg = chargerConfig();
+  if(!cfg.gdriveClientId){ toast("Configure d'abord le Client ID Google Drive, puis « Enregistrer les identifiants »"); return; }
+  demanderAccesGoogleDrive(async ()=>{
+    const conteneur = document.getElementById("gdriveListe");
+    conteneur.style.display = "block";
+    conteneur.innerHTML = `<div class="version-item">Recherche des sauvegardes…</div>`;
+    try{
+      let q = "name contains 'cave-a-vin-' and trashed = false";
+      if(cfg.gdriveFolderId) q += ` and '${cfg.gdriveFolderId}' in parents`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&pageSize=15&fields=files(id,name,createdTime,size)`;
+      const res = await fetch(url, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
+      if(!res.ok){
+        const texteErreur = await res.text().catch(()=>"");
+        logAjouter(`btnVerifierGDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
+        conteneur.innerHTML = `<div class="version-item">Échec de la recherche (HTTP ${res.status}) — voir le journal.</div>`;
+        return;
+      }
+      const data = await res.json();
+      const fichiers = data.files || [];
+      logAjouter(`btnVerifierGDrive — ${fichiers.length} sauvegarde(s) trouvée(s) sur Google Drive.`);
+      if(!fichiers.length){
+        conteneur.innerHTML = `<div class="version-item">Aucune sauvegarde trouvée sur Google Drive${cfg.gdriveFolderId ? " dans le dossier configuré" : ""}.</div>`;
+        return;
+      }
+      conteneur.innerHTML = fichiers.map(f=>{
+        const dateTexte = f.createdTime ? new Date(f.createdTime).toLocaleString("fr-FR") : "Date inconnue";
+        return `<div class="version-item">
+          <span class="v-date">${escapeHtml(dateTexte)}</span>
+          <span class="v-taille">${escapeHtml(f.name)} · ≈ ${escapeHtml(formaterTailleVersion(Number(f.size)||0))}</span>
+          <button type="button" class="btn btn-sm btn-ghost gdrive-verifier-btn" data-id="${f.id}" data-nom="${escapeHtml(f.name)}" data-tt-titre="Vérifier" data-tt-desc="Relit ce fichier depuis Google Drive et le compare, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">Vérifier</button>
+        </div>`;
+      }).join("");
+      conteneur.querySelectorAll(".gdrive-verifier-btn").forEach(b=>{
+        b.addEventListener("click", async ()=>{
+          b.disabled = true;
+          try{
+            const resFichier = await fetch(`https://www.googleapis.com/drive/v3/files/${b.dataset.id}?alt=media`, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
+            if(!resFichier.ok){
+              logAjouter(`btnVerifierGDrive — ÉCHEC lecture « ${b.dataset.nom} » (HTTP ${resFichier.status}).`);
+              toast(`Impossible de relire ce fichier (HTTP ${resFichier.status})`);
+              b.disabled = false;
+              return;
+            }
+            const texte = await resFichier.text();
+            verifierContenuFaceAMemoire(b.dataset.nom, texte);
+          }catch(err){
+            logAjouter("btnVerifierGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
+            toast("Échec de la vérification — voir le journal");
+          }
+          b.disabled = false;
+        });
+      });
+    }catch(err){
+      logAjouter("btnVerifierGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
+      conteneur.innerHTML = `<div class="version-item">Échec de la recherche — voir le journal.</div>`;
+    }
+  });
+});
+
+/* ===================== EXPORT / IMPORT JSON (secours local) ===================== */
 document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("importFile").click());
 /* Comparaison stricte, valeur par valeur, insensible à l'ordre des clés (mais PAS à l'ordre des éléments
    d'un tableau — l'ordre des vins doit rester identique, une vraie sauvegarde ne les réordonne jamais). */
@@ -5232,34 +5380,56 @@ function decrireEcart(liste, memoire){
   }
   return "écart détecté mais non localisable — voir le journal";
 }
+/* Cœur commun de la vérification (local ET Google Drive) : reçoit un texte déjà lu (peu importe la
+   source), le compare au contenu actuellement en mémoire, et affiche le verdict — SANS jamais rien
+   charger ni modifier "bottles". Factorisée en V1.15.1 pour que « Vérifier un fichier local » et
+   « Vérifier une sauvegarde Google Drive » partagent exactement la même logique de comparaison. */
+function verifierContenuFaceAMemoire(nomFichier, texteContenu){
+  let liste;
+  let neSemblePasEtreUneCave = false;
+  try{
+    const data = JSON.parse(texteContenu);
+    if(Array.isArray(data)){
+      liste = data;
+    }else if(data && Array.isArray(data.bottles)){
+      liste = data.bottles;
+    }else{
+      // Ni tableau, ni champ "bottles" présent : quel que soit son contenu, ce n'est pas un export de
+      // cette app — cas vécu réellement (fichier choisi par erreur venant d'une tout autre app, ex.
+      // généalogie), où « 0 vin(s) dans le fichier » pouvait laisser croire à un export vide plutôt
+      // qu'à un fichier qui n'a simplement rien à voir avec la cave à vin.
+      liste = [];
+      neSemblePasEtreUneCave = true;
+    }
+  }catch(err){
+    logAjouter(`verifierContenuFaceAMemoire — ÉCHEC : « ${nomFichier} » n'est pas un JSON valide (${err && err.message ? err.message : err}).`);
+    demanderConfirmation("❌ Vérification impossible", `« ${nomFichier} » n'a pas pu être lu comme un JSON valide. Ce n'est pas un fichier de sauvegarde exploitable — l'export a probablement échoué ou ce n'est pas le bon fichier.`, ()=>{});
+    return;
+  }
+  if(neSemblePasEtreUneCave){
+    logAjouter(`verifierContenuFaceAMemoire — REJETÉ : « ${nomFichier} » n'a ni la forme d'une liste de vins, ni de champ "bottles" — ce n'est pas un export de cette app.`);
+    demanderConfirmation("❌ Ce n'est pas un fichier de cave à vin", `« ${nomFichier} » est un JSON valide, mais il ne contient ni liste de vins, ni champ "bottles" — ce n'est pas un export de cette app (peut-être un fichier d'une autre application ?). Vérifie le nom exact du fichier à choisir : « cave-a-vin-AAAA-MM-JJ.json ».`, ()=>{});
+    return;
+  }
+  const identique = profondementIdentiques(liste, bottles);
+  if(identique){
+    logAjouter(`verifierContenuFaceAMemoire — SUCCÈS CERTIFIÉ : « ${nomFichier} » (${liste.length} vin(s)) correspond exactement, champ par champ, au contenu actuellement en mémoire.`);
+    demanderConfirmation("✅ Sauvegarde vérifiée", `« ${nomFichier} » a été relu et comparé, champ par champ, au contenu actuellement en mémoire (${bottles.length} vin(s)) : correspondance exacte. La sauvegarde de ce fichier est certifiée réussie.`, ()=>{});
+  }else{
+    const ecart = decrireEcart(liste, bottles);
+    logAjouter(`verifierContenuFaceAMemoire — ÉCART DÉTECTÉ : « ${nomFichier} » (${liste.length} vin(s)) ne correspond PAS au contenu actuellement en mémoire (${bottles.length} vin(s)) — ${ecart}.`);
+    demanderConfirmation("⚠️ Ne correspond pas", `« ${nomFichier} » ne correspond PAS exactement au contenu actuellement en mémoire. Premier écart trouvé : ${ecart}. Si tu n'as rien modifié depuis l'export de ce fichier, l'export a probablement échoué : recommence-le. Si tu as modifié la cave depuis, c'est normal : ce fichier reflète l'état d'avant tes derniers changements.`, ()=>{});
+  }
+}
 document.getElementById("btnVerifierExport").addEventListener("click", ()=>document.getElementById("verifierExportFile").click());
 document.getElementById("verifierExportFile").addEventListener("change", function(e){
   const file = e.target.files[0];
   this.value = ""; // permet de resélectionner le même fichier une seconde fois si besoin
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = function(ev){
-    // Relecture pure : "liste" et "data" ne sont jamais affectés à "bottles" ni sauvegardés nulle part —
-    // cette fonction ne modifie rien dans l'app, elle ne fait QUE lire et comparer.
-    let liste;
-    try{
-      const data = JSON.parse(ev.target.result);
-      liste = Array.isArray(data) ? data : (data.bottles || []);
-    }catch(err){
-      logAjouter(`btnVerifierExport — ÉCHEC : « ${file.name} » n'est pas un JSON valide (${err && err.message ? err.message : err}).`);
-      demanderConfirmation("❌ Vérification impossible", `« ${file.name} » n'a pas pu être lu comme un JSON valide. Ce n'est pas un fichier de sauvegarde exploitable — l'export a probablement échoué ou ce n'est pas le bon fichier.`, ()=>{});
-      return;
-    }
-    const identique = profondementIdentiques(liste, bottles);
-    if(identique){
-      logAjouter(`btnVerifierExport — SUCCÈS CERTIFIÉ : « ${file.name} » (${liste.length} vin(s)) correspond exactement, champ par champ, au contenu actuellement en mémoire.`);
-      demanderConfirmation("✅ Sauvegarde vérifiée", `« ${file.name} » a été relu et comparé, champ par champ, au contenu actuellement en mémoire (${bottles.length} vin(s)) : correspondance exacte. La sauvegarde de ce fichier est certifiée réussie.`, ()=>{});
-    }else{
-      const ecart = decrireEcart(liste, bottles);
-      logAjouter(`btnVerifierExport — ÉCART DÉTECTÉ : « ${file.name} » (${liste.length} vin(s)) ne correspond PAS au contenu actuellement en mémoire (${bottles.length} vin(s)) — ${ecart}.`);
-      demanderConfirmation("⚠️ Ne correspond pas", `« ${file.name} » ne correspond PAS exactement au contenu actuellement en mémoire. Premier écart trouvé : ${ecart}. Si tu n'as rien modifié depuis l'export de ce fichier, l'export ou le téléchargement a probablement échoué : recommence-le. Si tu as modifié la cave depuis, c'est normal : ce fichier reflète l'état d'avant tes derniers changements.`, ()=>{});
-    }
-  };
+  // Relecture pure : rien n'est jamais affecté à "bottles" ni sauvegardé nulle part — cette fonction ne
+  // modifie rien dans l'app, elle ne fait QUE lire et comparer (voir verifierContenuFaceAMemoire).
+  reader.onload = ev => verifierContenuFaceAMemoire(file.name, ev.target.result);
   reader.onerror = function(){
     logAjouter(`btnVerifierExport — ÉCHEC : lecture du fichier « ${file.name} » impossible.`);
     toast("Impossible de lire ce fichier — voir le journal");
@@ -5294,6 +5464,8 @@ function remplirChampsConfig(){
   document.getElementById("cfgBranche").value = cfg.branche||"main";
   document.getElementById("cfgChemin").value = cfg.chemin||"cave.json";
   document.getElementById("cfgToken").value = cfg.token||"";
+  document.getElementById("cfgGdriveClientId").value = cfg.gdriveClientId||"";
+  document.getElementById("cfgGdriveFolderId").value = cfg.gdriveFolderId||"";
   if(cfg.derniereSync) document.getElementById("syncStatus").textContent = "Dernière synchronisation : " + cfg.derniereSync;
 }
 function lireChampsConfig(){
@@ -5310,6 +5482,11 @@ document.getElementById("btnSaveCfg").addEventListener("click", function(){
   const cfg = lireChampsConfig();
   const existant = chargerConfig();
   cfg.derniereSync = existant.derniereSync || "";
+  // Ce bouton ne concerne que les champs GitHub (lireChampsConfig()) : on préserve explicitement les
+  // identifiants Google Drive déjà enregistrés, gérés par leur propre bouton juste en dessous — sinon
+  // cliquer ici les effacerait silencieusement.
+  cfg.gdriveClientId = existant.gdriveClientId || "";
+  cfg.gdriveFolderId = existant.gdriveFolderId || "";
   // Garde-fou : si le champ Jeton est vide mais qu'un jeton était déjà enregistré sur cet appareil, on ne
   // l'efface jamais sans confirmation explicite — un champ vide ici est bien plus souvent un oubli ou un
   // souci d'affichage passager qu'une vraie volonté de supprimer le jeton.
@@ -5325,6 +5502,15 @@ document.getElementById("btnSaveCfg").addEventListener("click", function(){
     return;
   }
   const ok = sauvegarderConfig(cfg);
+  feedbackBouton(btn, ok ? "✓ Enregistré" : "⚠ Échec — stockage plein");
+});
+document.getElementById("btnSaveGdriveCfg").addEventListener("click", function(){
+  const btn = this;
+  const existant = chargerConfig();
+  existant.gdriveClientId = document.getElementById("cfgGdriveClientId").value.trim();
+  existant.gdriveFolderId = document.getElementById("cfgGdriveFolderId").value.trim();
+  const ok = sauvegarderConfig(existant);
+  gdriveTokenClient = null; // un changement de Client ID invalide le client d'autorisation déjà initialisé
   feedbackBouton(btn, ok ? "✓ Enregistré" : "⚠ Échec — stockage plein");
 });
 

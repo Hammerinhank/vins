@@ -36,10 +36,10 @@
     "Vallée du Rhône"
   ],
   "groupBy": "aucun",
-  "sortKey": "millesime_desc",
+  "sortKey": "note_desc",
   "filtreStatut": "cave",
   "filtreCouleur": "toutes",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-02T18:57:14.491Z"
+  "maj": "2026-09-02T18:57:19.100Z"
 }

@@ -980,6 +980,7 @@
       <div class="panel-row">
         <button class="btn btn-gold" id="btnExportGDrive" type="button" data-tt-titre="Sauvegarder sur Google Drive" data-tt-desc="Envoie un fichier de secours contenant toute la cave directement vers ton Google Drive, avec confirmation donnée par Google elle-même.">☁️ Sauvegarder sur Google Drive</button>
         <button class="btn" id="btnVerifierGDrive" type="button" data-tt-titre="Vérifier une sauvegarde Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet de relire l'une d'elles pour la comparer, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">🔍 Vérifier une sauvegarde Google Drive</button>
+        <button class="btn" id="btnImporterGDrive" type="button" data-tt-titre="Restaurer depuis Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet d'en restaurer une (remplace la cave actuelle, après confirmation) — sans passer par le sélecteur de fichiers d'Apple.">📥 Restaurer depuis Google Drive</button>
       </div>
       <div class="sync-status" id="gdriveStatus">Non connecté à Google Drive.</div>
       <div class="versions-liste" id="gdriveListe" style="display:none;"></div>
@@ -1562,8 +1563,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.11";
+const VERSION = "1.15.12";
 const HISTORY = [
+  { version:"1.15.12", date:"2026-09-02", notes:"Nouveau bouton « 📥 Restaurer depuis Google Drive », à côté de « Vérifier » — signalé après confusion réelle : « Importer un fichier JSON » ouvrait le sélecteur de fichiers d'Apple, sans lien direct avec Google Drive (il reste volontairement en secours pour restaurer un fichier de n'importe quelle provenance — ancien export local, AirDrop…). Le nouveau bouton liste les sauvegardes récentes directement depuis l'API Google Drive, comme « Vérifier », et chaque entrée propose désormais les deux actions côte à côte : Vérifier (non destructif) ou Restaurer (remplace la cave après confirmation, avec le même contrôle de validité — rejet clair si ce n'est pas un fichier de cave à vin — que partout ailleurs)."},
   { version:"1.15.11", date:"2026-09-02", notes:"Suite à l'analyse d'un log réel : un jeton Google déjà en mémoire pour la session (obtenu lors d'un précédent Sauvegarder/Vérifier) déclenchait quand même une nouvelle demande complète d'autorisation — repassant inutilement par tout le cycle Google (20-90 s) alors qu'un jeton valide était déjà en poche. Il est désormais réutilisé directement. En contrepartie, si ce jeton s'avère expiré (HTTP 401 sur un envoi, une recherche ou une lecture), il est maintenant invalidé automatiquement et le message d'erreur le précise clairement (« le jeton a expiré, réessaie ») — la tentative suivante redemandera alors une vraie autorisation au lieu d'échouer avec un jeton mort. Le seul message encore en toast (échec de lecture d'un fichier lors d'une vérification) est aussi passé en fenêtre modale, pour rester cohérent avec le reste."},
   { version:"1.15.10", date:"2026-09-02", notes:"Corrigé un vrai bug signalé après usage réel : le fichier était bien créé sur Google Drive, mais le message d'échec restait affiché quand même. Cause : le minuteur d'attente de réponse de Google était fixé à 20 secondes — trop court pour une toute première autorisation, qui demande souvent de choisir le compte et de valider l'écran « application non validée » (normal en mode Test), dépassant facilement ce délai. Résultat : le message d'échec s'affichait AVANT que Google ait fini de répondre, alors que l'autorisation aboutissait juste après. Minuteur porté à 90 secondes, et surtout : si la réponse arrive quand même après ce message, elle est prise en compte normalement et un message le confirme clairement (« Finalement autorisé par Google, malgré le message précédent »), au lieu de laisser l'avertissement comme dernier mot trompeur."},
   { version:"1.15.9", date:"2026-09-02", notes:"Le champ « Dossier Drive » accepte désormais aussi de coller directement l'URL complète du dossier ouvert dans Google Drive (ex. https://drive.google.com/drive/folders/198YfOk62qtP01BcNJYmvCHXwGjNwwrMa, avec ou sans /u/N/, avec ou sans paramètres après l'identifiant) — l'identifiant en est extrait automatiquement à l'enregistrement, et le champ est mis à jour pour afficher ce qui a réellement été compris. Un identifiant déjà « propre » (sans URL) continue de fonctionner tel quel."},
@@ -5403,6 +5405,78 @@ document.getElementById("btnExportGDrive").addEventListener("click", ()=>{
     }
   );
 });
+/* Recherche les sauvegardes récentes sur Google Drive et affiche la liste, chaque entrée proposant deux
+   actions : Vérifier (comparaison non destructive, voir verifierContenuFaceAMemoire) et Restaurer
+   (remplace la cave, voir importerContenuJson) — partagée par « Vérifier » et « Restaurer depuis Google
+   Drive », qui déclenchent exactement la même recherche. */
+async function chargerListeGoogleDrive(){
+  const cfg = chargerConfig();
+  const conteneur = document.getElementById("gdriveListe");
+  conteneur.style.display = "block";
+  conteneur.innerHTML = `<div class="version-item">Recherche des sauvegardes…</div>`;
+  try{
+    let q = "name contains 'cave-a-vin-' and trashed = false";
+    if(cfg.gdriveFolderId) q += ` and '${cfg.gdriveFolderId}' in parents`;
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&pageSize=15&fields=files(id,name,createdTime,size)`;
+    const res = await fetch(url, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
+    if(!res.ok){
+      const texteErreur = await res.text().catch(()=>"");
+      logAjouter(`chargerListeGoogleDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
+      const suffixeAuth = gererEchecAuthGoogleDrive(res.status);
+      conteneur.innerHTML = `<div class="version-item">Échec de la recherche (HTTP ${res.status}) — voir le journal.</div>`;
+      demanderConfirmation("❌ Échec de la recherche", `Google Drive a refusé la recherche des sauvegardes (HTTP ${res.status}).${suffixeAuth}${suffixeAuth ? "" : cfg.gdriveFolderId ? " Le dossier configuré (\"" + cfg.gdriveFolderId + "\") n'existe peut-être plus, ou son identifiant est incorrect — vérifie-le." : " Détail complet dans le journal."}`, ()=>{});
+      return;
+    }
+    const data = await res.json();
+    const fichiers = data.files || [];
+    logAjouter(`chargerListeGoogleDrive — ${fichiers.length} sauvegarde(s) trouvée(s) sur Google Drive.`);
+    if(!fichiers.length){
+      conteneur.innerHTML = `<div class="version-item">Aucune sauvegarde trouvée sur Google Drive${cfg.gdriveFolderId ? " dans le dossier configuré" : ""}.</div>`;
+      return;
+    }
+    conteneur.innerHTML = fichiers.map(f=>{
+      const dateTexte = f.createdTime ? new Date(f.createdTime).toLocaleString("fr-FR") : "Date inconnue";
+      return `<div class="version-item">
+        <span class="v-date">${escapeHtml(dateTexte)}</span>
+        <span class="v-taille">${escapeHtml(f.name)} · ≈ ${escapeHtml(formaterTailleVersion(Number(f.size)||0))}</span>
+        <button type="button" class="btn btn-sm btn-ghost gdrive-verifier-btn" data-id="${f.id}" data-nom="${escapeHtml(f.name)}" data-tt-titre="Vérifier" data-tt-desc="Relit ce fichier depuis Google Drive et le compare, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">Vérifier</button>
+        <button type="button" class="btn btn-sm btn-ghost gdrive-restaurer-btn" data-id="${f.id}" data-nom="${escapeHtml(f.name)}" data-tt-titre="Restaurer" data-tt-desc="Télécharge ce fichier depuis Google Drive et remplace la cave actuelle par son contenu, après confirmation.">📥 Restaurer</button>
+      </div>`;
+    }).join("");
+    conteneur.querySelectorAll(".gdrive-verifier-btn").forEach(b=>{
+      b.addEventListener("click", ()=>lireEtTraiterFichierGoogleDrive(b, verifierContenuFaceAMemoire));
+    });
+    conteneur.querySelectorAll(".gdrive-restaurer-btn").forEach(b=>{
+      b.addEventListener("click", ()=>lireEtTraiterFichierGoogleDrive(b, importerContenuJson));
+    });
+  }catch(err){
+    logAjouter("chargerListeGoogleDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
+    conteneur.innerHTML = `<div class="version-item">Échec de la recherche — voir le journal.</div>`;
+    demanderConfirmation("❌ Échec de la recherche", `La recherche des sauvegardes sur Google Drive a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
+  }
+}
+/* Télécharge le contenu d'un fichier Google Drive précis (bouton "Vérifier" ou "Restaurer" d'une entrée de
+   la liste), puis le confie à la fonction de traitement demandée (verifierContenuFaceAMemoire, non
+   destructive, ou importerContenuJson, qui remplace la cave après confirmation). */
+async function lireEtTraiterFichierGoogleDrive(bouton, traiter){
+  bouton.disabled = true;
+  try{
+    const resFichier = await fetch(`https://www.googleapis.com/drive/v3/files/${bouton.dataset.id}?alt=media`, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
+    if(!resFichier.ok){
+      logAjouter(`lireEtTraiterFichierGoogleDrive — ÉCHEC lecture « ${bouton.dataset.nom} » (HTTP ${resFichier.status}).`);
+      const suffixeAuth = gererEchecAuthGoogleDrive(resFichier.status);
+      demanderConfirmation("❌ Échec de la lecture", `Impossible de relire « ${bouton.dataset.nom} » (HTTP ${resFichier.status}).${suffixeAuth || " Voir le journal pour le détail complet."}`, ()=>{});
+      bouton.disabled = false;
+      return;
+    }
+    const texte = await resFichier.text();
+    traiter(bouton.dataset.nom, texte);
+  }catch(err){
+    logAjouter("lireEtTraiterFichierGoogleDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
+    demanderConfirmation("❌ Échec", `La lecture de « ${bouton.dataset.nom} » a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
+  }
+  bouton.disabled = false;
+}
 document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
   const cfg = chargerConfig();
   logAjouter(`btnVerifierGDrive — clic. Client ID présent=${!!cfg.gdriveClientId} · dossier configuré=${cfg.gdriveFolderId ? "\"" + cfg.gdriveFolderId + "\"" : "(aucun)"}.`);
@@ -5410,65 +5484,16 @@ document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
     demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
     return;
   }
-  demanderAccesGoogleDrive(async ()=>{
-    const conteneur = document.getElementById("gdriveListe");
-    conteneur.style.display = "block";
-    conteneur.innerHTML = `<div class="version-item">Recherche des sauvegardes…</div>`;
-    try{
-      let q = "name contains 'cave-a-vin-' and trashed = false";
-      if(cfg.gdriveFolderId) q += ` and '${cfg.gdriveFolderId}' in parents`;
-      const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&pageSize=15&fields=files(id,name,createdTime,size)`;
-      const res = await fetch(url, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
-      if(!res.ok){
-        const texteErreur = await res.text().catch(()=>"");
-        logAjouter(`btnVerifierGDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
-        const suffixeAuth = gererEchecAuthGoogleDrive(res.status);
-        conteneur.innerHTML = `<div class="version-item">Échec de la recherche (HTTP ${res.status}) — voir le journal.</div>`;
-        demanderConfirmation("❌ Échec de la recherche", `Google Drive a refusé la recherche des sauvegardes (HTTP ${res.status}).${suffixeAuth}${suffixeAuth ? "" : cfg.gdriveFolderId ? " Le dossier configuré (\"" + cfg.gdriveFolderId + "\") n'existe peut-être plus, ou son identifiant est incorrect — vérifie-le." : " Détail complet dans le journal."}`, ()=>{});
-        return;
-      }
-      const data = await res.json();
-      const fichiers = data.files || [];
-      logAjouter(`btnVerifierGDrive — ${fichiers.length} sauvegarde(s) trouvée(s) sur Google Drive.`);
-      if(!fichiers.length){
-        conteneur.innerHTML = `<div class="version-item">Aucune sauvegarde trouvée sur Google Drive${cfg.gdriveFolderId ? " dans le dossier configuré" : ""}.</div>`;
-        return;
-      }
-      conteneur.innerHTML = fichiers.map(f=>{
-        const dateTexte = f.createdTime ? new Date(f.createdTime).toLocaleString("fr-FR") : "Date inconnue";
-        return `<div class="version-item">
-          <span class="v-date">${escapeHtml(dateTexte)}</span>
-          <span class="v-taille">${escapeHtml(f.name)} · ≈ ${escapeHtml(formaterTailleVersion(Number(f.size)||0))}</span>
-          <button type="button" class="btn btn-sm btn-ghost gdrive-verifier-btn" data-id="${f.id}" data-nom="${escapeHtml(f.name)}" data-tt-titre="Vérifier" data-tt-desc="Relit ce fichier depuis Google Drive et le compare, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">Vérifier</button>
-        </div>`;
-      }).join("");
-      conteneur.querySelectorAll(".gdrive-verifier-btn").forEach(b=>{
-        b.addEventListener("click", async ()=>{
-          b.disabled = true;
-          try{
-            const resFichier = await fetch(`https://www.googleapis.com/drive/v3/files/${b.dataset.id}?alt=media`, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
-            if(!resFichier.ok){
-              logAjouter(`btnVerifierGDrive — ÉCHEC lecture « ${b.dataset.nom} » (HTTP ${resFichier.status}).`);
-              const suffixeAuth = gererEchecAuthGoogleDrive(resFichier.status);
-              demanderConfirmation("❌ Échec de la lecture", `Impossible de relire « ${b.dataset.nom} » (HTTP ${resFichier.status}).${suffixeAuth || " Voir le journal pour le détail complet."}`, ()=>{});
-              b.disabled = false;
-              return;
-            }
-            const texte = await resFichier.text();
-            verifierContenuFaceAMemoire(b.dataset.nom, texte);
-          }catch(err){
-            logAjouter("btnVerifierGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
-            demanderConfirmation("❌ Échec de la vérification", `La lecture de « ${b.dataset.nom} » a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
-          }
-          b.disabled = false;
-        });
-      });
-    }catch(err){
-      logAjouter("btnVerifierGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
-      conteneur.innerHTML = `<div class="version-item">Échec de la recherche — voir le journal.</div>`;
-      demanderConfirmation("❌ Échec de la recherche", `La recherche des sauvegardes sur Google Drive a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
-    }
-  });
+  demanderAccesGoogleDrive(chargerListeGoogleDrive);
+});
+document.getElementById("btnImporterGDrive").addEventListener("click", ()=>{
+  const cfg = chargerConfig();
+  logAjouter(`btnImporterGDrive — clic. Client ID présent=${!!cfg.gdriveClientId} · dossier configuré=${cfg.gdriveFolderId ? "\"" + cfg.gdriveFolderId + "\"" : "(aucun)"}.`);
+  if(!cfg.gdriveClientId){
+    demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
+    return;
+  }
+  demanderAccesGoogleDrive(chargerListeGoogleDrive);
 });
 
 /* ===================== EXPORT / IMPORT JSON (secours local) ===================== */
@@ -5583,22 +5608,36 @@ document.getElementById("verifierExportFile").addEventListener("change", functio
   };
   reader.readAsText(file);
 });
+/* Parse et valide un contenu JSON candidat à l'import (local ou Google Drive), puis demande confirmation
+   avant de remplacer la cave actuelle — jamais d'import silencieux, quelle que soit la provenance. */
+function importerContenuJson(nomFichier, texteContenu){
+  let liste;
+  try{
+    const data = JSON.parse(texteContenu);
+    liste = Array.isArray(data) ? data : (Array.isArray(data.bottles) ? data.bottles : null);
+  }catch(err){
+    logAjouter(`importerContenuJson — ÉCHEC : « ${nomFichier} » n'est pas un JSON valide (${err && err.message ? err.message : err}).`);
+    demanderConfirmation("❌ Import impossible", `« ${nomFichier} » n'a pas pu être lu comme un JSON valide.`, ()=>{});
+    return;
+  }
+  if(!liste){
+    logAjouter(`importerContenuJson — REJETÉ : « ${nomFichier} » n'a ni la forme d'une liste de vins, ni de champ "bottles" — ce n'est pas un export de cette app.`);
+    demanderConfirmation("❌ Ce n'est pas un fichier de cave à vin", `« ${nomFichier} » est un JSON valide, mais il ne contient ni liste de vins, ni champ "bottles" — ce n'est pas un export de cette app.`, ()=>{});
+    return;
+  }
+  demanderConfirmation("Importer la sauvegarde", `Remplacer la cave actuelle (${bottles.length} vin(s)) par ${liste.length} vin(s) importé(s) depuis « ${nomFichier} » ?`, ()=>{
+    bottles = liste;
+    sauvegarderBouteilles();
+    rafraichirTout();
+    logAjouter(`importerContenuJson — import terminé : ${liste.length} vin(s) depuis « ${nomFichier} ».`);
+    toast("Import terminé");
+  });
+}
 document.getElementById("importFile").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = function(ev){
-    try{
-      const data = JSON.parse(ev.target.result);
-      const liste = Array.isArray(data) ? data : (data.bottles || []);
-      demanderConfirmation("Importer la sauvegarde", `Remplacer la cave actuelle (${bottles.length} vin(s)) par ${liste.length} vin(s) importé(s) ?`, ()=>{
-        bottles = liste;
-        sauvegarderBouteilles();
-        rafraichirTout();
-        toast("Import terminé");
-      });
-    }catch(err){ toast("Fichier JSON invalide"); }
-  };
+  reader.onload = ev => importerContenuJson(file.name, ev.target.result);
   reader.readAsText(file);
   e.target.value = "";
 });

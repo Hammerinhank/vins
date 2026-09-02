@@ -953,6 +953,11 @@
         <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON précédemment exporté.">Importer un JSON</button>
         <input type="file" id="importFile" accept="application/json" style="display:none">
       </div>
+      <p class="panel-note">Aucune vérification n'est possible tant que le fichier n'a pas été relu : Safari ne permet pas de le confirmer automatiquement après un export. Choisis le fichier tout juste téléchargé pour une preuve certaine.</p>
+      <div class="panel-row">
+        <button class="btn btn-sm" id="btnVerifierExport" type="button" data-tt-titre="Vérifier un fichier exporté" data-tt-desc="Relit un fichier JSON et le compare exactement au contenu actuellement en mémoire, SANS jamais remplacer la cave. En cas de correspondance parfaite, la sauvegarde de ce fichier est certifiée réussie.">🔍 Vérifier un fichier exporté</button>
+        <input type="file" id="verifierExportFile" accept="application/json" style="display:none">
+      </div>
     </div>
   </details>
 </div>
@@ -1523,8 +1528,11 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.14.6";
+const VERSION = "1.14.9";
 const HISTORY = [
+  { version:"1.14.9", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » précise désormais, en cas d'écart, exactement quel champ diffère (ex. « Crémant de Bourgogne (position 3) — champ .quantite : « 12 » dans le fichier contre « 11 » en mémoire ») au lieu de se limiter au nombre de vins. La comparaison elle-même n'a pas changé : elle a toujours porté sur toutes les fiches, champ par champ, pas seulement leur nombre — seul le message d'écart manquait de précision."},
+  { version:"1.14.8", date:"2026-09-02", notes:"Nouveau bouton « 🔍 Vérifier un fichier exporté » (Sauvegarde locale) : relit un fichier JSON choisi et le compare, champ par champ, au contenu actuellement en mémoire — SANS jamais le charger ni remplacer la cave, à la différence d'« Importer un JSON ». En cas de correspondance exacte, un message certifie sans ambiguïté que la sauvegarde de ce fichier a réussi. En cas d'écart, un message l'indique clairement, avec le nombre de vins de chaque côté, et rappelle qu'un écart est normal si la cave a été modifiée depuis l'export de ce fichier. Répond à une vraie limite signalée : jusqu'ici, rien ne garantissait qu'un export « réussi » selon l'app avait vraiment abouti à un fichier exploitable sur le disque — Safari ne permettant pas de le vérifier automatiquement, seule une relecture manuelle et une comparaison stricte peuvent réellement le certifier."},
+  { version:"1.14.7", date:"2026-09-02", notes:"« Exporter en JSON » tient désormais un compteur « avant/après » du nombre d'exports réussis depuis cet appareil (localStorage), mentionné dans le message de confirmation avant l'export puis dans le rappel après (« Export n°N depuis cet appareil, N-1 précédemment »). Important : Safari interdisant à une page web de lire le dossier Téléchargements, ce n'est PAS une vérification du fichier réellement présent sur le disque — seulement le nombre de fois où ce bouton a réussi depuis cet appareil, propre à ce navigateur (remis à zéro si les données du site sont effacées, ou différent sur un autre appareil)."},
   { version:"1.14.6", date:"2026-09-02", notes:"Correction du message d'« Exporter en JSON » (v1.14.5) : il décrivait le partage iOS classique (Fichiers/iCloud/Mail/AirDrop), qui n'est pas ce qui s'affiche réellement sur ce site — Safari montre sa propre popup native, plus simple, avec seulement deux boutons « Afficher » / « Télécharger ». Le message avant export, la note du panneau et le rappel après export décrivent désormais cette popup telle qu'elle apparaît réellement, et indiquent clairement de toucher « Télécharger » (pas « Afficher », qui n'enregistre rien)."},
   { version:"1.14.5", date:"2026-09-01", notes:"« Exporter en JSON » (Sauvegarde locale) : le bouton ouvrait directement la fenêtre native de partage/enregistrement du téléphone, sans aucune explication ni confirmation — ce qui pouvait sembler incompréhensible. Un message explicatif s'affiche désormais avant, décrivant ce qui va se passer et recommandant l'option « Enregistrer dans Fichiers » pour un usage courant (ou une autre option — Mail, AirDrop… — pour partager ailleurs). Une confirmation (avec le nom du fichier) s'affiche après la préparation réussie, avec gestion d'erreur et entrée de journal en cas d'échec, comme le reste de l'app."},
   { version:"1.14.4", date:"2026-09-01", notes:"Nouvelle case à cocher « Mentionner les emplacements » sur la page PDF, cochée par défaut. Décochée, le rapport « Vins en cave par région » redevient strictement identique à ce qu'il était avant l'ajout des emplacements en V1.14.3 (titre région/couleur seul, jamais de sous-rubrique, quel que soit le nombre d'emplacements réellement présents) — la gestion du singulier/pluriel, elle, reste appliquée dans tous les cas."},
@@ -1786,6 +1794,9 @@ async function nettoyerLogSiAncien(cfg){
   }
 }
 const LS_SYNC_DIRTY = "cave_sync_dirty_v1";
+const LS_COMPTEUR_EXPORTS_JSON = "cave_compteur_exports_json_v1"; // nombre d'exports JSON réussis depuis
+  // cet appareil (voir btnExport) — PAS un compte réel de fichiers dans Téléchargements : Safari interdit
+  // à une page web de lire ce dossier. C'est le meilleur "avant/après" honnêtement disponible.
 const LS_COMPTEUR_NUMERO = "cave_compteur_numero_v1";
 const LS_DERNIER_EMPLACEMENT = "cave_dernier_emplacement_v1";
 const LS_INSTANCE_ID = "cave_instance_id_v1";
@@ -5136,9 +5147,10 @@ document.getElementById("closeHistory").addEventListener("click", ()=>document.g
 /* ===================== EXPORT / IMPORT JSON ===================== */
 document.getElementById("btnExport").addEventListener("click", ()=>{
   const nomFichier = "cave-a-vin-"+todayISO()+".json";
+  const exportsDejaRealises = parseInt(localStorage.getItem(LS_COMPTEUR_EXPORTS_JSON)||"0", 10) || 0;
   demanderConfirmation(
     "Exporter la cave en JSON",
-    `Un fichier « ${nomFichier} » contenant toute la cave (${bottles.length} vin(s)) va être préparé. Safari va ensuite demander : « Voulez-vous télécharger "${nomFichier}" sur "${window.location.hostname}" ? » avec deux boutons — touche « Télécharger » pour l'enregistrer réellement (il ira dans le dossier Téléchargements de Safari, accessible via l'icône ⬇️ dans la barre d'adresse, ou dans l'app Fichiers). « Afficher » se contente d'ouvrir son contenu à l'écran, sans rien enregistrer. Une fois téléchargé, ce fichier permet de tout restaurer plus tard via « Importer un JSON ».`,
+    `Un fichier « ${nomFichier} » contenant toute la cave (${bottles.length} vin(s)) va être préparé${exportsDejaRealises ? " — ce sera le n°" + (exportsDejaRealises+1) + " depuis cet appareil (" + exportsDejaRealises + " précédemment)" : ""}. Safari va ensuite demander : « Voulez-vous télécharger "${nomFichier}" sur "${window.location.hostname}" ? » avec deux boutons — touche « Télécharger » pour l'enregistrer réellement (il ira dans le dossier Téléchargements de Safari, accessible via l'icône ⬇️ dans la barre d'adresse, ou dans l'app Fichiers). « Afficher » se contente d'ouvrir son contenu à l'écran, sans rien enregistrer. Une fois téléchargé, ce fichier permet de tout restaurer plus tard via « Importer un JSON ».`,
     ()=>{
       try{
         const blob = new Blob([JSON.stringify({ bottles, exportedAt: new Date().toISOString() }, null, 2)], {type:"application/json"});
@@ -5150,8 +5162,14 @@ document.getElementById("btnExport").addEventListener("click", ()=>{
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        logAjouter(`btnExport — fichier de secours préparé : ${nomFichier} (${bottles.length} vin(s)).`);
-        toast(`Dans la fenêtre Safari qui s'ouvre, touche « Télécharger » (pas « Afficher ») pour enregistrer « ${nomFichier} ».`);
+        // Compteur interne "avant/après" — voir la déclaration de LS_COMPTEUR_EXPORTS_JSON : ce n'est PAS
+        // une vérification du fichier réellement présent dans Téléchargements (impossible depuis une page
+        // web), seulement le nombre d'exports réussis depuis cet appareil.
+        const compteurAvant = parseInt(localStorage.getItem(LS_COMPTEUR_EXPORTS_JSON)||"0", 10) || 0;
+        const compteurApres = compteurAvant + 1;
+        try{ localStorage.setItem(LS_COMPTEUR_EXPORTS_JSON, String(compteurApres)); }catch(e){ /* purement informatif, tant pis si ça échoue */ }
+        logAjouter(`btnExport — fichier de secours préparé : ${nomFichier} (${bottles.length} vin(s)) — export n°${compteurApres} depuis cet appareil (${compteurAvant} précédemment).`);
+        toast(`Export n°${compteurApres} depuis cet appareil (${compteurAvant} précédemment). Dans la fenêtre Safari qui s'ouvre, touche « Télécharger » (pas « Afficher ») pour enregistrer « ${nomFichier} ».`);
       }catch(e){
         logAjouter("btnExport — ERREUR : " + (e && e.message ? e.message : String(e)));
         toast("Échec de la préparation du fichier — voir le journal");
@@ -5160,6 +5178,94 @@ document.getElementById("btnExport").addEventListener("click", ()=>{
   );
 });
 document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("importFile").click());
+/* Comparaison stricte, valeur par valeur, insensible à l'ordre des clés (mais PAS à l'ordre des éléments
+   d'un tableau — l'ordre des vins doit rester identique, une vraie sauvegarde ne les réordonne jamais). */
+function profondementIdentiques(a, b){
+  if(a === b) return true;
+  if(Array.isArray(a) || Array.isArray(b)){
+    if(!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v,i)=>profondementIdentiques(v, b[i]));
+  }
+  if(a && b && typeof a === "object" && typeof b === "object"){
+    const clesA = Object.keys(a), clesB = Object.keys(b);
+    if(clesA.length !== clesB.length) return false;
+    return clesA.every(c=>Object.prototype.hasOwnProperty.call(b,c) && profondementIdentiques(a[c], b[c]));
+  }
+  return false;
+}
+/* Localise le PREMIER champ qui diffère entre deux valeurs (utilisée uniquement pour expliquer un écart
+   déjà détecté par profondementIdentiques — jamais pour décider elle-même du verdict), en descendant
+   récursivement jusqu'à la valeur elle-même plutôt que de s'arrêter à "cet objet diffère". */
+function premierChampDifferent(a, b, chemin){
+  if(a === b) return null;
+  if(Array.isArray(a) || Array.isArray(b)){
+    if(!Array.isArray(a) || !Array.isArray(b)) return { chemin, valeurFichier:a, valeurMemoire:b };
+    if(a.length !== b.length) return { chemin: chemin + " (nombre d'éléments)", valeurFichier:a.length, valeurMemoire:b.length };
+    for(let i=0;i<a.length;i++){
+      const d = premierChampDifferent(a[i], b[i], `${chemin}[${i}]`);
+      if(d) return d;
+    }
+    return null;
+  }
+  if(a && b && typeof a === "object" && typeof b === "object"){
+    const cles = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for(const c of cles){
+      const d = premierChampDifferent(a[c], b[c], chemin ? `${chemin}.${c}` : c);
+      if(d) return d;
+    }
+    return null;
+  }
+  return { chemin, valeurFichier:a, valeurMemoire:b };
+}
+/* Décrit en une phrase lisible le premier écart entre le fichier relu et la cave en mémoire, en
+   remontant au nom du vin concerné quand la position identifiée correspond à une fiche. */
+function decrireEcart(liste, memoire){
+  if(liste.length !== memoire.length){
+    return `nombre de vins différent : ${liste.length} dans le fichier contre ${memoire.length} en mémoire`;
+  }
+  for(let i=0;i<liste.length;i++){
+    const d = premierChampDifferent(liste[i], memoire[i], "");
+    if(d){
+      const nom = (memoire[i] && memoire[i].nom) || (liste[i] && liste[i].nom) || "vin sans nom";
+      return `« ${nom} » (position ${i+1}) — champ${d.chemin} : « ${d.valeurFichier} » dans le fichier contre « ${d.valeurMemoire} » en mémoire`;
+    }
+  }
+  return "écart détecté mais non localisable — voir le journal";
+}
+document.getElementById("btnVerifierExport").addEventListener("click", ()=>document.getElementById("verifierExportFile").click());
+document.getElementById("verifierExportFile").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  this.value = ""; // permet de resélectionner le même fichier une seconde fois si besoin
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    // Relecture pure : "liste" et "data" ne sont jamais affectés à "bottles" ni sauvegardés nulle part —
+    // cette fonction ne modifie rien dans l'app, elle ne fait QUE lire et comparer.
+    let liste;
+    try{
+      const data = JSON.parse(ev.target.result);
+      liste = Array.isArray(data) ? data : (data.bottles || []);
+    }catch(err){
+      logAjouter(`btnVerifierExport — ÉCHEC : « ${file.name} » n'est pas un JSON valide (${err && err.message ? err.message : err}).`);
+      demanderConfirmation("❌ Vérification impossible", `« ${file.name} » n'a pas pu être lu comme un JSON valide. Ce n'est pas un fichier de sauvegarde exploitable — l'export a probablement échoué ou ce n'est pas le bon fichier.`, ()=>{});
+      return;
+    }
+    const identique = profondementIdentiques(liste, bottles);
+    if(identique){
+      logAjouter(`btnVerifierExport — SUCCÈS CERTIFIÉ : « ${file.name} » (${liste.length} vin(s)) correspond exactement, champ par champ, au contenu actuellement en mémoire.`);
+      demanderConfirmation("✅ Sauvegarde vérifiée", `« ${file.name} » a été relu et comparé, champ par champ, au contenu actuellement en mémoire (${bottles.length} vin(s)) : correspondance exacte. La sauvegarde de ce fichier est certifiée réussie.`, ()=>{});
+    }else{
+      const ecart = decrireEcart(liste, bottles);
+      logAjouter(`btnVerifierExport — ÉCART DÉTECTÉ : « ${file.name} » (${liste.length} vin(s)) ne correspond PAS au contenu actuellement en mémoire (${bottles.length} vin(s)) — ${ecart}.`);
+      demanderConfirmation("⚠️ Ne correspond pas", `« ${file.name} » ne correspond PAS exactement au contenu actuellement en mémoire. Premier écart trouvé : ${ecart}. Si tu n'as rien modifié depuis l'export de ce fichier, l'export ou le téléchargement a probablement échoué : recommence-le. Si tu as modifié la cave depuis, c'est normal : ce fichier reflète l'état d'avant tes derniers changements.`, ()=>{});
+    }
+  };
+  reader.onerror = function(){
+    logAjouter(`btnVerifierExport — ÉCHEC : lecture du fichier « ${file.name} » impossible.`);
+    toast("Impossible de lire ce fichier — voir le journal");
+  };
+  reader.readAsText(file);
+});
 document.getElementById("importFile").addEventListener("change", function(e){
   const file = e.target.files[0];
   if(!file) return;

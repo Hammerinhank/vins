@@ -1561,8 +1561,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.3";
+const VERSION = "1.15.4";
 const HISTORY = [
+  { version:"1.15.4", date:"2026-09-02", notes:"Dans la grille principale, quand un regroupement est actif (par région, emplacement, couleur…), les vins de chaque groupe sont désormais toujours classés par ordre alphabétique du nom — indépendamment du tri global sélectionné (millésime, note, prix, ajout récent…), qui continue de s'appliquer normalement à la liste non groupée. La page « Liste des vins » et le rapport PDF « Vins en cave par région » étaient déjà alphabétiques, seule la grille groupée ne l'était pas."},
   { version:"1.15.3", date:"2026-09-02", notes:"Vue compacte : le nom de chaque vin est désormais suivi du nombre de bouteilles entre parenthèses (ex. « Château Margaux (3b) »)."},
   { version:"1.15.2", date:"2026-09-02", notes:"Nouvelle case « ☰ Vue compacte » dans la barre d'outils, à côté de « Avec photo ». Cochée, chaque vin de la liste se réduit à une seule ligne — uniquement le nom et le domaine, tout le reste (photo, note, prix, tags, quantité, boutons) disparaît. Un nom ou un domaine trop long pour tenir sur une ligne passe exceptionnellement sur une deuxième (retour à la ligne naturel, jamais de troncature ni de « … » qui cacherait une partie du texte). Persistée et synchronisée sur GitHub comme les autres préférences d'affichage (avecPhoto, groupBy…)."},
   { version:"1.15.1", date:"2026-09-02", notes:"Remplace la sauvegarde locale (téléchargement Safari) par une vraie intégration Google Drive, dans Paramètres → Sauvegarde Google Drive. « ☁️ Sauvegarder sur Google Drive » envoie le fichier directement via l'API Google (scope drive.file : uniquement les fichiers créés par cette app, jamais le reste du Drive) — la confirmation est désormais donnée par la réponse de Google elle-même (id du fichier créé), pas une supposition sur ce que Safari a bien voulu faire. « 🔍 Vérifier une sauvegarde Google Drive » liste les sauvegardes récentes et permet d'en relire une pour la comparer, champ par champ, au contenu en mémoire — même logique et mêmes messages que la vérification locale (factorisée en une seule fonction commune, verifierContenuFaceAMemoire). Un dossier Drive dédié est optionnel (champ « Dossier Drive »). « Importer un fichier JSON » et « Vérifier un fichier local » sont conservés tels quels, en secours, pour rester capable de restaurer un fichier reçu autrement (AirDrop, ancien export...). — Mise en place, à faire une seule fois sur console.cloud.google.com : 1) Créer un projet (gratuit). 2) Menu ☰ → API et services → Bibliothèque → chercher « Google Drive API » → Activer. 3) API et services → Identifiants → Créer des identifiants → ID client OAuth → type « Application Web » → sous « Origines JavaScript autorisées », ajouter https://hammerinhank.github.io (sans / final) → Créer. 4) Copier le Client ID généré (se termine par .apps.googleusercontent.com, aucun mot de passe/clé secrète nécessaire pour ce type d'usage) et le coller dans Paramètres → Sauvegarde Google Drive → Client ID Google. 5) Écran de consentement OAuth (API et services → Écran de consentement) : type « Externe », rester en mode « Test » et s'ajouter soi-même comme utilisateur test (évite toute procédure de vérification Google, inutile pour un usage strictement personnel). Dossier Drive optionnel : ouvrir le dossier voulu sur drive.google.com, copier la suite de caractères à la fin de l'URL (après le dernier /) dans le champ « Dossier Drive »."},
@@ -2977,6 +2978,11 @@ function renderGrille(){
       (groupes[g.label] = groupes[g.label] || []).push(b);
       if(g.couleurKey) couleurParGroupe[g.label] = g.couleurKey;
     });
+    // Au sein de chaque groupe, toujours par ordre alphabétique du nom du vin — indépendamment du tri
+    // choisi (millésime, note, prix…), qui ne s'applique qu'à la liste non groupée. Un regroupement sert à
+    // organiser par catégorie ; à l'intérieur d'une catégorie, l'ordre alphabétique reste le plus naturel
+    // pour repérer un vin, quel que soit le tri global sélectionné par ailleurs.
+    Object.keys(groupes).forEach(g => groupes[g].sort((a,b)=>(a.nom||"").localeCompare(b.nom||"", "fr")));
     wrap.innerHTML = Object.keys(groupes).sort((a,b)=>a.localeCompare(b,"fr")).map(g => {
       const couleurKey = couleurParGroupe[g];
       const styleBarre = couleurKey

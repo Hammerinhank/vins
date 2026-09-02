@@ -783,11 +783,12 @@
 
   .toast{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    max-width:min(92vw, 420px);
     background:var(--bg-panel-2);border:3px double var(--orange);color:var(--text);
-    padding:10px 18px;border-radius:999px;font-size:13px;
+    padding:10px 18px;border-radius:16px;font-size:13px;
     box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;
     transition:opacity .2s ease;
-    display:flex;align-items:baseline;gap:8px;
+    display:flex;align-items:flex-start;gap:8px;
   }
   .toast.show{opacity:1;}
   .heure-message{
@@ -1561,8 +1562,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.6";
+const VERSION = "1.15.7";
 const HISTORY = [
+  { version:"1.15.7", date:"2026-09-02", notes:"Corrigé un vrai bug d'affichage introduit en v1.15.6 : le toast avait border-radius:999px (pilule), pensé pour un texte court sur une ligne — avec un message long qui s'enroule sur plusieurs lignes (plusieurs des miens le sont), la largeur et la hauteur devenaient comparables et la pilule se transformait en cercle, texte débordant largement à l'extérieur du cadre. border-radius fixé à 16px (rectangle arrondi classique, ne dégénère jamais en cercle) et une largeur maximale ajoutée (92% de l'écran, 420px au plus) pour que le texte s'enroule proprement au lieu de s'étirer sans limite."},
   { version:"1.15.6", date:"2026-09-02", notes:"Liseré orange double (border-style « double », 2 traits parallèles) sur tous les messages en superposition en bas de l'écran : les toasts (bulle éphémère) et toutes les fenêtres de confirmation/info (demanderConfirmation — envoi, vérification, restauration, conflit…). La fiche d'édition (#overlayFiche), qui n'est pas un message mais le formulaire complet d'édition d'un vin, garde son propre liseré distinct (rose vif) déjà en place."},
   { version:"1.15.5", date:"2026-09-02", notes:"Vue compacte : l'encadré bleu signalant une fiche multi-emplacement (regroupement « par emplacement », vin réparti sur plusieurs endroits) manquait — oublié lors de l'ajout de la vue compacte (v1.15.2). Ajouté, même classe et même couleur que sur les cartes normales."},
   { version:"1.15.4", date:"2026-09-02", notes:"Dans la grille principale, quand un regroupement est actif (par région, emplacement, couleur…), les vins de chaque groupe sont désormais toujours classés par ordre alphabétique du nom — indépendamment du tri global sélectionné (millésime, note, prix, ajout récent…), qui continue de s'appliquer normalement à la liste non groupée. La page « Liste des vins » et le rapport PDF « Vins en cave par région » étaient déjà alphabétiques, seule la grille groupée ne l'était pas."},

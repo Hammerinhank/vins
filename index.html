@@ -252,6 +252,21 @@
     transition:transform .15s ease;
   }
   .bottle-card:active{transform:scale(.985);}
+  .bottle-card-compact{
+    padding:0; /* la ligne intérieure porte son propre padding, pour garder data-action="ouvrir" sur elle */
+  }
+  .bottle-card-compact .compact-ligne{
+    padding:10px 14px;
+    display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;row-gap:2px;
+    cursor:pointer;
+  }
+  .bottle-card-compact .compact-nom{
+    font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--text);
+  }
+  .bottle-card-compact .compact-domaine{
+    font-size:13px;color:var(--text-muted);
+  }
+  .bottle-card-compact .compact-domaine::before{content:"— ";}
   .bottle-card.avec-photo{
     border:3px solid var(--gold-soft);
     box-shadow:0 0 0 1px var(--gold), var(--shadow);
@@ -919,6 +934,10 @@
     <input type="checkbox" id="avecPhotoCheckbox" checked>
     Avec photo
   </label>
+  <label class="checkbox-chip" for="modeCompactCheckbox" data-tt-titre="Vue compacte" data-tt-desc="Réduit chaque vin à une seule ligne (nom et domaine uniquement) — pratique pour repérer vite un vin dans une longue liste. Un nom ou domaine très long passe exceptionnellement sur plusieurs lignes plutôt que d'être coupé.">
+    <input type="checkbox" id="modeCompactCheckbox">
+    ☰ Vue compacte
+  </label>
 </div>
 
 <div class="grid-wrap" id="gridWrap"></div>
@@ -1542,8 +1561,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.1";
+const VERSION = "1.15.2";
 const HISTORY = [
+  { version:"1.15.2", date:"2026-09-02", notes:"Nouvelle case « ☰ Vue compacte » dans la barre d'outils, à côté de « Avec photo ». Cochée, chaque vin de la liste se réduit à une seule ligne — uniquement le nom et le domaine, tout le reste (photo, note, prix, tags, quantité, boutons) disparaît. Un nom ou un domaine trop long pour tenir sur une ligne passe exceptionnellement sur une deuxième (retour à la ligne naturel, jamais de troncature ni de « … » qui cacherait une partie du texte). Persistée et synchronisée sur GitHub comme les autres préférences d'affichage (avecPhoto, groupBy…)."},
   { version:"1.15.1", date:"2026-09-02", notes:"Remplace la sauvegarde locale (téléchargement Safari) par une vraie intégration Google Drive, dans Paramètres → Sauvegarde Google Drive. « ☁️ Sauvegarder sur Google Drive » envoie le fichier directement via l'API Google (scope drive.file : uniquement les fichiers créés par cette app, jamais le reste du Drive) — la confirmation est désormais donnée par la réponse de Google elle-même (id du fichier créé), pas une supposition sur ce que Safari a bien voulu faire. « 🔍 Vérifier une sauvegarde Google Drive » liste les sauvegardes récentes et permet d'en relire une pour la comparer, champ par champ, au contenu en mémoire — même logique et mêmes messages que la vérification locale (factorisée en une seule fonction commune, verifierContenuFaceAMemoire). Un dossier Drive dédié est optionnel (champ « Dossier Drive »). « Importer un fichier JSON » et « Vérifier un fichier local » sont conservés tels quels, en secours, pour rester capable de restaurer un fichier reçu autrement (AirDrop, ancien export...). — Mise en place, à faire une seule fois sur console.cloud.google.com : 1) Créer un projet (gratuit). 2) Menu ☰ → API et services → Bibliothèque → chercher « Google Drive API » → Activer. 3) API et services → Identifiants → Créer des identifiants → ID client OAuth → type « Application Web » → sous « Origines JavaScript autorisées », ajouter https://hammerinhank.github.io (sans / final) → Créer. 4) Copier le Client ID généré (se termine par .apps.googleusercontent.com, aucun mot de passe/clé secrète nécessaire pour ce type d'usage) et le coller dans Paramètres → Sauvegarde Google Drive → Client ID Google. 5) Écran de consentement OAuth (API et services → Écran de consentement) : type « Externe », rester en mode « Test » et s'ajouter soi-même comme utilisateur test (évite toute procédure de vérification Google, inutile pour un usage strictement personnel). Dossier Drive optionnel : ouvrir le dossier voulu sur drive.google.com, copier la suite de caractères à la fin de l'URL (après le dernier /) dans le champ « Dossier Drive »."},
   { version:"1.15.0", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » distingue désormais deux cas bien différents, suite à un cas réel où un fichier d'une tout autre app (généalogie) avait été choisi par erreur. Avant : un tel fichier était juste signalé « 0 vin(s) dans le fichier », ce qui pouvait laisser croire un instant à un export vide plutôt qu'à un fichier sans rapport. Maintenant : si le JSON choisi n'a ni la forme d'une liste de vins ni de champ « bottles », un message distinct dit clairement « Ce n'est pas un fichier de cave à vin » et rappelle le nom exact à choisir (cave-a-vin-AAAA-MM-JJ.json), au lieu de l'annoncer comme un écart de contenu à comparer."},
   { version:"1.14.9", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » précise désormais, en cas d'écart, exactement quel champ diffère (ex. « Crémant de Bourgogne (position 3) — champ .quantite : « 12 » dans le fichier contre « 11 » en mémoire ») au lieu de se limiter au nombre de vins. La comparaison elle-même n'a pas changé : elle a toujours porté sur toutes les fiches, champ par champ, pas seulement leur nombre — seul le message d'écart manquait de précision."},
@@ -1849,6 +1869,7 @@ let marqueFicheCourante = false; // état "marqué" du vin actuellement ouvert d
 let marqueFicheCouleur = "jaune"; // couleur du repère quand marqué : "jaune" ou "vert" — sans effet si marqueFicheCourante est false
 let annulerEditionNumeroEnCours = false;
 let avecPhoto = true;              // case « Avec photo » : charge/affiche automatiquement les photos si cochée
+let modeCompact = false;           // case « Vue compacte » : réduit chaque carte à une ligne (nom + domaine)
 let utiliserMiniatures = false;    // Paramètres → Photos : si coché, génère et utilise une petite miniature compressée (480px) pour l'aperçu immédiat d'une photo tout juste ajoutée ; décoché par défaut (photo pleine résolution utilisée partout, y compris juste après l'ajout), persistant via cave-reglages.json
 const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l'étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l'étiquette. Si tu peux trouver de quelle région est le vin, ajoute " région : " suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute "couleur : " suivi de la couleur du vin, en utilisant l'un des mot clef suivant : "Rouge", "Blanc", "Rosé", "Champagne","Crémant","CIdre",,"Liquoreux", "Autre".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l'étiquette en l'organisant de façon à ce que cela soit bien compréhensible .`;
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
@@ -2682,7 +2703,7 @@ function chargerReglagesLocal(){
 }
 function sauvegarderReglagesLocal(){
   try{
-    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
     masquerBanniereStockagePlein();
     return true;
   }catch(e){
@@ -2699,7 +2720,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -2848,6 +2869,17 @@ function groupeDe(b){
 
 /* ===================== RENDU : GRILLE ===================== */
 function carteBouteille(b){
+  if(modeCompact){
+    // Vue compacte : uniquement nom + domaine, sur une ligne — sauf si l'un des deux est trop long pour
+    // tenir, auquel cas le flex-wrap du CSS le laisse passer sur une deuxième ligne plutôt que de le
+    // couper. Aucune troncature ni ellipsis : le texte reste toujours entièrement lisible.
+    return `
+  <div class="bottle-card bottle-card-compact" data-id="${b.id}">
+    <div class="compact-ligne" data-action="ouvrir">
+      <span class="compact-nom">${escapeHtml(b.nom || "Sans nom")}</span>${b.domaine ? `<span class="compact-domaine">${escapeHtml(b.domaine)}</span>` : ""}
+    </div>
+  </div>`;
+  }
   const coul = COULEURS.find(c=>c.key===b.couleur) || COULEURS[COULEURS.length-1];
   const ap = statutApogee(b);
   const miniature = meilleureMiniature(b);
@@ -4006,6 +4038,16 @@ document.getElementById("chipApogee").addEventListener("click", function(){
 });
 document.getElementById("avecPhotoCheckbox").addEventListener("change", function(){
   avecPhoto = this.checked;
+  sauvegarderReglagesLocal();
+  renderGrille();
+  pousserReglagesVersGitHub().then(ok=>{
+    if(!ok && chargerConfig().token){
+      toast("Préférence enregistrée localement — échec de l'envoi vers GitHub");
+    }
+  });
+});
+document.getElementById("modeCompactCheckbox").addEventListener("change", function(){
+  modeCompact = this.checked;
   sauvegarderReglagesLocal();
   renderGrille();
   pousserReglagesVersGitHub().then(ok=>{
@@ -5954,6 +5996,11 @@ async function initialiserSynchronisationGitHub(){
       document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
       changement = true;
     }
+    if(typeof distant.modeCompact === "boolean" && distant.modeCompact !== modeCompact){
+      modeCompact = distant.modeCompact;
+      document.getElementById("modeCompactCheckbox").checked = modeCompact;
+      changement = true;
+    }
     if(typeof distant.utiliserMiniatures === "boolean" && distant.utiliserMiniatures !== utiliserMiniatures){
       utiliserMiniatures = distant.utiliserMiniatures;
       const chk = document.getElementById("paramUtiliserMiniatures");
@@ -6498,6 +6545,7 @@ chargerBouteilles();
 remplirChampsConfig();
 const reglagesLocaux = chargerReglagesLocal();
 avecPhoto = reglagesLocaux.avecPhoto !== undefined ? reglagesLocaux.avecPhoto : true;
+modeCompact = reglagesLocaux.modeCompact === true;
 utiliserMiniatures = reglagesLocaux.utiliserMiniatures === true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
@@ -6515,6 +6563,7 @@ filtreMarque = typeof reglagesLocaux.filtreMarque === "string" ? reglagesLocaux.
 filtreApogeeOnly = reglagesLocaux.filtreApogeeOnly === true;
 try{ dernierEmplacementUtilise = localStorage.getItem(LS_DERNIER_EMPLACEMENT) || ""; }catch(e){ dernierEmplacementUtilise = ""; }
 document.getElementById("avecPhotoCheckbox").checked = avecPhoto;
+document.getElementById("modeCompactCheckbox").checked = modeCompact;
 document.getElementById("groupBySel").value = groupBy;
 document.getElementById("sortSel").value = sortKey;
 document.getElementById("filtreCouleurSel").value = filtreCouleur;

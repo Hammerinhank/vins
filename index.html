@@ -1563,8 +1563,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.12";
+const VERSION = "1.15.13";
 const HISTORY = [
+  { version:"1.15.13", date:"2026-09-02", notes:"« Vérifier une sauvegarde Google Drive » et « Restaurer depuis Google Drive » manquaient de toute explication au clic (contrairement à « Sauvegarder »), et la liste affichée ne disait pas à quoi servaient ses deux boutons par entrée. Corrigé : un message explicatif s'affiche désormais avant de lancer la recherche, et un rappel permanent (« Vérifier compare sans rien changer · Restaurer remplace la cave, après confirmation ») reste visible en haut de la liste elle-même, pour que ce soit clair même après avoir fermé le premier message."},
   { version:"1.15.12", date:"2026-09-02", notes:"Nouveau bouton « 📥 Restaurer depuis Google Drive », à côté de « Vérifier » — signalé après confusion réelle : « Importer un fichier JSON » ouvrait le sélecteur de fichiers d'Apple, sans lien direct avec Google Drive (il reste volontairement en secours pour restaurer un fichier de n'importe quelle provenance — ancien export local, AirDrop…). Le nouveau bouton liste les sauvegardes récentes directement depuis l'API Google Drive, comme « Vérifier », et chaque entrée propose désormais les deux actions côte à côte : Vérifier (non destructif) ou Restaurer (remplace la cave après confirmation, avec le même contrôle de validité — rejet clair si ce n'est pas un fichier de cave à vin — que partout ailleurs)."},
   { version:"1.15.11", date:"2026-09-02", notes:"Suite à l'analyse d'un log réel : un jeton Google déjà en mémoire pour la session (obtenu lors d'un précédent Sauvegarder/Vérifier) déclenchait quand même une nouvelle demande complète d'autorisation — repassant inutilement par tout le cycle Google (20-90 s) alors qu'un jeton valide était déjà en poche. Il est désormais réutilisé directement. En contrepartie, si ce jeton s'avère expiré (HTTP 401 sur un envoi, une recherche ou une lecture), il est maintenant invalidé automatiquement et le message d'erreur le précise clairement (« le jeton a expiré, réessaie ») — la tentative suivante redemandera alors une vraie autorisation au lieu d'échouer avec un jeton mort. Le seul message encore en toast (échec de lecture d'un fichier lors d'une vérification) est aussi passé en fenêtre modale, pour rester cohérent avec le reste."},
   { version:"1.15.10", date:"2026-09-02", notes:"Corrigé un vrai bug signalé après usage réel : le fichier était bien créé sur Google Drive, mais le message d'échec restait affiché quand même. Cause : le minuteur d'attente de réponse de Google était fixé à 20 secondes — trop court pour une toute première autorisation, qui demande souvent de choisir le compte et de valider l'écran « application non validée » (normal en mode Test), dépassant facilement ce délai. Résultat : le message d'échec s'affichait AVANT que Google ait fini de répondre, alors que l'autorisation aboutissait juste après. Minuteur porté à 90 secondes, et surtout : si la réponse arrive quand même après ce message, elle est prise en compte normalement et un message le confirme clairement (« Finalement autorisé par Google, malgré le message précédent »), au lieu de laisser l'avertissement comme dernier mot trompeur."},
@@ -5434,7 +5435,7 @@ async function chargerListeGoogleDrive(){
       conteneur.innerHTML = `<div class="version-item">Aucune sauvegarde trouvée sur Google Drive${cfg.gdriveFolderId ? " dans le dossier configuré" : ""}.</div>`;
       return;
     }
-    conteneur.innerHTML = fichiers.map(f=>{
+    conteneur.innerHTML = `<p class="panel-note" style="margin:0 0 8px 0;">Pour chaque sauvegarde ci-dessous : « Vérifier » compare au contenu actuel sans rien changer · « Restaurer » remplace la cave par ce fichier, après confirmation.</p>` + fichiers.map(f=>{
       const dateTexte = f.createdTime ? new Date(f.createdTime).toLocaleString("fr-FR") : "Date inconnue";
       return `<div class="version-item">
         <span class="v-date">${escapeHtml(dateTexte)}</span>
@@ -5484,7 +5485,11 @@ document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
     demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
     return;
   }
-  demanderAccesGoogleDrive(chargerListeGoogleDrive);
+  demanderConfirmation(
+    "Vérifier une sauvegarde Google Drive",
+    `La liste des sauvegardes récentes trouvées sur Google Drive${cfg.gdriveFolderId ? " (dossier configuré)" : " (racine de « Mon Drive »)"} va s'afficher juste en dessous, chacune avec un bouton « Vérifier ». Si ce n'est pas déjà fait cette session, Google va d'abord demander de se connecter et d'autoriser l'accès. « Vérifier » relit ensuite le fichier choisi et le compare, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.`,
+    ()=>demanderAccesGoogleDrive(chargerListeGoogleDrive)
+  );
 });
 document.getElementById("btnImporterGDrive").addEventListener("click", ()=>{
   const cfg = chargerConfig();
@@ -5493,7 +5498,11 @@ document.getElementById("btnImporterGDrive").addEventListener("click", ()=>{
     demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
     return;
   }
-  demanderAccesGoogleDrive(chargerListeGoogleDrive);
+  demanderConfirmation(
+    "Restaurer depuis Google Drive",
+    `La liste des sauvegardes récentes trouvées sur Google Drive${cfg.gdriveFolderId ? " (dossier configuré)" : " (racine de « Mon Drive »)"} va s'afficher juste en dessous, chacune avec deux boutons : « Vérifier » (compare sans rien changer) et « Restaurer » (remplace la cave actuelle par ce fichier, après une nouvelle confirmation qui précisera le nombre de vins de chaque côté). Si ce n'est pas déjà fait cette session, Google va d'abord demander de se connecter et d'autoriser l'accès.`,
+    ()=>demanderAccesGoogleDrive(chargerListeGoogleDrive)
+  );
 });
 
 /* ===================== EXPORT / IMPORT JSON (secours local) ===================== */

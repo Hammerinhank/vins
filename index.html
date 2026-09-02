@@ -1562,8 +1562,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.9";
+const VERSION = "1.15.11";
 const HISTORY = [
+  { version:"1.15.11", date:"2026-09-02", notes:"Suite à l'analyse d'un log réel : un jeton Google déjà en mémoire pour la session (obtenu lors d'un précédent Sauvegarder/Vérifier) déclenchait quand même une nouvelle demande complète d'autorisation — repassant inutilement par tout le cycle Google (20-90 s) alors qu'un jeton valide était déjà en poche. Il est désormais réutilisé directement. En contrepartie, si ce jeton s'avère expiré (HTTP 401 sur un envoi, une recherche ou une lecture), il est maintenant invalidé automatiquement et le message d'erreur le précise clairement (« le jeton a expiré, réessaie ») — la tentative suivante redemandera alors une vraie autorisation au lieu d'échouer avec un jeton mort. Le seul message encore en toast (échec de lecture d'un fichier lors d'une vérification) est aussi passé en fenêtre modale, pour rester cohérent avec le reste."},
+  { version:"1.15.10", date:"2026-09-02", notes:"Corrigé un vrai bug signalé après usage réel : le fichier était bien créé sur Google Drive, mais le message d'échec restait affiché quand même. Cause : le minuteur d'attente de réponse de Google était fixé à 20 secondes — trop court pour une toute première autorisation, qui demande souvent de choisir le compte et de valider l'écran « application non validée » (normal en mode Test), dépassant facilement ce délai. Résultat : le message d'échec s'affichait AVANT que Google ait fini de répondre, alors que l'autorisation aboutissait juste après. Minuteur porté à 90 secondes, et surtout : si la réponse arrive quand même après ce message, elle est prise en compte normalement et un message le confirme clairement (« Finalement autorisé par Google, malgré le message précédent »), au lieu de laisser l'avertissement comme dernier mot trompeur."},
   { version:"1.15.9", date:"2026-09-02", notes:"Le champ « Dossier Drive » accepte désormais aussi de coller directement l'URL complète du dossier ouvert dans Google Drive (ex. https://drive.google.com/drive/folders/198YfOk62qtP01BcNJYmvCHXwGjNwwrMa, avec ou sans /u/N/, avec ou sans paramètres après l'identifiant) — l'identifiant en est extrait automatiquement à l'enregistrement, et le champ est mis à jour pour afficher ce qui a réellement été compris. Un identifiant déjà « propre » (sans URL) continue de fonctionner tel quel."},
   { version:"1.15.8", date:"2026-09-02", notes:"Corrigé un vrai bug signalé après usage réel : « Sauvegarder » et « Vérifier » sur Google Drive ne montraient absolument rien en cas de problème (juste le texte discret « Non connecté à Google Drive », facile à ne pas remarquer). Toutes les façons dont ça pouvait échouer silencieusement affichent désormais une fenêtre modale claire avec la cause probable et la marche à suivre : Client ID absent ou mal formé (ne se terminant pas par .apps.googleusercontent.com), bibliothèque Google non chargée, exception à l'initialisation ou à l'ouverture de la fenêtre d'autorisation, et surtout l'absence totale de réponse de Google — jusqu'ici invisible — désormais détectée après 20 secondes (fenêtre bloquée par Safari, origine tout juste ajoutée pas encore active côté Google Cloud, ou compte non ajouté comme testeur sur l'écran de consentement). Un dossier Drive configuré qui ressemble à un chemin plutôt qu'à un identifiant (ex. « Dossier/SousDossier » au lieu de l'identifiant opaque de l'URL Drive) est aussi repéré et signalé avant l'envoi. Chaque étape (Client ID utilisé, dossier configuré, bibliothèque chargée ou non, réponse reçue ou non) est désormais journalisée pour permettre un vrai diagnostic."},
   { version:"1.15.7", date:"2026-09-02", notes:"Corrigé un vrai bug d'affichage introduit en v1.15.6 : le toast avait border-radius:999px (pilule), pensé pour un texte court sur une ligne — avec un message long qui s'enroule sur plusieurs lignes (plusieurs des miens le sont), la largeur et la hauteur devenaient comparables et la pilule se transformait en cercle, texte débordant largement à l'extérieur du cadre. border-radius fixé à 16px (rectangle arrondi classique, ne dégénère jamais en cercle) et une largeur maximale ajoutée (92% de l'écran, 420px au plus) pour que le texte s'enroule proprement au lieu de s'étirer sans limite."},
@@ -5224,6 +5226,16 @@ let gdriveTokenClient = null;
 let gdriveAccessToken = null; // en mémoire seulement pour cette session — jamais persisté nulle part
 
 function gdriveStatusEl(){ return document.getElementById("gdriveStatus"); }
+/* Si l'échec vient d'un jeton expiré (401), l'invalide immédiatement pour que la prochaine tentative
+   redemande une vraie autorisation à Google au lieu de réutiliser un jeton mort — et renvoie une phrase à
+   ajouter au message d'erreur pour l'expliquer clairement. */
+function gererEchecAuthGoogleDrive(status){
+  if(status !== 401) return "";
+  gdriveAccessToken = null;
+  gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+  logAjouter("gererEchecAuthGoogleDrive() — jeton invalidé (401 reçu) ; la prochaine tentative redemandera une autorisation.");
+  return " Le jeton d'accès a expiré — réessaie, une nouvelle autorisation sera demandée.";
+}
 
 /* Prépare (une seule fois par Client ID) le client d'autorisation Google, puis déclenche la demande
    d'accès — callback appelé UNIQUEMENT en cas de succès, avec le jeton déjà placé dans gdriveAccessToken.
@@ -5237,6 +5249,17 @@ function gdriveStatusEl(){ return document.getElementById("gdriveStatus"); }
 function demanderAccesGoogleDrive(callback){
   const cfg = chargerConfig();
   logAjouter(`demanderAccesGoogleDrive() appelé — Client ID présent=${cfg.gdriveClientId ? "oui (" + cfg.gdriveClientId.length + " caractère(s), se termine par " + cfg.gdriveClientId.slice(-24) + ")" : "NON"} · dossier configuré=${cfg.gdriveFolderId ? "\"" + cfg.gdriveFolderId + "\"" : "(aucun, racine de Mon Drive)"} · bibliothèque Google chargée=${!!(window.google && google.accounts && google.accounts.oauth2)} · jeton déjà en mémoire=${!!gdriveAccessToken}.`);
+  // Amélioration réelle en V1.15.11, suite à un cas vécu : un jeton déjà en mémoire pour cette session
+  // (obtenu lors d'un précédent Sauvegarder/Vérifier) déclenchait quand même une nouvelle demande complète
+  // à Google — repassant inutilement par tout le cycle d'autorisation (potentiellement 20-90 s) alors que
+  // le jeton en poche était encore parfaitement valide. S'il y en a un, on l'utilise directement ; s'il
+  // s'avère expiré, l'appel API qui suit échouera en 401 et l'invalidera (voir les points d'appel), pour
+  // qu'une nouvelle tentative redemande alors une vraie autorisation.
+  if(gdriveAccessToken){
+    logAjouter("demanderAccesGoogleDrive() — jeton déjà en mémoire pour cette session, réutilisé directement sans redemander l'autorisation à Google.");
+    callback();
+    return;
+  }
   if(!cfg.gdriveClientId){
     logAjouter("demanderAccesGoogleDrive() — ARRÊT : aucun Client ID Google Drive enregistré.");
     demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
@@ -5268,27 +5291,37 @@ function demanderAccesGoogleDrive(callback){
     return;
   }
   let reponseRecue = false;
+  let avertissementTimeoutAffiche = false;
+  const DELAI_TIMEOUT_MS = 90000; // généreux : la toute première autorisation peut demander de choisir le
+    // compte, valider l'écran "application non validée" (normal en mode Test), etc. — largement plus de
+    // 20 s au premier essai. BUG RÉEL corrigé en V1.15.10 : un délai trop court affichait ce message
+    // d'échec AVANT que Google ait fini de répondre, alors que l'autorisation aboutissait quand même
+    // juste après — laissant un message d'erreur trompeur comme dernier mot, alors que ça avait réussi.
   const delaiAttente = setTimeout(()=>{
     if(reponseRecue) return;
-    logAjouter("demanderAccesGoogleDrive() — TIMEOUT : aucune réponse de Google après 20 secondes. Causes possibles : fenêtre/popup d'autorisation bloquée par Safari (vérifie qu'aucune bannière de blocage de popup n'est apparue), origine \"" + window.location.origin + "\" pas encore active côté Google Cloud (l'ajout d'une origine peut prendre quelques minutes à se propager), ou écran de consentement en mode Test sans que ce compte Google soit ajouté comme testeur.");
+    avertissementTimeoutAffiche = true;
+    logAjouter(`demanderAccesGoogleDrive() — TIMEOUT : aucune réponse de Google après ${DELAI_TIMEOUT_MS/1000} secondes. Causes possibles : fenêtre/popup d'autorisation bloquée par Safari (vérifie qu'aucune bannière de blocage de popup n'est apparue), origine "${window.location.origin}" pas encore active côté Google Cloud (l'ajout d'une origine peut prendre quelques minutes à se propager), écran de consentement en mode Test sans que ce compte Google soit ajouté comme testeur, ou tout simplement en cours (choix du compte, écran "application non validée") — si une réponse arrive quand même après ce message, elle sera prise en compte normalement et signalée.`);
     demanderConfirmation(
-      "⚠️ Pas de réponse de Google",
-      `Aucune réponse de Google après 20 secondes. Causes les plus probables : \n• La fenêtre d'autorisation a été bloquée par Safari — vérifie s'il y a un message de blocage de popup à autoriser.\n• L'origine « ${window.location.origin} » vient d'être ajoutée sur Google Cloud et pas encore active (patiente quelques minutes puis réessaie).\n• L'écran de consentement OAuth est en mode Test et ce compte Google n'a pas été ajouté comme testeur (API et services → Écran de consentement → Utilisateurs test).\nDétails techniques dans le journal.`,
+      "⚠️ Pas de réponse de Google (pour l'instant)",
+      `Aucune réponse de Google après ${DELAI_TIMEOUT_MS/1000} secondes. Si une fenêtre Google est encore ouverte ou en cours de chargement, laisse-la simplement se terminer — si elle aboutit, ce sera pris en compte et confirmé normalement malgré ce message. Sinon, causes les plus probables :\n• La fenêtre d'autorisation a été bloquée par Safari — vérifie s'il y a un message de blocage de popup à autoriser.\n• L'origine « ${window.location.origin} » vient d'être ajoutée sur Google Cloud et pas encore active (patiente quelques minutes puis réessaie).\n• L'écran de consentement OAuth est en mode Test et ce compte Google n'a pas été ajouté comme testeur (API et services → Écran de consentement → Utilisateurs test).\nDétails techniques dans le journal.`,
       ()=>{}
     );
-  }, 20000);
+  }, DELAI_TIMEOUT_MS);
   gdriveTokenClient.callback = (resp)=>{
     reponseRecue = true;
     clearTimeout(delaiAttente);
     if(resp.error){
-      logAjouter("demanderAccesGoogleDrive() — réponse reçue avec erreur : " + resp.error + (resp.error_description ? " — " + resp.error_description : ""));
+      logAjouter("demanderAccesGoogleDrive() — réponse reçue avec erreur : " + resp.error + (resp.error_description ? " — " + resp.error_description : "") + (avertissementTimeoutAffiche ? " (arrivée après le message de timeout précédent)" : ""));
       demanderConfirmation("❌ Autorisation refusée ou échouée", `Google a répondu avec une erreur : « ${resp.error}${resp.error_description ? " — " + resp.error_description : ""} ». ${resp.error === "origin_mismatch" ? "L'origine « " + window.location.origin + " » n'est probablement pas (encore) autorisée pour ce Client ID sur Google Cloud — vérifie API et services → Identifiants." : resp.error === "access_denied" ? "L'accès a été explicitement refusé (annulé, ou compte non autorisé en mode Test)." : "Voir le journal pour le détail complet."}`, ()=>{});
       gdriveStatusEl().textContent = "Non connecté à Google Drive.";
       return;
     }
-    logAjouter("demanderAccesGoogleDrive() — jeton d'accès obtenu avec succès.");
+    logAjouter("demanderAccesGoogleDrive() — jeton d'accès obtenu avec succès." + (avertissementTimeoutAffiche ? " (arrivé après le message de timeout précédent — cette réponse tardive est la bonne, à suivre plutôt que le message d'avertissement affiché entretemps)" : ""));
     gdriveAccessToken = resp.access_token;
     gdriveStatusEl().textContent = "Connecté à Google Drive pour cette session.";
+    if(avertissementTimeoutAffiche){
+      toast("Finalement autorisé par Google, malgré le message précédent — la suite se poursuit normalement.");
+    }
     callback();
   };
   try{
@@ -5353,7 +5386,8 @@ document.getElementById("btnExportGDrive").addEventListener("click", ()=>{
           if(!res.ok){
             const texteErreur = await res.text().catch(()=>"");
             logAjouter(`btnExportGDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
-            demanderConfirmation("❌ Échec de l'envoi", `Google Drive a refusé l'envoi (HTTP ${res.status}). ${res.status === 404 ? "Le dossier configuré n'existe peut-être plus, ou son identifiant est incorrect" + (dossierRessembleAUnChemin ? " (il ressemble à un chemin, ex. \"Dossier/SousDossier\", alors qu'il faut l'identifiant Drive — visible à la fin de l'URL du dossier ouvert sur drive.google.com)" : "") + " — vérifie-le." : "Voir le journal pour le détail complet."}`, ()=>{});
+            const suffixeAuth = gererEchecAuthGoogleDrive(res.status);
+            demanderConfirmation("❌ Échec de l'envoi", `Google Drive a refusé l'envoi (HTTP ${res.status}).${suffixeAuth} ${res.status === 404 ? "Le dossier configuré n'existe peut-être plus, ou son identifiant est incorrect" + (dossierRessembleAUnChemin ? " (il ressemble à un chemin, ex. \"Dossier/SousDossier\", alors qu'il faut l'identifiant Drive — visible à la fin de l'URL du dossier ouvert sur drive.google.com)" : "") + " — vérifie-le." : suffixeAuth ? "" : "Voir le journal pour le détail complet."}`, ()=>{});
             return;
           }
           const data = await res.json();
@@ -5388,8 +5422,9 @@ document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
       if(!res.ok){
         const texteErreur = await res.text().catch(()=>"");
         logAjouter(`btnVerifierGDrive — ÉCHEC HTTP ${res.status} : ${texteErreur}`);
+        const suffixeAuth = gererEchecAuthGoogleDrive(res.status);
         conteneur.innerHTML = `<div class="version-item">Échec de la recherche (HTTP ${res.status}) — voir le journal.</div>`;
-        demanderConfirmation("❌ Échec de la recherche", `Google Drive a refusé la recherche des sauvegardes (HTTP ${res.status})${cfg.gdriveFolderId ? ". Le dossier configuré (\"" + cfg.gdriveFolderId + "\") n'existe peut-être plus, ou son identifiant est incorrect — vérifie-le." : "."} Détail complet dans le journal.`, ()=>{});
+        demanderConfirmation("❌ Échec de la recherche", `Google Drive a refusé la recherche des sauvegardes (HTTP ${res.status}).${suffixeAuth}${suffixeAuth ? "" : cfg.gdriveFolderId ? " Le dossier configuré (\"" + cfg.gdriveFolderId + "\") n'existe peut-être plus, ou son identifiant est incorrect — vérifie-le." : " Détail complet dans le journal."}`, ()=>{});
         return;
       }
       const data = await res.json();
@@ -5414,7 +5449,8 @@ document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
             const resFichier = await fetch(`https://www.googleapis.com/drive/v3/files/${b.dataset.id}?alt=media`, { headers: { "Authorization": "Bearer " + gdriveAccessToken } });
             if(!resFichier.ok){
               logAjouter(`btnVerifierGDrive — ÉCHEC lecture « ${b.dataset.nom} » (HTTP ${resFichier.status}).`);
-              toast(`Impossible de relire ce fichier (HTTP ${resFichier.status})`);
+              const suffixeAuth = gererEchecAuthGoogleDrive(resFichier.status);
+              demanderConfirmation("❌ Échec de la lecture", `Impossible de relire « ${b.dataset.nom} » (HTTP ${resFichier.status}).${suffixeAuth || " Voir le journal pour le détail complet."}`, ()=>{});
               b.disabled = false;
               return;
             }
@@ -5422,7 +5458,7 @@ document.getElementById("btnVerifierGDrive").addEventListener("click", ()=>{
             verifierContenuFaceAMemoire(b.dataset.nom, texte);
           }catch(err){
             logAjouter("btnVerifierGDrive — ERREUR : " + (err && err.message ? err.message : String(err)));
-            toast("Échec de la vérification — voir le journal");
+            demanderConfirmation("❌ Échec de la vérification", `La lecture de « ${b.dataset.nom} » a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
           }
           b.disabled = false;
         });

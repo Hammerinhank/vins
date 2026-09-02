@@ -971,7 +971,7 @@
       <p class="panel-note">Envoie un fichier de secours (JSON) directement sur ton Google Drive, sans passer par le téléchargement de Safari — avec une confirmation donnée par Google elle-même, pas une simple supposition. Demande une configuration Google Cloud une seule fois (marche à suivre détaillée dans l'historique des versions, page Journal/Diagnostic, entrée v1.15.1).</p>
       <div class="field-row">
         <div class="field"><label>Client ID Google</label><textarea id="cfgGdriveClientId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Client ID Google" data-tt-desc="Identifiant OAuth créé sur console.cloud.google.com (type « Application Web »), propre à ce site. Jamais synchronisé, gardé uniquement sur cet appareil."></textarea></div>
-        <div class="field"><label>Dossier Drive (optionnel)</label><textarea id="cfgGdriveFolderId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Dossier Google Drive" data-tt-desc="Identifiant du dossier Drive dédié, visible dans l'URL du dossier ouvert dans Drive (après le dernier /). Laisse vide pour enregistrer à la racine de « Mon Drive »."></textarea></div>
+        <div class="field"><label>Dossier Drive (optionnel)</label><textarea id="cfgGdriveFolderId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Dossier Google Drive" data-tt-desc="Identifiant du dossier Drive dédié — ou colle directement l'URL du dossier ouvert dans Drive (https://drive.google.com/drive/folders/...), l'identifiant en sera extrait automatiquement à l'enregistrement. Laisse vide pour enregistrer à la racine de « Mon Drive »."></textarea></div>
       </div>
       <div class="panel-row">
         <button class="btn btn-ghost" id="btnSaveGdriveCfg" type="button" data-tt-titre="Enregistrer les identifiants Google Drive" data-tt-desc="Sauvegarde localement le Client ID et le dossier Drive saisis ci-dessus.">Enregistrer les identifiants</button>
@@ -1562,8 +1562,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.8";
+const VERSION = "1.15.9";
 const HISTORY = [
+  { version:"1.15.9", date:"2026-09-02", notes:"Le champ « Dossier Drive » accepte désormais aussi de coller directement l'URL complète du dossier ouvert dans Google Drive (ex. https://drive.google.com/drive/folders/198YfOk62qtP01BcNJYmvCHXwGjNwwrMa, avec ou sans /u/N/, avec ou sans paramètres après l'identifiant) — l'identifiant en est extrait automatiquement à l'enregistrement, et le champ est mis à jour pour afficher ce qui a réellement été compris. Un identifiant déjà « propre » (sans URL) continue de fonctionner tel quel."},
   { version:"1.15.8", date:"2026-09-02", notes:"Corrigé un vrai bug signalé après usage réel : « Sauvegarder » et « Vérifier » sur Google Drive ne montraient absolument rien en cas de problème (juste le texte discret « Non connecté à Google Drive », facile à ne pas remarquer). Toutes les façons dont ça pouvait échouer silencieusement affichent désormais une fenêtre modale claire avec la cause probable et la marche à suivre : Client ID absent ou mal formé (ne se terminant pas par .apps.googleusercontent.com), bibliothèque Google non chargée, exception à l'initialisation ou à l'ouverture de la fenêtre d'autorisation, et surtout l'absence totale de réponse de Google — jusqu'ici invisible — désormais détectée après 20 secondes (fenêtre bloquée par Safari, origine tout juste ajoutée pas encore active côté Google Cloud, ou compte non ajouté comme testeur sur l'écran de consentement). Un dossier Drive configuré qui ressemble à un chemin plutôt qu'à un identifiant (ex. « Dossier/SousDossier » au lieu de l'identifiant opaque de l'URL Drive) est aussi repéré et signalé avant l'envoi. Chaque étape (Client ID utilisé, dossier configuré, bibliothèque chargée ou non, réponse reçue ou non) est désormais journalisée pour permettre un vrai diagnostic."},
   { version:"1.15.7", date:"2026-09-02", notes:"Corrigé un vrai bug d'affichage introduit en v1.15.6 : le toast avait border-radius:999px (pilule), pensé pour un texte court sur une ligne — avec un message long qui s'enroule sur plusieurs lignes (plusieurs des miens le sont), la largeur et la hauteur devenaient comparables et la pilule se transformait en cercle, texte débordant largement à l'extérieur du cadre. border-radius fixé à 16px (rectangle arrondi classique, ne dégénère jamais en cercle) et une largeur maximale ajoutée (92% de l'écran, 420px au plus) pour que le texte s'enroule proprement au lieu de s'étirer sans limite."},
   { version:"1.15.6", date:"2026-09-02", notes:"Liseré orange double (border-style « double », 2 traits parallèles) sur tous les messages en superposition en bas de l'écran : les toasts (bulle éphémère) et toutes les fenêtres de confirmation/info (demanderConfirmation — envoi, vérification, restauration, conflit…). La fiche d'édition (#overlayFiche), qui n'est pas un message mais le formulaire complet d'édition d'un vin, garde son propre liseré distinct (rose vif) déjà en place."},
@@ -5614,14 +5615,30 @@ document.getElementById("btnSaveCfg").addEventListener("click", function(){
   const ok = sauvegarderConfig(cfg);
   feedbackBouton(btn, ok ? "✓ Enregistré" : "⚠ Échec — stockage plein");
 });
+/* Reconnaît une URL de dossier Google Drive collée dans le champ (formes usuelles : avec ou sans /u/N/,
+   avec des paramètres après l'identifiant comme ?usp=sharing) et en extrait l'identifiant. Si la valeur ne
+   correspond à aucun de ces formats, elle est renvoyée telle quelle — donc un identifiant déjà "propre"
+   passe inchangé. */
+function extraireIdDossierDrive(valeur){
+  if(!valeur) return valeur;
+  const correspondance = valeur.trim().match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([a-zA-Z0-9_-]+)/);
+  return correspondance ? correspondance[1] : valeur.trim();
+}
 document.getElementById("btnSaveGdriveCfg").addEventListener("click", function(){
   const btn = this;
   const existant = chargerConfig();
+  const champDossier = document.getElementById("cfgGdriveFolderId");
+  const saisieDossier = champDossier.value.trim();
+  const idExtrait = extraireIdDossierDrive(saisieDossier);
+  if(idExtrait !== saisieDossier){
+    logAjouter(`btnSaveGdriveCfg — identifiant de dossier extrait d'une URL collée : "${saisieDossier}" → "${idExtrait}".`);
+    champDossier.value = idExtrait; // pour que le champ affiche ce qui a réellement été compris/enregistré
+  }
   existant.gdriveClientId = document.getElementById("cfgGdriveClientId").value.trim();
-  existant.gdriveFolderId = document.getElementById("cfgGdriveFolderId").value.trim();
+  existant.gdriveFolderId = idExtrait;
   const ok = sauvegarderConfig(existant);
   gdriveTokenClient = null; // un changement de Client ID invalide le client d'autorisation déjà initialisé
-  feedbackBouton(btn, ok ? "✓ Enregistré" : "⚠ Échec — stockage plein");
+  feedbackBouton(btn, ok ? (idExtrait !== saisieDossier ? "✓ Enregistré (identifiant extrait)" : "✓ Enregistré") : "⚠ Échec — stockage plein");
 });
 
 async function githubAPI(url, cfg, options){

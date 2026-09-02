@@ -1561,8 +1561,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.4";
+const VERSION = "1.15.5";
 const HISTORY = [
+  { version:"1.15.5", date:"2026-09-02", notes:"Vue compacte : l'encadré bleu signalant une fiche multi-emplacement (regroupement « par emplacement », vin réparti sur plusieurs endroits) manquait — oublié lors de l'ajout de la vue compacte (v1.15.2). Ajouté, même classe et même couleur que sur les cartes normales."},
   { version:"1.15.4", date:"2026-09-02", notes:"Dans la grille principale, quand un regroupement est actif (par région, emplacement, couleur…), les vins de chaque groupe sont désormais toujours classés par ordre alphabétique du nom — indépendamment du tri global sélectionné (millésime, note, prix, ajout récent…), qui continue de s'appliquer normalement à la liste non groupée. La page « Liste des vins » et le rapport PDF « Vins en cave par région » étaient déjà alphabétiques, seule la grille groupée ne l'était pas."},
   { version:"1.15.3", date:"2026-09-02", notes:"Vue compacte : le nom de chaque vin est désormais suivi du nombre de bouteilles entre parenthèses (ex. « Château Margaux (3b) »)."},
   { version:"1.15.2", date:"2026-09-02", notes:"Nouvelle case « ☰ Vue compacte » dans la barre d'outils, à côté de « Avec photo ». Cochée, chaque vin de la liste se réduit à une seule ligne — uniquement le nom et le domaine, tout le reste (photo, note, prix, tags, quantité, boutons) disparaît. Un nom ou un domaine trop long pour tenir sur une ligne passe exceptionnellement sur une deuxième (retour à la ligne naturel, jamais de troncature ni de « … » qui cacherait une partie du texte). Persistée et synchronisée sur GitHub comme les autres préférences d'affichage (avecPhoto, groupBy…)."},
@@ -2878,7 +2879,7 @@ function carteBouteille(b){
     // lisible.
     const quantiteCompacte = quantiteAffichee(b);
     return `
-  <div class="bottle-card bottle-card-compact" data-id="${b.id}">
+  <div class="bottle-card bottle-card-compact${(b.lienId && !b._lienFusion)?' emplacement-partiel':''}" data-id="${b.id}">
     <div class="compact-ligne" data-action="ouvrir">
       <span class="compact-nom">${escapeHtml(b.nom || "Sans nom")} (${quantiteCompacte}b)</span>${b.domaine ? `<span class="compact-domaine">${escapeHtml(b.domaine)}</span>` : ""}
     </div>

@@ -1561,8 +1561,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.2";
+const VERSION = "1.15.3";
 const HISTORY = [
+  { version:"1.15.3", date:"2026-09-02", notes:"Vue compacte : le nom de chaque vin est désormais suivi du nombre de bouteilles entre parenthèses (ex. « Château Margaux (3b) »)."},
   { version:"1.15.2", date:"2026-09-02", notes:"Nouvelle case « ☰ Vue compacte » dans la barre d'outils, à côté de « Avec photo ». Cochée, chaque vin de la liste se réduit à une seule ligne — uniquement le nom et le domaine, tout le reste (photo, note, prix, tags, quantité, boutons) disparaît. Un nom ou un domaine trop long pour tenir sur une ligne passe exceptionnellement sur une deuxième (retour à la ligne naturel, jamais de troncature ni de « … » qui cacherait une partie du texte). Persistée et synchronisée sur GitHub comme les autres préférences d'affichage (avecPhoto, groupBy…)."},
   { version:"1.15.1", date:"2026-09-02", notes:"Remplace la sauvegarde locale (téléchargement Safari) par une vraie intégration Google Drive, dans Paramètres → Sauvegarde Google Drive. « ☁️ Sauvegarder sur Google Drive » envoie le fichier directement via l'API Google (scope drive.file : uniquement les fichiers créés par cette app, jamais le reste du Drive) — la confirmation est désormais donnée par la réponse de Google elle-même (id du fichier créé), pas une supposition sur ce que Safari a bien voulu faire. « 🔍 Vérifier une sauvegarde Google Drive » liste les sauvegardes récentes et permet d'en relire une pour la comparer, champ par champ, au contenu en mémoire — même logique et mêmes messages que la vérification locale (factorisée en une seule fonction commune, verifierContenuFaceAMemoire). Un dossier Drive dédié est optionnel (champ « Dossier Drive »). « Importer un fichier JSON » et « Vérifier un fichier local » sont conservés tels quels, en secours, pour rester capable de restaurer un fichier reçu autrement (AirDrop, ancien export...). — Mise en place, à faire une seule fois sur console.cloud.google.com : 1) Créer un projet (gratuit). 2) Menu ☰ → API et services → Bibliothèque → chercher « Google Drive API » → Activer. 3) API et services → Identifiants → Créer des identifiants → ID client OAuth → type « Application Web » → sous « Origines JavaScript autorisées », ajouter https://hammerinhank.github.io (sans / final) → Créer. 4) Copier le Client ID généré (se termine par .apps.googleusercontent.com, aucun mot de passe/clé secrète nécessaire pour ce type d'usage) et le coller dans Paramètres → Sauvegarde Google Drive → Client ID Google. 5) Écran de consentement OAuth (API et services → Écran de consentement) : type « Externe », rester en mode « Test » et s'ajouter soi-même comme utilisateur test (évite toute procédure de vérification Google, inutile pour un usage strictement personnel). Dossier Drive optionnel : ouvrir le dossier voulu sur drive.google.com, copier la suite de caractères à la fin de l'URL (après le dernier /) dans le champ « Dossier Drive »."},
   { version:"1.15.0", date:"2026-09-02", notes:"« 🔍 Vérifier un fichier exporté » distingue désormais deux cas bien différents, suite à un cas réel où un fichier d'une tout autre app (généalogie) avait été choisi par erreur. Avant : un tel fichier était juste signalé « 0 vin(s) dans le fichier », ce qui pouvait laisser croire un instant à un export vide plutôt qu'à un fichier sans rapport. Maintenant : si le JSON choisi n'a ni la forme d'une liste de vins ni de champ « bottles », un message distinct dit clairement « Ce n'est pas un fichier de cave à vin » et rappelle le nom exact à choisir (cave-a-vin-AAAA-MM-JJ.json), au lieu de l'annoncer comme un écart de contenu à comparer."},
@@ -2870,13 +2871,15 @@ function groupeDe(b){
 /* ===================== RENDU : GRILLE ===================== */
 function carteBouteille(b){
   if(modeCompact){
-    // Vue compacte : uniquement nom + domaine, sur une ligne — sauf si l'un des deux est trop long pour
-    // tenir, auquel cas le flex-wrap du CSS le laisse passer sur une deuxième ligne plutôt que de le
-    // couper. Aucune troncature ni ellipsis : le texte reste toujours entièrement lisible.
+    // Vue compacte : uniquement nom (+ nombre de bouteilles) et domaine, sur une ligne — sauf si l'un des
+    // deux est trop long pour tenir, auquel cas le flex-wrap du CSS le laisse passer sur une deuxième
+    // ligne plutôt que de le couper. Aucune troncature ni ellipsis : le texte reste toujours entièrement
+    // lisible.
+    const quantiteCompacte = quantiteAffichee(b);
     return `
   <div class="bottle-card bottle-card-compact" data-id="${b.id}">
     <div class="compact-ligne" data-action="ouvrir">
-      <span class="compact-nom">${escapeHtml(b.nom || "Sans nom")}</span>${b.domaine ? `<span class="compact-domaine">${escapeHtml(b.domaine)}</span>` : ""}
+      <span class="compact-nom">${escapeHtml(b.nom || "Sans nom")} (${quantiteCompacte}b)</span>${b.domaine ? `<span class="compact-domaine">${escapeHtml(b.domaine)}</span>` : ""}
     </div>
   </div>`;
   }

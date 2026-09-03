@@ -595,7 +595,9 @@
       "commentaire": "Le L’Art de Maison Neuve 2018 est une cuvée nettement plus ambitieuse que le Montagne-Saint-Émilion classique du domaine. Il s’agit d’une sélection de vieilles vignes, traditionnellement annoncée comme 100 % Merlot, issue de parcelles argilo-calcaires et élevée en fût de chêne. Le domaine de Michel Coudroy est une propriété familiale importante de l’appellation, avec un vignoble majoritairement consacré au Merlot. \n\nLe millésime 2018 est particulièrement intéressant à Bordeaux : la maturité du raisin permet ici d’obtenir un vin charnu et concentré. Les descriptions disponibles évoquent des fruits noirs et rouges mûrs, cassis, cerise, mûre, vanille et épices, avec une bouche riche, veloutée et des tanins fondus. \n\nLes évaluations des amateurs sont plutôt favorables : le millésime 2018 obtient environ 4,2/5 sur Vivino, où il figure parmi les 2 % supérieurs des vins de la base.  Il est aujourd’hui dans une bonne fenêtre de dégustation, les estimations le situant à son apogée autour de 2025-2029. \n\nMon avis : c’est un très bon Montagne-Saint-Émilion, avec un rapport qualité/prix intéressant, mais il ne faut évidemment pas le comparer aux grands crus classés de Saint-Émilion. À presque 8 ans, je le boirais volontiers maintenant, après 30 à 60 minutes de carafe, autour de 16-18 °C. Il devrait être particulièrement réussi avec une entrecôte, un magret de canard, un rôti ou des fromages affinés.\n\nLe prix est assez facile à situer : les estimations récentes donnent 15-16 € pour la bouteille de 2018, tandis que le millésime 2018 du Montagne-Saint-Émilion classique du domaine se trouve plutôt autour de 10-11 €. \n\nnote : 88/100\nPrix : 16 euros\n\nÀ 16 €, je considère donc que c’est une bonne bouteille à acheter ou à conserver, particulièrement si vous appréciez les Bordeaux de la rive droite dominés par le Merlot.",
       "photoFichier": "images/6d9c0b10-57fb-480c-b9ee-ab97a389ee7f.jpg",
       "noteNumerique": 80,
-      "noteIncertaine": "?"
+      "noteIncertaine": "?",
+      "marque": true,
+      "marqueCouleur": "jaune"
     },
     {
       "id": "f231adc8-ee90-4485-a499-819577ac1625",
@@ -1181,13 +1183,15 @@
       "boireDe": "",
       "boireA": "",
       "note": 0,
-      "marque": false,
-      "marqueCouleur": "",
+      "marque": true,
+      "marqueCouleur": "jaune",
       "noteNumerique": "",
       "noteIncertaine": "",
       "etiquette": "- Illustration du domaine (bâtiment à colombages) en haut\n- Millésime : 2023\n- Appellation : SANCERRE — Appellation Sancerre Contrôlée\n- Producteur : Domaine La Gemière (en écriture manuscrite dorée)\n- Mention : Mis en Bouteille au Domaine\n- Site web : www.domainelagemiere.fr\n- Contenance : 75 cl (visible sur le bord de l'étiquette)",
       "commentaire": "",
-      "photoFichier": "images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg"
+      "photoFichier": "images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg",
+      "lienId": "600b728a-7eba-4446-af19-e8636d65e17a",
+      "quantiteIci": 2
     },
     {
       "id": "3a139cc3-af78-4637-818a-e9d58f99414a",
@@ -1563,8 +1567,40 @@
       "marqueCouleur": "",
       "lienId": "01bd5a38-db65-4443-b9c4-b27c38839ac6",
       "quantiteIci": 0
+    },
+    {
+      "id": "b1d3fc9a-fc26-477a-b489-3d86fc6c1627",
+      "numero": 73,
+      "dateAjout": "2026-09-03",
+      "quantiteBue": 0,
+      "dateDerniereDegustation": "",
+      "nom": "Sancerre",
+      "domaine": "La Gemière",
+      "appellation": "",
+      "region": "Loire",
+      "pays": "France",
+      "couleur": "blanc",
+      "millesime": "2023",
+      "cepages": "",
+      "quantite": 3,
+      "prixUnitaire": "",
+      "dateAchat": "",
+      "lieuAchat": "",
+      "emplacement": "Réfrigérateur",
+      "boireDe": "",
+      "boireA": "",
+      "note": 0,
+      "marque": true,
+      "marqueCouleur": "jaune",
+      "noteNumerique": "",
+      "noteIncertaine": "",
+      "etiquette": "- Illustration du domaine (bâtiment à colombages) en haut\n- Millésime : 2023\n- Appellation : SANCERRE — Appellation Sancerre Contrôlée\n- Producteur : Domaine La Gemière (en écriture manuscrite dorée)\n- Mention : Mis en Bouteille au Domaine\n- Site web : www.domainelagemiere.fr\n- Contenance : 75 cl (visible sur le bord de l'étiquette)",
+      "commentaire": "",
+      "photoFichier": "images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg",
+      "lienId": "600b728a-7eba-4446-af19-e8636d65e17a",
+      "quantiteIci": 1
     }
   ],
-  "maj": "2026-09-03T09:03:13.968Z",
+  "maj": "2026-09-03T09:50:24.803Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

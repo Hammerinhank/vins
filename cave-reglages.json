@@ -38,8 +38,8 @@
   "groupBy": "emplacement",
   "sortKey": "nom_asc",
   "filtreStatut": "cave",
-  "filtreCouleur": "blanc",
+  "filtreCouleur": "rouge",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-03T09:28:05.012Z"
+  "maj": "2026-09-03T09:28:19.557Z"
 }

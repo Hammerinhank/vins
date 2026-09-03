@@ -415,6 +415,13 @@
     color:var(--gold-soft) !important;
   }
   .sync-status{font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
+  .gdrive-sous-titre{
+    font-size:11px;color:var(--gold-soft);text-transform:uppercase;letter-spacing:.05em;
+    font-weight:600;margin:18px 0 8px 0;padding-top:14px;border-top:1px solid var(--line-soft);
+  }
+  .gdrive-sous-titre:first-of-type{margin-top:14px;padding-top:0;border-top:none;}
+  .gdrive-status-off{color:#e0664f;font-size:13.5px;margin-top:6px;}
+  .gdrive-status-ok{color:#5bb974;font-weight:700;font-size:13.5px;margin-top:6px;}
 
   /* ---------- Modal ---------- */
   .overlay{
@@ -969,21 +976,34 @@
     <summary data-tt-titre="Sauvegarde Google Drive" data-tt-desc="Ouvre ou referme la section de sauvegarde/vérification sur Google Drive.">Sauvegarde Google Drive</summary>
     <div class="panel-body">
       <p class="panel-note">Envoie un fichier de secours (JSON) directement sur ton Google Drive, sans passer par le téléchargement de Safari — avec une confirmation donnée par Google elle-même, pas une simple supposition. Demande une configuration Google Cloud une seule fois (marche à suivre détaillée dans l'historique des versions, page Journal/Diagnostic, entrée v1.15.1).</p>
+
+      <p class="gdrive-sous-titre">1. Identifiants</p>
       <div class="field-row">
         <div class="field"><label>Client ID Google</label><textarea id="cfgGdriveClientId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Client ID Google" data-tt-desc="Identifiant OAuth créé sur console.cloud.google.com (type « Application Web »), propre à ce site. Jamais synchronisé, gardé uniquement sur cet appareil."></textarea></div>
         <div class="field"><label>Dossier Drive (optionnel)</label><textarea id="cfgGdriveFolderId" class="champ-ligne-unique" rows="1" autocomplete="off" data-tt-titre="Dossier Google Drive" data-tt-desc="Identifiant du dossier Drive dédié — ou colle directement l'URL du dossier ouvert dans Drive (https://drive.google.com/drive/folders/...), l'identifiant en sera extrait automatiquement à l'enregistrement. Laisse vide pour enregistrer à la racine de « Mon Drive »."></textarea></div>
       </div>
       <div class="panel-row">
         <button class="btn btn-ghost" id="btnSaveGdriveCfg" type="button" data-tt-titre="Enregistrer les identifiants Google Drive" data-tt-desc="Sauvegarde localement le Client ID et le dossier Drive saisis ci-dessus.">Enregistrer les identifiants</button>
+      </div>
+
+      <p class="gdrive-sous-titre">2. Connexion au compte Google</p>
+      <p class="panel-note">Sur iPhone, la fenêtre de connexion Google s'ouvre dans un nouvel onglet Safari qui ne revient pas toujours automatiquement à l'app une fois terminée — utilise alors le sélecteur d'onglets, en bas de Safari, pour revenir manuellement ici. L'autorisation, elle, aura bien été prise en compte malgré ce détour.</p>
+      <div class="panel-row">
+        <button class="btn btn-ghost" id="btnConnecterGdrive" type="button" data-tt-titre="Se connecter à Google Drive" data-tt-desc="Autorise cette app à accéder à Google Drive pour cette session — uniquement aux fichiers qu'elle crée elle-même, jamais au reste du compte.">🔌 Se connecter</button>
         <button class="btn btn-ghost" id="btnDeconnecterGdrive" type="button" data-tt-titre="Se déconnecter de Google Drive" data-tt-desc="Révoque l'autorisation accordée pour cette session. Une prochaine sauvegarde ou vérification redemandera de se connecter.">Se déconnecter</button>
       </div>
+      <div class="sync-status gdrive-status-off" id="gdriveStatus">⭕ Non connecté à Google Drive.</div>
+
+      <p class="gdrive-sous-titre">3. Sauvegarder, vérifier, restaurer</p>
       <div class="panel-row">
         <button class="btn btn-gold" id="btnExportGDrive" type="button" data-tt-titre="Sauvegarder sur Google Drive" data-tt-desc="Envoie un fichier de secours contenant toute la cave directement vers ton Google Drive, avec confirmation donnée par Google elle-même.">☁️ Sauvegarder sur Google Drive</button>
-        <button class="btn" id="btnVerifierGDrive" type="button" data-tt-titre="Vérifier une sauvegarde Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet de relire l'une d'elles pour la comparer, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">🔍 Vérifier une sauvegarde Google Drive</button>
-        <button class="btn" id="btnImporterGDrive" type="button" data-tt-titre="Restaurer depuis Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet d'en restaurer une (remplace la cave actuelle, après confirmation) — sans passer par le sélecteur de fichiers d'Apple.">📥 Restaurer depuis Google Drive</button>
       </div>
-      <div class="sync-status" id="gdriveStatus">Non connecté à Google Drive.</div>
+      <div class="panel-row">
+        <button class="btn" id="btnVerifierGDrive" type="button" data-tt-titre="Vérifier une sauvegarde Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet de relire l'une d'elles pour la comparer, champ par champ, au contenu actuellement en mémoire — sans jamais rien charger ni remplacer.">🔍 Vérifier</button>
+        <button class="btn" id="btnImporterGDrive" type="button" data-tt-titre="Restaurer depuis Google Drive" data-tt-desc="Liste les sauvegardes récentes sur Google Drive et permet d'en restaurer une (remplace la cave actuelle, après confirmation) — sans passer par le sélecteur de fichiers d'Apple.">📥 Restaurer</button>
+      </div>
       <div class="versions-liste" id="gdriveListe" style="display:none;"></div>
+
       <p class="panel-note">Pour restaurer un fichier JSON quelle que soit sa provenance (téléchargé depuis Drive, ancien export local, reçu par AirDrop…) :</p>
       <div class="panel-row">
         <button class="btn" id="btnImport" type="button" data-tt-titre="Importer un JSON" data-tt-desc="Recharge la cave à partir d'un fichier JSON, quelle que soit sa provenance.">Importer un fichier JSON</button>
@@ -1563,8 +1583,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.13";
+const VERSION = "1.15.14";
 const HISTORY = [
+  { version:"1.15.14", date:"2026-09-02", notes:"Réorganisation de « Sauvegarde Google Drive » en trois blocs clairement séparés (titres numérotés) : 1) Identifiants (Client ID, dossier, Enregistrer) ; 2) Connexion au compte Google — avec un nouveau bouton dédié « 🔌 Se connecter » (jusqu'ici, connecter ne se faisait qu'implicitement via Sauvegarder/Vérifier/Restaurer), une explication du décalage d'onglet propre à iPhone directement à cet endroit, et le statut de connexion rendu plus visible : rouge (⭕) si non connecté, vert et gras (✅) si connecté ; 3) Sauvegarder / vérifier / restaurer, regroupés ensemble avec Sauvegarder mis en avant sur sa propre ligne."},
   { version:"1.15.13", date:"2026-09-02", notes:"« Vérifier une sauvegarde Google Drive » et « Restaurer depuis Google Drive » manquaient de toute explication au clic (contrairement à « Sauvegarder »), et la liste affichée ne disait pas à quoi servaient ses deux boutons par entrée. Corrigé : un message explicatif s'affiche désormais avant de lancer la recherche, et un rappel permanent (« Vérifier compare sans rien changer · Restaurer remplace la cave, après confirmation ») reste visible en haut de la liste elle-même, pour que ce soit clair même après avoir fermé le premier message."},
   { version:"1.15.12", date:"2026-09-02", notes:"Nouveau bouton « 📥 Restaurer depuis Google Drive », à côté de « Vérifier » — signalé après confusion réelle : « Importer un fichier JSON » ouvrait le sélecteur de fichiers d'Apple, sans lien direct avec Google Drive (il reste volontairement en secours pour restaurer un fichier de n'importe quelle provenance — ancien export local, AirDrop…). Le nouveau bouton liste les sauvegardes récentes directement depuis l'API Google Drive, comme « Vérifier », et chaque entrée propose désormais les deux actions côte à côte : Vérifier (non destructif) ou Restaurer (remplace la cave après confirmation, avec le même contrôle de validité — rejet clair si ce n'est pas un fichier de cave à vin — que partout ailleurs)."},
   { version:"1.15.11", date:"2026-09-02", notes:"Suite à l'analyse d'un log réel : un jeton Google déjà en mémoire pour la session (obtenu lors d'un précédent Sauvegarder/Vérifier) déclenchait quand même une nouvelle demande complète d'autorisation — repassant inutilement par tout le cycle Google (20-90 s) alors qu'un jeton valide était déjà en poche. Il est désormais réutilisé directement. En contrepartie, si ce jeton s'avère expiré (HTTP 401 sur un envoi, une recherche ou une lecture), il est maintenant invalidé automatiquement et le message d'erreur le précise clairement (« le jeton a expiré, réessaie ») — la tentative suivante redemandera alors une vraie autorisation au lieu d'échouer avec un jeton mort. Le seul message encore en toast (échec de lecture d'un fichier lors d'une vérification) est aussi passé en fenêtre modale, pour rester cohérent avec le reste."},
@@ -5229,13 +5250,19 @@ let gdriveTokenClient = null;
 let gdriveAccessToken = null; // en mémoire seulement pour cette session — jamais persisté nulle part
 
 function gdriveStatusEl(){ return document.getElementById("gdriveStatus"); }
+function majStatutGdrive(connecte){
+  const el = gdriveStatusEl();
+  el.textContent = connecte ? "✅ Connecté à Google Drive pour cette session." : "⭕ Non connecté à Google Drive.";
+  el.classList.toggle("gdrive-status-ok", connecte);
+  el.classList.toggle("gdrive-status-off", !connecte);
+}
 /* Si l'échec vient d'un jeton expiré (401), l'invalide immédiatement pour que la prochaine tentative
    redemande une vraie autorisation à Google au lieu de réutiliser un jeton mort — et renvoie une phrase à
    ajouter au message d'erreur pour l'expliquer clairement. */
 function gererEchecAuthGoogleDrive(status){
   if(status !== 401) return "";
   gdriveAccessToken = null;
-  gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+  majStatutGdrive(false);
   logAjouter("gererEchecAuthGoogleDrive() — jeton invalidé (401 reçu) ; la prochaine tentative redemandera une autorisation.");
   return " Le jeton d'accès a expiré — réessaie, une nouvelle autorisation sera demandée.";
 }
@@ -5316,12 +5343,12 @@ function demanderAccesGoogleDrive(callback){
     if(resp.error){
       logAjouter("demanderAccesGoogleDrive() — réponse reçue avec erreur : " + resp.error + (resp.error_description ? " — " + resp.error_description : "") + (avertissementTimeoutAffiche ? " (arrivée après le message de timeout précédent)" : ""));
       demanderConfirmation("❌ Autorisation refusée ou échouée", `Google a répondu avec une erreur : « ${resp.error}${resp.error_description ? " — " + resp.error_description : ""} ». ${resp.error === "origin_mismatch" ? "L'origine « " + window.location.origin + " » n'est probablement pas (encore) autorisée pour ce Client ID sur Google Cloud — vérifie API et services → Identifiants." : resp.error === "access_denied" ? "L'accès a été explicitement refusé (annulé, ou compte non autorisé en mode Test)." : "Voir le journal pour le détail complet."}`, ()=>{});
-      gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+      majStatutGdrive(false);
       return;
     }
     logAjouter("demanderAccesGoogleDrive() — jeton d'accès obtenu avec succès." + (avertissementTimeoutAffiche ? " (arrivé après le message de timeout précédent — cette réponse tardive est la bonne, à suivre plutôt que le message d'avertissement affiché entretemps)" : ""));
     gdriveAccessToken = resp.access_token;
-    gdriveStatusEl().textContent = "Connecté à Google Drive pour cette session.";
+    majStatutGdrive(true);
     if(avertissementTimeoutAffiche){
       toast("Finalement autorisé par Google, malgré le message précédent — la suite se poursuit normalement.");
     }
@@ -5336,6 +5363,23 @@ function demanderAccesGoogleDrive(callback){
     demanderConfirmation("❌ Échec de l'ouverture de la fenêtre Google", `L'ouverture de la fenêtre d'autorisation Google a échoué : ${err && err.message ? err.message : err}. Voir le journal pour le détail complet.`, ()=>{});
   }
 }
+document.getElementById("btnConnecterGdrive").addEventListener("click", ()=>{
+  const cfg = chargerConfig();
+  logAjouter(`btnConnecterGdrive — clic. Client ID présent=${!!cfg.gdriveClientId}.`);
+  if(!cfg.gdriveClientId){
+    demanderConfirmation("❌ Client ID manquant", "Aucun Client ID Google n'est enregistré. Saisis-le dans le champ « Client ID Google » ci-dessus, puis touche « Enregistrer les identifiants » avant de réessayer.", ()=>{});
+    return;
+  }
+  if(gdriveAccessToken){
+    toast("Déjà connecté à Google Drive pour cette session.");
+    return;
+  }
+  demanderConfirmation(
+    "Se connecter à Google Drive",
+    "Google va demander de choisir un compte et d'autoriser l'accès — uniquement aux fichiers créés par cette app, jamais au reste du Drive. Sur iPhone, cette fenêtre s'ouvre dans un nouvel onglet Safari qui ne revient pas toujours automatiquement à l'app une fois terminée : utilise alors le sélecteur d'onglets, en bas de Safari, pour revenir manuellement ici — l'autorisation, elle, aura bien été prise en compte malgré ce détour.",
+    ()=>demanderAccesGoogleDrive(()=>toast("Connecté à Google Drive."))
+  );
+});
 document.getElementById("btnDeconnecterGdrive").addEventListener("click", ()=>{
   if(!gdriveAccessToken){ toast("Déjà non connecté"); return; }
   if(window.google && google.accounts && google.accounts.oauth2){
@@ -5344,7 +5388,7 @@ document.getElementById("btnDeconnecterGdrive").addEventListener("click", ()=>{
     });
   }
   gdriveAccessToken = null;
-  gdriveStatusEl().textContent = "Non connecté à Google Drive.";
+  majStatutGdrive(false);
   toast("Déconnecté de Google Drive");
 });
 

@@ -39,7 +39,7 @@
   "sortKey": "nom_asc",
   "filtreStatut": "cave",
   "filtreCouleur": "rouge",
-  "filtreMarque": "tous",
+  "filtreMarque": "marques",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-03T09:30:24.280Z"
+  "maj": "2026-09-03T09:35:01.363Z"
 }

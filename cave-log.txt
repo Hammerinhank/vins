@@ -68,3 +68,43 @@
 [11:50:26] → Réponse de l'envoi (PUT) : statut 200
 [11:50:26] → SUCCÈS (réponse HTTP) : 54 vin(s)/90 bouteille(s) envoyé(s) (app v1.15.14).
 [11:50:27] → VÉRIFICATION post-envoi : GitHub contient maintenant 54 vin(s)/90 bouteille(s) — attendu 54 vin(s)/90 bouteille(s).
+[12:20:15] chargerBouteilles() — lu depuis localStorage : 54 vin(s), 90 bouteille(s) en cave (octets bruts : 88456).
+[12:20:15] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[12:20:17] → Lecture réussie : 54 vin(s) sur GitHub (maj=2026-09-03T09:50:24.803Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[12:20:17] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[12:20:17] → syncDirty=false — remplacement automatique : local=54 vin(s)/90 bouteille(s) → distant=54 vin(s)/90 bouteille(s) (maj=2026-09-03T09:50:24.803Z).
+[12:20:17] → Données GitHub appliquées (54 vin(s)) et localStorage mis à jour : OK.
+[12:20:17] → Réglages distants appliqués (au moins un changement détecté).
+[12:23:43] ouvrirFiche(f9953dc8-626e-4bcc-bff9-96e2798bc40d) appelé — nom="Sancerre" · numero=73 · photo: en cache=oui pendante=non fichier=images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg
+[12:39:41] ouvrirFiche(f9953dc8-626e-4bcc-bff9-96e2798bc40d) appelé — nom="Sancerre" · numero=73 · photo: en cache=oui pendante=non fichier=images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg
+[12:39:43] deplacerBouteilleVers — 1 bouteille déplacée de b1d3fc9a-fc26-477a-b489-3d86fc6c1627 (Réfrigérateur, désormais 0) vers f9953dc8-626e-4bcc-bff9-96e2798bc40d (Cave, désormais 3). Total du groupe inchangé (3).
+[12:39:50] btnDelierEmplacement — refusé : Cave a encore 3 bouteille(s), délier interdit tant qu'il en reste.
+[12:39:53] btnDelierEmplacement — refusé : Cave a encore 3 bouteille(s), délier interdit tant qu'il en reste.
+[12:39:59] ouvrirFiche(b1d3fc9a-fc26-477a-b489-3d86fc6c1627) appelé — nom="Sancerre" · numero=73 · photo: en cache=non pendante=non fichier=images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg
+[12:40:02] demanderConfirmation() affichée — titre="Délier cet emplacement ?"
+[12:40:03] → Fenêtre de confirmation « Délier cet emplacement ? » : Confirmer (callback exécuté).
+[12:40:03] btnDelierEmplacement — fiche b1d3fc9a-fc26-477a-b489-3d86fc6c1627 (Réfrigérateur) déliée de Cave (lienId était 600b728a-7eba-4446-af19-e8636d65e17a, quantiteIci=0).
+[12:40:03] delierFiche(b1d3fc9a-fc26-477a-b489-3d86fc6c1627) — groupe 600b728a-7eba-4446-af19-e8636d65e17a : 1 membre(s) restant(s) après retrait (Cave).
+[12:40:03] delierFiche(b1d3fc9a-fc26-477a-b489-3d86fc6c1627) — dernier membre du groupe (f9953dc8-626e-4bcc-bff9-96e2798bc40d, Cave) devenu autonome à son tour, groupe dissous.
+[12:40:07] enregistrerFiche() appelé — ficheEnCours=b1d3fc9a-fc26-477a-b489-3d86fc6c1627 · nom="Sancerre" · pendante:vide · miniature:vide · fichier:images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg
+[12:40:07] → Vin existant mis à jour (id=b1d3fc9a-fc26-477a-b489-3d86fc6c1627) — miniature en cache mémoire=vide · photoFichier=images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg · photoPendingBase64=vide
+[12:40:14] ouvrirFiche(84e7cf9f-9a91-4882-bab7-a32050fe0eb2) appelé — nom="Sancerre" · numero=78 · photo: en cache=non pendante=non fichier=images/84e7cf9f-9a91-4882-bab7-a32050fe0eb2.jpg
+[12:40:18] btnAjouterEmplacementLie — lienId créé sur la fiche existante 84e7cf9f-9a91-4882-bab7-a32050fe0eb2 : 30b1af03-8791-4880-85a8-bf3c748ee417 (quantiteIci initialisée à 8).
+[12:40:18] btnAjouterEmplacementLie — nouvelle fiche liée créée (id=aa0d10a0-898e-4450-920f-3aec4b2aec66, lienId=30b1af03-8791-4880-85a8-bf3c748ee417) à partir de 84e7cf9f-9a91-4882-bab7-a32050fe0eb2 — total partagé=8, quantiteIci=0.
+[12:40:18] ouvrirFiche(aa0d10a0-898e-4450-920f-3aec4b2aec66) appelé — nom="Sancerre" · numero=78 · photo: en cache=non pendante=non fichier=images/84e7cf9f-9a91-4882-bab7-a32050fe0eb2.jpg
+[12:40:35] deplacerBouteilleVers — 1 bouteille déplacée de 84e7cf9f-9a91-4882-bab7-a32050fe0eb2 (Cave, désormais 7) vers aa0d10a0-898e-4450-920f-3aec4b2aec66 (?, désormais 1). Total du groupe inchangé (8).
+[12:40:37] enregistrerFiche() appelé — ficheEnCours=aa0d10a0-898e-4450-920f-3aec4b2aec66 · nom="Sancerre" · pendante:vide · miniature:vide · fichier:images/84e7cf9f-9a91-4882-bab7-a32050fe0eb2.jpg
+[12:40:37] → Vin lié : quantité saisie=8 (delta=+0) → quantiteIci de cette fiche passe de 1 à 1 · total réel du groupe recalculé=8.
+[12:40:37] → Vin existant mis à jour (id=aa0d10a0-898e-4450-920f-3aec4b2aec66) — miniature en cache mémoire=vide · photoFichier=images/84e7cf9f-9a91-4882-bab7-a32050fe0eb2.jpg · photoPendingBase64=vide
+[12:40:37] propagerVersLiens(aa0d10a0-898e-4450-920f-3aec4b2aec66) — champs partagés recopiés vers 1 fiche(s) liée(s) (lienId=30b1af03-8791-4880-85a8-bf3c748ee417).
+[12:47:27] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=55
+[12:47:27] → Lecture distante (avant envoi) : statut 200
+[12:47:27] → Contenu distant actuel : 54 vin(s), maj=2026-09-03T09:50:24.803Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=e6d1fc294b9dddfec95a13b2c3cc6b26f0f8a825
+[12:47:27] → dernière maj connue=2026-09-03T09:50:24.803Z · maj distante=2026-09-03T09:50:24.803Z · estNonPriseEnCompte=false
+[12:47:27] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[12:47:27] effectuerEnvoiVersGitHub() appelé — sha=e6d1fc294b9dddfec95a13b2c3cc6b26f0f8a825 · bottles.length=55
+[12:47:27] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[12:47:27] → Préparation du contenu à envoyer : 55 vin(s), 93 bouteille(s), maj=2026-09-03T10:47:27.950Z, 102228 caractère(s)
+[12:47:29] → Réponse de l'envoi (PUT) : statut 200
+[12:47:29] → SUCCÈS (réponse HTTP) : 55 vin(s)/93 bouteille(s) envoyé(s) (app v1.15.14).
+[12:47:29] → VÉRIFICATION post-envoi : GitHub contient maintenant 55 vin(s)/93 bouteille(s) — attendu 55 vin(s)/93 bouteille(s).

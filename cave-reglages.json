@@ -1,5 +1,5 @@
 {
-  "avecPhoto": true,
+  "avecPhoto": false,
   "modeCompact": false,
   "utiliserMiniatures": false,
   "questionChatGPT": "À partir de la photo de l'étiquette donnée en pièce jointe, donne-moi le nom et le producteur de ce vin, dans ta réponse, fait précéder le nom du producteur de « nom : » , le domaine de « domaine : »Une précision pour que tu ne te trompe pas : par exemple : « nom : = nom du vin/appellation » et « domaine : = producteur/domaine viticole ». Si tu trouve le millesime sur l’étiquette , ajoute « millesime : » suivi du millesime juste après le domaine et avant l’étiquette. Si tu peux trouver de quelle région est le vin, ajoute \" région : \" suivi du nom de la région, utilise des noms très simples comme Alsace, Bordeaux, Bourgogne, les plus standard possibles, tels que communement utilsé pour les vins. Si tu peux également déterminer la couleur du vin, ajoute \"couleur : \" suivi de la couleur du vin, en utilisant l'un des mot clef suivant : \"Rouge\", \"Blanc\", \"Rosé\", \"Champagne\",\"Crémant\",\"CIdre\",,\"Liquoreux\", \"Autre\".  Et ajoute après , en dernière position, la mention « étiquette : » suivi de  tout ce que tu auras pu extraire de l’étiquette en l’organisant de façon à ce que cela soit bien compréhensible .",
@@ -35,11 +35,11 @@
     "Val de Loire",
     "Vallée du Rhône"
   ],
-  "groupBy": "region",
+  "groupBy": "emplacement",
   "sortKey": "nom_asc",
   "filtreStatut": "cave",
   "filtreCouleur": "toutes",
-  "filtreMarque": "marques",
+  "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-03T10:20:20.157Z"
+  "maj": "2026-09-03T10:47:24.399Z"
 }

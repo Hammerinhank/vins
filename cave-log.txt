@@ -1,0 +1,53 @@
+=== 2026-09-03 ===
+[11:01:21] chargerBouteilles() — lu depuis localStorage : 53 vin(s), 90 bouteille(s) en cave (octets bruts : 87355).
+[11:01:21] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[11:01:22] → Lecture réussie : 53 vin(s) sur GitHub (maj=2026-09-02T06:34:44.335Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[11:01:22] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[11:01:22] → syncDirty=false — remplacement automatique : local=53 vin(s)/90 bouteille(s) → distant=53 vin(s)/90 bouteille(s) (maj=2026-09-02T06:34:44.335Z).
+[11:01:22] → Données GitHub appliquées (53 vin(s)) et localStorage mis à jour : OK.
+[11:01:26] [Phase 1 — rapide] Vérification API GitHub — repos/Hammerinhank/vins/contents/index.html
+[11:01:27] [Phase 1] → Statut HTTP 200
+[11:01:27] [Phase 1] → Version enregistrée sur le dépôt : 1.15.14
+[11:01:27] [Phase 1] → Aucune version différente sur le dépôt, arrêt immédiat (pas de phase 2).
+[11:01:32] [Phase 1 — rapide] Vérification API GitHub — repos/Hammerinhank/vins/contents/index.html
+[11:01:32] [Phase 1] → Statut HTTP 200
+[11:01:32] [Phase 1] → Version enregistrée sur le dépôt : 1.15.14
+[11:01:32] [Phase 1] → Aucune version différente sur le dépôt, arrêt immédiat (pas de phase 2).
+[11:01:48] btnConnecterGdrive — clic. Client ID présent=true.
+[11:01:48] demanderConfirmation() affichée — titre="Se connecter à Google Drive"
+[11:01:49] → Fenêtre de confirmation « Se connecter à Google Drive » : Confirmer (callback exécuté).
+[11:01:49] demanderAccesGoogleDrive() appelé — Client ID présent=oui (72 caractère(s), se termine par ps.googleusercontent.com) · dossier configuré="198YfOk62qtP01BcNJYmvCHXwGjNwwrMa" · bibliothèque Google chargée=true · jeton déjà en mémoire=false.
+[11:01:49] demanderAccesGoogleDrive() — initialisation du client d'autorisation (initTokenClient).
+[11:01:49] demanderAccesGoogleDrive() — appel de requestAccessToken() (ouverture de la fenêtre d'autorisation Google)...
+[11:01:58] demanderAccesGoogleDrive() — jeton d'accès obtenu avec succès.
+[11:02:17] btnExportGDrive — clic. Client ID présent=true · dossier configuré="198YfOk62qtP01BcNJYmvCHXwGjNwwrMa".
+[11:02:17] demanderConfirmation() affichée — titre="Sauvegarder sur Google Drive"
+[11:02:19] → Fenêtre de confirmation « Sauvegarder sur Google Drive » : Confirmer (callback exécuté).
+[11:02:19] demanderAccesGoogleDrive() appelé — Client ID présent=oui (72 caractère(s), se termine par ps.googleusercontent.com) · dossier configuré="198YfOk62qtP01BcNJYmvCHXwGjNwwrMa" · bibliothèque Google chargée=true · jeton déjà en mémoire=true.
+[11:02:19] demanderAccesGoogleDrive() — jeton déjà en mémoire pour cette session, réutilisé directement sans redemander l'autorisation à Google.
+[11:02:20] btnExportGDrive — SUCCÈS CONFIRMÉ PAR L'API GOOGLE : « cave-a-vin-2026-09-03.json » créé sur Drive (id=1FaHys0a-nF0zHF2PC1EEcI1oTDeAzS4T) — export n°4 depuis cet appareil (3 précédemment).
+[11:02:20] demanderConfirmation() affichée — titre="✅ Envoyé sur Google Drive"
+[11:02:26] → Fenêtre de confirmation « ✅ Envoyé sur Google Drive » : Confirmer (callback exécuté).
+[11:02:29] btnVerifierGDrive — clic. Client ID présent=true · dossier configuré="198YfOk62qtP01BcNJYmvCHXwGjNwwrMa".
+[11:02:29] demanderConfirmation() affichée — titre="Vérifier une sauvegarde Google Drive"
+[11:02:31] → Fenêtre de confirmation « Vérifier une sauvegarde Google Drive » : Confirmer (callback exécuté).
+[11:02:31] demanderAccesGoogleDrive() appelé — Client ID présent=oui (72 caractère(s), se termine par ps.googleusercontent.com) · dossier configuré="198YfOk62qtP01BcNJYmvCHXwGjNwwrMa" · bibliothèque Google chargée=true · jeton déjà en mémoire=true.
+[11:02:31] demanderAccesGoogleDrive() — jeton déjà en mémoire pour cette session, réutilisé directement sans redemander l'autorisation à Google.
+[11:02:32] chargerListeGoogleDrive — 5 sauvegarde(s) trouvée(s) sur Google Drive.
+[11:02:38] verifierContenuFaceAMemoire — SUCCÈS CERTIFIÉ : « cave-a-vin-2026-09-03.json » (53 vin(s)) correspond exactement, champ par champ, au contenu actuellement en mémoire.
+[11:02:38] demanderConfirmation() affichée — titre="✅ Sauvegarde vérifiée"
+[11:02:44] → Fenêtre de confirmation « ✅ Sauvegarde vérifiée » : Confirmer (callback exécuté).
+[11:02:52] demanderConfirmation() affichée — titre="Importer la sauvegarde"
+[11:02:55] → Fenêtre de confirmation « Importer la sauvegarde » : Confirmer (callback exécuté).
+[11:02:55] importerContenuJson — import terminé : 53 vin(s) depuis « cave-a-vin-2026-09-03.json ».
+[11:03:13] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=53
+[11:03:13] → Lecture distante (avant envoi) : statut 200
+[11:03:13] → Contenu distant actuel : 53 vin(s), maj=2026-09-02T06:34:44.335Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=b69ac07561ff007c55ee37ec31bc52505d8b377b
+[11:03:13] → dernière maj connue=2026-09-02T06:34:44.335Z · maj distante=2026-09-02T06:34:44.335Z · estNonPriseEnCompte=false
+[11:03:13] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[11:03:13] effectuerEnvoiVersGitHub() appelé — sha=b69ac07561ff007c55ee37ec31bc52505d8b377b · bottles.length=53
+[11:03:13] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[11:03:13] → Préparation du contenu à envoyer : 53 vin(s), 90 bouteille(s), maj=2026-09-03T09:03:13.968Z, 99659 caractère(s)
+[11:03:15] → Réponse de l'envoi (PUT) : statut 200
+[11:03:15] → SUCCÈS (réponse HTTP) : 53 vin(s)/90 bouteille(s) envoyé(s) (app v1.15.14).
+[11:03:15] → VÉRIFICATION post-envoi : GitHub contient maintenant 53 vin(s)/90 bouteille(s) — attendu 53 vin(s)/90 bouteille(s).

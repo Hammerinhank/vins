@@ -1,0 +1,56 @@
+=== 2026-09-04 ===
+[10:51:03] chargerBouteilles() — lu depuis localStorage : 55 vin(s), 92 bouteille(s) en cave (octets bruts : 89402).
+[10:51:03] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[10:51:03] → Lecture réussie : 55 vin(s) sur GitHub (maj=2026-09-03T10:47:27.950Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[10:51:03] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[10:51:03] → syncDirty=true — local=55 vin(s)/92 bouteille(s) · distant=55 vin(s)/93 bouteille(s) (maj=2026-09-03T10:47:27.950Z) · dernière maj connue=2026-09-03T10:47:27.950Z · estNonPriseEnCompte=false
+[10:51:03] → Modifications locales non envoyées, mais la version GitHub n'a pas changé depuis la dernière synchro connue : rien n'est écrasé.
+[10:51:04] nettoyerLogSiAncien() — fichier log daté du 2026-09-03 (≠ aujourd'hui 2026-09-04) : supprimé.
+[10:51:04] ouvrirAjout() appelé — ficheEnCours va passer à null, titre → « Ajouter un vin ».
+[10:51:04] viderFormulaire() appelé — tous les champs vont être remis à vide/défaut, photo comprise. Pile d'appel : ouvrirAjout@https://hammerinhank.github.io/vins/:3356:18
+[10:51:26] enregistrerFiche() appelé — ficheEnCours=null · nom="N° 82" · pendante:546391o · miniature:vide · fichier:vide
+[10:51:26] → Nouveau vin créé — miniature en cache mémoire=vide · photoFichier=vide · photoPendingBase64=546391o
+[10:52:06] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="N° 82" · numero=82 · photo: en cache=non pendante=oui fichier=non
+[10:52:13] Clic « Identifier avec claude » — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · pendante:546391o · miniature:546391o · fichier:vide
+[10:53:26] Clic « Appliquer la réponse à ce vin » — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · verifTexteModeMiseAJour (avant)=false · pendante:546391o · miniature:546391o · fichier:vide
+[10:53:27] Presse-papier lu : 913 caractère(s). Début : "**nom :** Moulin du Château La Lagune – Haut-Médoc /  / **domaine :** Château La Lagune (propriétaire viticultrice : Carolin…"
+[10:53:27] Extraction — nom="Moulin du Château La Lagune – Haut-Médoc" (40c) · domaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" (61c) · millesime="2019" · region="Bordeaux" · couleur="Rouge" · etiquette=702c
+[10:53:27] → verifTexteModeMiseAJour mis à true, ouverture de la fenêtre de vérification en mode « mise à jour ».
+[10:53:33] Clic « Mettre à jour ce vin » — verifTexteModeMiseAJour=true · ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · domaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" · millesime="2019" · region="Bordeaux" · couleur="Rouge" · etiquette=702c · pendante:546391o · miniature:546391o · fichier:vide
+[10:53:33] → Branche MISE À JOUR (fiche déjà ouverte conservée).
+[10:53:33] → Après application — fNom="Moulin du Château La Lagune – Haut-Médoc" · fDomaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" · fRegion="Bordeaux" · couleur=rouge · pendante:546391o · miniature:546391o · fichier:vide
+[10:53:55] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="N° 82" · numero=82 · photo: en cache=non pendante=oui fichier=non
+[10:54:20] Clic « Appliquer la réponse à ce vin » — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · verifTexteModeMiseAJour (avant)=true · pendante:546391o · miniature:546391o · fichier:vide
+[10:54:21] Presse-papier lu : 913 caractère(s). Début : "**nom :** Moulin du Château La Lagune – Haut-Médoc /  / **domaine :** Château La Lagune (propriétaire viticultrice : Carolin…"
+[10:54:21] Extraction — nom="Moulin du Château La Lagune – Haut-Médoc" (40c) · domaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" (61c) · millesime="2019" · region="Bordeaux" · couleur="Rouge" · etiquette=702c
+[10:54:21] → verifTexteModeMiseAJour mis à true, ouverture de la fenêtre de vérification en mode « mise à jour ».
+[10:54:23] Clic « Mettre à jour ce vin » — verifTexteModeMiseAJour=true · ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · domaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" · millesime="2019" · region="Bordeaux" · couleur="Rouge" · etiquette=702c · pendante:546391o · miniature:546391o · fichier:vide
+[10:54:23] → Branche MISE À JOUR (fiche déjà ouverte conservée).
+[10:54:23] → Après application — fNom="Moulin du Château La Lagune – Haut-Médoc" · fDomaine="Château La Lagune (propriétaire viticultrice : Caroline Frey)" · fRegion="Bordeaux" · couleur=rouge · pendante:546391o · miniature:546391o · fichier:vide
+[10:54:26] enregistrerFiche() appelé — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · pendante:546391o · miniature:546391o · fichier:vide
+[10:54:26] → Vin existant mis à jour (id=b7c8ce76-e9da-4939-9b2c-438c6fa24689) — miniature en cache mémoire=546391o · photoFichier=vide · photoPendingBase64=546391o
+[10:54:49] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="Moulin du Château La Lagune – Haut-Médoc" · numero=82 · photo: en cache=oui pendante=oui fichier=non
+[10:54:57] enregistrerFiche() appelé — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · pendante:546391o · miniature:546391o · fichier:vide
+[10:54:57] → Vin existant mis à jour (id=b7c8ce76-e9da-4939-9b2c-438c6fa24689) — miniature en cache mémoire=546391o · photoFichier=vide · photoPendingBase64=546391o
+[10:56:04] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="Moulin du Château La Lagune – Haut-Médoc" · numero=82 · photo: en cache=oui pendante=oui fichier=non
+[10:56:14] enregistrerFiche() appelé — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · pendante:546391o · miniature:546391o · fichier:vide
+[10:56:14] → Vin existant mis à jour (id=b7c8ce76-e9da-4939-9b2c-438c6fa24689) — miniature en cache mémoire=546391o · photoFichier=vide · photoPendingBase64=546391o
+[10:56:23] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="Moulin du Château La Lagune – Haut-Médoc" · numero=82 · photo: en cache=oui pendante=oui fichier=non
+[10:56:35] ouvrirFiche(b7c8ce76-e9da-4939-9b2c-438c6fa24689) appelé — nom="Moulin du Château La Lagune – Haut-Médoc" · numero=82 · photo: en cache=oui pendante=oui fichier=non
+[10:57:06] enregistrerFiche() appelé — ficheEnCours=b7c8ce76-e9da-4939-9b2c-438c6fa24689 · nom="Moulin du Château La Lagune – Haut-Médoc" · pendante:546391o · miniature:546391o · fichier:vide
+[10:57:06] → Vin existant mis à jour (id=b7c8ce76-e9da-4939-9b2c-438c6fa24689) — miniature en cache mémoire=546391o · photoFichier=vide · photoPendingBase64=546391o
+[10:58:03] ouvrirFiche(6d9c0b10-57fb-480c-b9ee-ab97a389ee7f) appelé — nom="L'Art de Maison Neuve" · numero=31 · photo: en cache=non pendante=non fichier=images/6d9c0b10-57fb-480c-b9ee-ab97a389ee7f.jpg
+[10:58:54] enregistrerFiche() appelé — ficheEnCours=6d9c0b10-57fb-480c-b9ee-ab97a389ee7f · nom="L'Art de Maison Neuve" · pendante:vide · miniature:vide · fichier:images/6d9c0b10-57fb-480c-b9ee-ab97a389ee7f.jpg
+[10:58:54] → Vin existant mis à jour (id=6d9c0b10-57fb-480c-b9ee-ab97a389ee7f) — miniature en cache mémoire=vide · photoFichier=images/6d9c0b10-57fb-480c-b9ee-ab97a389ee7f.jpg · photoPendingBase64=vide
+[10:59:34] ouvrirFiche(b1d3fc9a-fc26-477a-b489-3d86fc6c1627) appelé — nom="Sancerre" · numero=73 · photo: en cache=non pendante=non fichier=images/f9953dc8-626e-4bcc-bff9-96e2798bc40d.jpg
+[11:00:13] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=56
+[11:00:13] → Lecture distante (avant envoi) : statut 200
+[11:00:14] → Contenu distant actuel : 55 vin(s), maj=2026-09-03T10:47:27.950Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=cda3484bf7e388ec9e7e4dcd64bf6b94b8d7117e
+[11:00:14] → dernière maj connue=2026-09-03T10:47:27.950Z · maj distante=2026-09-03T10:47:27.950Z · estNonPriseEnCompte=false
+[11:00:14] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[11:00:14] effectuerEnvoiVersGitHub() appelé — sha=cda3484bf7e388ec9e7e4dcd64bf6b94b8d7117e · bottles.length=56
+[11:00:17] → Photos en attente traitées : 1/1 envoyée(s), 0 échec(s)
+[11:00:17] → Préparation du contenu à envoyer : 56 vin(s), 93 bouteille(s), maj=2026-09-04T09:00:17.324Z, 105092 caractère(s)
+[11:00:18] → Réponse de l'envoi (PUT) : statut 200
+[11:00:18] → SUCCÈS (réponse HTTP) : 56 vin(s)/93 bouteille(s) envoyé(s) (app v1.15.14).
+[11:00:19] → VÉRIFICATION post-envoi : GitHub contient maintenant 56 vin(s)/93 bouteille(s) — attendu 56 vin(s)/93 bouteille(s).

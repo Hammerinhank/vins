@@ -37,9 +37,9 @@
   ],
   "groupBy": "aucun",
   "sortKey": "ajout_desc",
-  "filtreStatut": "bue",
+  "filtreStatut": "cave",
   "filtreCouleur": "toutes",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-04T08:58:01.214Z"
+  "maj": "2026-09-04T08:59:33.098Z"
 }

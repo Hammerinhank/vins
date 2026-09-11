@@ -67,7 +67,7 @@
       "dateAjout": "2026-08-28",
       "quantiteBue": 1,
       "dateDerniereDegustation": "2026-08-29",
-      "nom": "Muscat de beautés de Venise",
+      "nom": "Muscat de beaumes de Venise",
       "domaine": "Pierre Amandieu",
       "appellation": "",
       "region": "Vallée du Rhône",
@@ -87,7 +87,10 @@
       "photoFichier": "images/f0ef9e79-7869-4887-9038-74a103a53852.jpg",
       "numero": 4,
       "noteNumerique": 76,
-      "noteIncertaine": ""
+      "noteIncertaine": "",
+      "marque": false,
+      "marqueCouleur": "",
+      "etiquette": ""
     },
     {
       "id": "f796e394-37fc-4088-a593-422847b18ae8",
@@ -1661,8 +1664,38 @@
       "etiquette": "- Nom du vin : MOULIN DU CHATEAU LA LAGUNE\n- Millésime : 2019 (inscrit en petit à droite, après « LAGUNE »)\n- Appellation : HAUT-MÉDOC\n- Mention latérale : PROPRIÉTAIRE VITICULTRICE CAROLINE FREY\n- Monogramme : initiales entrelacées « LML » / « ML » dans un cercle (sceau du domaine)\n- Illustration : dessin au trait bleu marine sur fond crème — une huppe fasciée perchée sur le toit pointu d'un petit moulin/pigeonnier, entourée d'un papillon, d'une abeille, d'un lézard, de roseaux, de roses, de feuilles de vigne et d'une grappe de raisin\n- Style graphique : typographie fantaisie en capitales bleu marine, papier texturé écru\n\nIl s'agit du second vin du Château La Lagune, cru classé du Haut-Médoc.",
       "commentaire": "Vin offert par Lam et Lan\nBon second vin, dans un très beau millésime. Le 2019 est l'une des grandes années récentes à Bordeaux (maturité et fraîcheur réunies), et le Moulin en profite : assemblage dominé par le merlot (environ 60 %), complété de cabernet-sauvignon (33 %) et d'un peu de petit verdot, autour de 14,5 % d'alcool. Le domaine est certifié bio depuis le millésime 2016, sous la conduite de Caroline Frey, ce qui se sent dans le style : plus de netteté et de tension que la moyenne des Haut-Médoc d'entrée de gamme.\n\nAu verre, attendez-vous à un rubis assez soutenu, un nez de fruits noirs et rouges mûrs avec une touche de cacao et de graphite, un boisé discret. La bouche est équilibrée, de milieu de corps, tanins fondus et enrobés, finale fraîche et nette plutôt que puissante. C'est un vin de plaisir immédiat mais qui tiendra encore : bon jusqu'en 2029-2032. À carafer 30 minutes, servi à 16-17 °C, sur une viande rouge grillée, un magret, un jambon braisé ou des fromages de brebis.\n\nLe seul reproche possible : il reste un second vin, donc moins de profondeur et de longueur que le grand vin. Mais le rapport qualité-prix est très correct.\n\nnote : 15/20\nPrix : 18 euros",
       "photoFichier": "images/b7c8ce76-e9da-4939-9b2c-438c6fa24689.jpg"
+    },
+    {
+      "id": "c7327fd8-68d5-455a-a580-d520e12504c7",
+      "numero": 83,
+      "dateAjout": "2026-09-11",
+      "quantiteBue": 0,
+      "dateDerniereDegustation": "",
+      "nom": "Alsace - vendange tardives - Gewurztraminer",
+      "domaine": "Ruhlmann",
+      "appellation": "",
+      "region": "Alsace",
+      "pays": "France",
+      "couleur": "liquoreux",
+      "millesime": "",
+      "cepages": "",
+      "quantite": 1,
+      "prixUnitaire": "",
+      "dateAchat": "",
+      "lieuAchat": "",
+      "emplacement": "Hors casier",
+      "boireDe": "",
+      "boireA": "",
+      "note": 0,
+      "marque": false,
+      "marqueCouleur": "",
+      "noteNumerique": "",
+      "noteIncertaine": "",
+      "etiquette": "* Appellation : Alsace (Appellation Alsace Contrôlée)\n * Domaine / Producteur : Ruhlmann\n * Cépage / Mention : Gewurztraminer - Vendanges Tardives\n * Millésime : 2023\n * Degré d'alcool : 12% vol.\n * Volume : 500 ml (0,5 L)\n * Mise en bouteille : Mis en bouteille par Ruhlmann à F-67650 Dambach-la-Ville\n * Origine : Produit de France",
+      "commentaire": "",
+      "photoFichier": "images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg"
     }
   ],
-  "maj": "2026-09-04T09:00:17.324Z",
+  "maj": "2026-09-11T09:48:27.229Z",
   "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
 }

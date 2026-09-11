@@ -38,8 +38,8 @@
   "groupBy": "aucun",
   "sortKey": "ajout_desc",
   "filtreStatut": "cave",
-  "filtreCouleur": "champagne",
+  "filtreCouleur": "toutes",
   "filtreMarque": "tous",
   "filtreApogeeOnly": false,
-  "maj": "2026-09-11T09:48:57.592Z"
+  "maj": "2026-09-11T19:05:24.891Z"
 }

@@ -1671,13 +1671,13 @@
       "dateAjout": "2026-09-11",
       "quantiteBue": 0,
       "dateDerniereDegustation": "",
-      "nom": "Alsace - vendange tardives - Gewurztraminer",
+      "nom": "Alsace Vendanges Tardives Gewurztraminer",
       "domaine": "Ruhlmann",
       "appellation": "",
       "region": "Alsace",
       "pays": "France",
       "couleur": "liquoreux",
-      "millesime": "",
+      "millesime": "2023",
       "cepages": "",
       "quantite": 1,
       "prixUnitaire": "",
@@ -1691,11 +1691,11 @@
       "marqueCouleur": "",
       "noteNumerique": "",
       "noteIncertaine": "",
-      "etiquette": "* Appellation : Alsace (Appellation Alsace Contrôlée)\n * Domaine / Producteur : Ruhlmann\n * Cépage / Mention : Gewurztraminer - Vendanges Tardives\n * Millésime : 2023\n * Degré d'alcool : 12% vol.\n * Volume : 500 ml (0,5 L)\n * Mise en bouteille : Mis en bouteille par Ruhlmann à F-67650 Dambach-la-Ville\n * Origine : Produit de France",
+      "etiquette": "Alsace\nAPPELLATION ALSACE CONTRÔLÉE\nRuhlmann\nVendanges Tardives\nGewurztraminer\n2023\n12% vol.\n500ML\nMIS EN BOUTEILLE PAR RUHLMANN\nA F-67650 DAMBACH-LA-VILLE\nPRODUIT DE FRANCE",
       "commentaire": "",
       "photoFichier": "images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg"
     }
   ],
-  "maj": "2026-09-11T09:48:27.229Z",
-  "origine": "f3f326f7-78e6-4c03-9716-c7ed48cce904"
+  "maj": "2026-09-12T11:43:39.104Z",
+  "origine": "c1b9cdd0-88d1-4bf5-b2a4-33c3442b358b"
 }

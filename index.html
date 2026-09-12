@@ -1482,7 +1482,7 @@
         <input type="password" id="paramCleGemini" class="input-cle-gemini" placeholder="AIza…" autocomplete="off" autocapitalize="off" spellcheck="false" data-tt-titre="Clé API Gemini" data-tt-desc="Clé personnelle utilisée pour interroger Gemini. Conservée sur cet appareil uniquement, jamais envoyée sur GitHub.">
         <button class="btn btn-sm btn-ghost" id="btnVoirCleGemini" type="button" data-tt-titre="Afficher la clé" data-tt-desc="Affiche ou masque la clé saisie.">👁</button>
       </div>
-      <p class="panel-note">Cette clé reste dans le stockage local de cet appareil et n'est jamais écrite dans cave-reglages.json : elle serait sinon publiée dans le dépôt GitHub. Elle est donc à saisir une fois sur chaque appareil (iMac, iPhone). Clé à créer sur aistudio.google.com/apikey ; si tu la restreins par référent, autorise l'adresse de cette page.</p>
+      <p class="panel-note">Cette clé est partagée avec mes autres apps du même site : saisie ici, elle y est aussi disponible, et inversement. Elle reste dans le stockage local de cet appareil et n'est jamais écrite dans cave-reglages.json : elle serait sinon publiée dans le dépôt GitHub. Elle est donc à saisir une fois sur chaque appareil (iMac, iPhone). Clé à créer sur aistudio.google.com/apikey ; si tu la restreins par référent, autorise l'adresse de cette page.</p>
       <label>Modèle</label>
       <select id="paramModeleGemini" class="select-champ-import" data-tt-titre="Modèle Gemini" data-tt-desc="Modèle interrogé. Flash répond vite, Pro est plus fin mais plus lent.">
         <option value="gemini-2.5-flash">gemini-2.5-flash (rapide)</option>
@@ -1615,8 +1615,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.16.1";
+const VERSION = "1.16.2";
 const HISTORY = [
+  { version:"1.16.2", date:"2026-09-12", notes:"La clé API Gemini est désormais rangée dans le stockage local sous l'étiquette « gemini_api_key », déjà utilisée par mon app geminiPhoto, au lieu de « cave_cle_gemini_v1 » propre à cette app. Comme toutes mes apps sont servies depuis la même origine, elles partagent le même stockage local : la clé saisie dans l'une vaut maintenant pour toutes les autres, au lieu d'être à ressaisir dans chacune — et à ne corriger qu'à un seul endroit le jour où j'en change. La clé déjà enregistrée sous l'ancienne étiquette est reprise automatiquement au premier lancement, puis l'ancienne est effacée pour éviter deux exemplaires qui finiraient par diverger. Rien à ressaisir." },
   { version:"1.16.1", date:"2026-09-12", notes:"Corrigé, signalé dès le premier essai réel : « Identifier avec Gemini » échouait sur une fiche existante avec « Unsupported MIME type: application/vnd.github.raw+json ». La photo récupérée depuis GitHub héritait du type MIME de la réponse d'API au lieu de celui de l'image — sans conséquence jusqu'ici, un <img> reconnaissant le JPEG à ses octets, mais rejeté net par l'API Gemini. Le type réel est désormais rétabli à la récupération (déduit de l'extension du fichier), avec en plus un garde-fou juste avant l'envoi qui corrige tout type non reconnu comme image. Sans effet sur la Saisie rapide, dont la photo venait directement de l'appareil et fonctionnait déjà. Par ailleurs : le bouton « Enregistrer » de la page Paramètres est dupliqué en haut de page, la page étant devenue longue — les deux boutons font exactement la même chose, affichent le même message d'état aux deux endroits et se désactivent ensemble pendant l'envoi." },
   { version:"1.16.0", date:"2026-09-12", notes:"Gemini rejoint ChatGPT et Claude comme assistant IA, avec une différence de fond : il reçoit la photo directement dans la requête et rend sa réponse à l'app. Tout le parcours par le presse-papier disparaît donc quand il est choisi — plus de photo à copier, plus d'onglet à ouvrir, plus de réponse à recoller : un seul appui sur « Identifier avec Gemini » et la fenêtre de vérification habituelle (Nom, Domaine, Millésime, Région, Couleur, Étiquette) s'ouvre dès la réponse reçue, à confirmer comme avant. Même chose pour « Demander un avis à Gemini », qui remplit directement commentaire, note et prix. Les trois boutons devenus inutiles (« Appliquer la réponse à ce vin », « Créer un nouveau vin à partir de la réponse copiée », « Appliquer la réponse au vin ») sont masqués tant que Gemini est sélectionné, et réapparaissent tels quels avec ChatGPT ou Claude, dont le fonctionnement est inchangé. Nouveaux réglages dans Paramètres, visibles seulement quand Gemini est choisi : la clé API — conservée dans le stockage local de cet appareil et jamais écrite dans cave-reglages.json, qui est publié sur GitHub, donc à saisir une fois par appareil — et le choix du modèle (flash rapide ou pro plus fin), celui-ci synchronisé comme les autres réglages. Chaque étape de l'échange est tracée dans l'onglet Log, comme pour les deux autres assistants." },
   { version:"1.15.14", date:"2026-09-02", notes:"Réorganisation de « Sauvegarde Google Drive » en trois blocs clairement séparés (titres numérotés) : 1) Identifiants (Client ID, dossier, Enregistrer) ; 2) Connexion au compte Google — avec un nouveau bouton dédié « 🔌 Se connecter » (jusqu'ici, connecter ne se faisait qu'implicitement via Sauvegarder/Vérifier/Restaurer), une explication du décalage d'onglet propre à iPhone directement à cet endroit, et le statut de connexion rendu plus visible : rouge (⭕) si non connecté, vert et gras (✅) si connecté ; 3) Sauvegarder / vérifier / restaurer, regroupés ensemble avec Sauvegarder mis en avant sur sa propre ligne."},
@@ -1945,8 +1946,13 @@ const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par 
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
 let assistantIA = "chatgpt";   // "chatgpt", "claude" ou "gemini" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
 const MODELE_GEMINI_DEFAUT = "gemini-2.5-flash";
-const LS_CLE_GEMINI = "cave_cle_gemini_v1";   // la clé API ne quitte JAMAIS cet appareil : elle est volontairement
-                                              // absente de cave-reglages.json, qui est publié dans le dépôt GitHub.
+/* Étiquette VOLONTAIREMENT commune à toutes mes apps : elles sont servies depuis la même origine
+   (hammerinhank.github.io) et partagent donc le même localStorage. La clé Gemini saisie dans l'une
+   est ainsi disponible dans toutes les autres — une seule saisie par appareil au lieu d'une par app.
+   Elle ne quitte jamais l'appareil : elle est volontairement absente de cave-reglages.json, publié
+   dans le dépôt GitHub. */
+const LS_CLE_GEMINI = "gemini_api_key";
+const LS_CLE_GEMINI_ANCIEN = "cave_cle_gemini_v1";   // étiquette propre à cette app, utilisée en v1.16.0 seulement
 let cleGemini = "";
 let modeleGemini = MODELE_GEMINI_DEFAUT;   // modèle interrogé — non sensible, donc synchronisé comme les autres réglages
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
@@ -7013,7 +7019,18 @@ questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
 assistantIA = ["claude", "gemini"].includes(reglagesLocaux.assistantIA) ? reglagesLocaux.assistantIA : "chatgpt";
 modeleGemini = typeof reglagesLocaux.modeleGemini === "string" && reglagesLocaux.modeleGemini ? reglagesLocaux.modeleGemini : MODELE_GEMINI_DEFAUT;
-try{ cleGemini = localStorage.getItem(LS_CLE_GEMINI) || ""; }catch(e){ cleGemini = ""; }
+/* Reprise sans intervention de la clé enregistrée sous l'ancienne étiquette (v1.16.0) : elle est
+   recopiée sous l'étiquette commune, puis l'ancienne est effacée pour ne pas laisser deux
+   exemplaires qui divergeraient au prochain changement de clé. */
+try{
+  cleGemini = localStorage.getItem(LS_CLE_GEMINI) || "";
+  const ancienne = localStorage.getItem(LS_CLE_GEMINI_ANCIEN) || "";
+  if(!cleGemini && ancienne){
+    cleGemini = ancienne;
+    localStorage.setItem(LS_CLE_GEMINI, cleGemini);
+  }
+  if(ancienne) localStorage.removeItem(LS_CLE_GEMINI_ANCIEN);
+}catch(e){ cleGemini = ""; }
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
 forcerModeEdition = reglagesLocaux.forcerModeEdition !== undefined ? reglagesLocaux.forcerModeEdition : true;
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];

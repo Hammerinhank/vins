@@ -1463,6 +1463,10 @@
   </div>
 
   <div class="page-body" id="pageCorpsParametres" style="display:none;">
+    <div class="panel-row">
+      <button class="btn btn-gold" id="btnEnregistrerParametresHaut" type="button" data-tt-titre="Enregistrer" data-tt-desc="Sauvegarde ces réglages localement et les envoie sur GitHub. Identique au bouton du bas de page.">Enregistrer</button>
+    </div>
+    <p class="panel-note" id="paramSyncStatusHaut"></p>
     <div class="field">
       <label>Assistant IA pour l'identification par photo</label>
       <div class="assistant-choices" id="assistantChoices">
@@ -1611,8 +1615,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.16.0";
+const VERSION = "1.16.1";
 const HISTORY = [
+  { version:"1.16.1", date:"2026-09-12", notes:"Corrigé, signalé dès le premier essai réel : « Identifier avec Gemini » échouait sur une fiche existante avec « Unsupported MIME type: application/vnd.github.raw+json ». La photo récupérée depuis GitHub héritait du type MIME de la réponse d'API au lieu de celui de l'image — sans conséquence jusqu'ici, un <img> reconnaissant le JPEG à ses octets, mais rejeté net par l'API Gemini. Le type réel est désormais rétabli à la récupération (déduit de l'extension du fichier), avec en plus un garde-fou juste avant l'envoi qui corrige tout type non reconnu comme image. Sans effet sur la Saisie rapide, dont la photo venait directement de l'appareil et fonctionnait déjà. Par ailleurs : le bouton « Enregistrer » de la page Paramètres est dupliqué en haut de page, la page étant devenue longue — les deux boutons font exactement la même chose, affichent le même message d'état aux deux endroits et se désactivent ensemble pendant l'envoi." },
   { version:"1.16.0", date:"2026-09-12", notes:"Gemini rejoint ChatGPT et Claude comme assistant IA, avec une différence de fond : il reçoit la photo directement dans la requête et rend sa réponse à l'app. Tout le parcours par le presse-papier disparaît donc quand il est choisi — plus de photo à copier, plus d'onglet à ouvrir, plus de réponse à recoller : un seul appui sur « Identifier avec Gemini » et la fenêtre de vérification habituelle (Nom, Domaine, Millésime, Région, Couleur, Étiquette) s'ouvre dès la réponse reçue, à confirmer comme avant. Même chose pour « Demander un avis à Gemini », qui remplit directement commentaire, note et prix. Les trois boutons devenus inutiles (« Appliquer la réponse à ce vin », « Créer un nouveau vin à partir de la réponse copiée », « Appliquer la réponse au vin ») sont masqués tant que Gemini est sélectionné, et réapparaissent tels quels avec ChatGPT ou Claude, dont le fonctionnement est inchangé. Nouveaux réglages dans Paramètres, visibles seulement quand Gemini est choisi : la clé API — conservée dans le stockage local de cet appareil et jamais écrite dans cave-reglages.json, qui est publié sur GitHub, donc à saisir une fois par appareil — et le choix du modèle (flash rapide ou pro plus fin), celui-ci synchronisé comme les autres réglages. Chaque étape de l'échange est tracée dans l'onglet Log, comme pour les deux autres assistants." },
   { version:"1.15.14", date:"2026-09-02", notes:"Réorganisation de « Sauvegarde Google Drive » en trois blocs clairement séparés (titres numérotés) : 1) Identifiants (Client ID, dossier, Enregistrer) ; 2) Connexion au compte Google — avec un nouveau bouton dédié « 🔌 Se connecter » (jusqu'ici, connecter ne se faisait qu'implicitement via Sauvegarder/Vérifier/Restaurer), une explication du décalage d'onglet propre à iPhone directement à cet endroit, et le statut de connexion rendu plus visible : rouge (⭕) si non connecté, vert et gras (✅) si connecté ; 3) Sauvegarder / vérifier / restaurer, regroupés ensemble avec Sauvegarder mis en avant sur sa propre ligne."},
   { version:"1.15.13", date:"2026-09-02", notes:"« Vérifier une sauvegarde Google Drive » et « Restaurer depuis Google Drive » manquaient de toute explication au clic (contrairement à « Sauvegarder »), et la liste affichée ne disait pas à quoi servaient ses deux boutons par entrée. Corrigé : un message explicatif s'affiche désormais avant de lancer la recherche, et un rappel permanent (« Vérifier compare sans rien changer · Restaurer remplace la cave, après confirmation ») reste visible en haut de la liste elle-même, pour que ce soit clair même après avoir fermé le premier message."},
@@ -2688,7 +2693,17 @@ async function obtenirPhotoDepuisGitHub(cheminFichier){
     const url = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(cheminFichier)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
     const res = await githubAPI(url, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
     if(!res.ok) return null;
-    const blob = await res.blob();
+    const brut = await res.blob();
+    // Le blob hérite du type MIME de la réponse d'API (application/vnd.github.raw+json), et non de
+    // celui de l'image : le data:URL produit porterait donc une étiquette fausse — sans conséquence
+    // pour un <img>, qui reconnaît le JPEG à ses octets, mais rejetée par l'API Gemini. On rétablit
+    // le type réel, déduit de l'extension du fichier (toutes les photos sont stockées en .jpg).
+    const extension = (cheminFichier.split(".").pop() || "").toLowerCase();
+    const typeImage = extension === "png" ? "image/png"
+                    : extension === "webp" ? "image/webp"
+                    : extension === "heic" ? "image/heic"
+                    : "image/jpeg";
+    const blob = brut.type.startsWith("image/") ? brut : new Blob([brut], { type: typeImage });
     return await new Promise((resolve, reject)=>{
       const lecteur = new FileReader();
       lecteur.onload = () => resolve(lecteur.result);
@@ -3826,8 +3841,15 @@ async function appelerGemini(question, dataUrlImage){
   if(dataUrlImage){
     const decoupe = /^data:([^;]+);base64,(.*)$/.exec(dataUrlImage);
     if(!decoupe) throw new Error("Photo au format inattendu, impossible à joindre");
-    parts.push({ inline_data: { mime_type: decoupe[1], data: decoupe[2] } });
-    logAjouter(`Gemini — image jointe : ${decoupe[1]}, ~${Math.round(decoupe[2].length * 0.75 / 1024)} Ko.`);
+    // Gemini n'accepte que des types image/*. Une photo dont le type se serait perdu en route (cas
+    // rencontré avec les photos servies par l'API GitHub) est annoncée en JPEG, ce qu'elle est.
+    let typeImage = decoupe[1];
+    if(!typeImage.startsWith("image/")){
+      logAjouter(`Gemini — type MIME inattendu (${typeImage}), corrigé en image/jpeg.`);
+      typeImage = "image/jpeg";
+    }
+    parts.push({ inline_data: { mime_type: typeImage, data: decoupe[2] } });
+    logAjouter(`Gemini — image jointe : ${typeImage}, ~${Math.round(decoupe[2].length * 0.75 / 1024)} Ko.`);
   }
   const modele = modeleGemini || MODELE_GEMINI_DEFAUT;
   logAjouter(`Gemini — appel du modèle ${modele} · question ${question ? question.length : 0} caractère(s) · image ${dataUrlImage ? "oui" : "non"}.`);
@@ -5197,6 +5219,7 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramEmplacementDroite").value = listeVersTexte(emplacementDroiteListe);
   construireSelectRegionsParametres();
   document.getElementById("paramSyncStatus").textContent = "";
+  document.getElementById("paramSyncStatusHaut").textContent = "";
   afficherPageOnglet("saisie");
   document.getElementById("pageParametres").style.display = "block";
 });
@@ -5209,7 +5232,7 @@ document.getElementById("btnFermerParametres").addEventListener("click", ()=>{
 document.getElementById("btnApercuConsultation").addEventListener("click", ()=>{
   window.open(location.origin + location.pathname + "?apercu", "_blank");
 });
-document.getElementById("btnEnregistrerParametres").addEventListener("click", function(){
+function enregistrerParametres(btn){
   const valeur = document.getElementById("paramQuestionChatGPT").value.trim();
   questionChatGPT = valeur || QUESTION_CHATGPT_DEFAUT;
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
@@ -5239,18 +5262,24 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   construireSelectsEmplacement();
   renderGrille();
   sauvegarderReglagesLocal();
-  const statusEl = document.getElementById("paramSyncStatus");
-  statusEl.textContent = "Enregistrement…";
-  const btn = this;
-  btn.disabled = true;
+  // Les deux boutons (haut et bas de page) partagent ce traitement : même message d'état affiché aux
+  // deux endroits, et les deux désactivés pendant l'envoi, pour qu'un double clic reste impossible
+  // quelle que soit l'extrémité de la page où l'on se trouve.
+  const zonesStatut = [document.getElementById("paramSyncStatus"), document.getElementById("paramSyncStatusHaut")].filter(Boolean);
+  const boutons = [document.getElementById("btnEnregistrerParametres"), document.getElementById("btnEnregistrerParametresHaut")].filter(Boolean);
+  zonesStatut.forEach(el => el.textContent = "Enregistrement…");
+  boutons.forEach(b => b.disabled = true);
   pousserReglagesVersGitHub().then(ok=>{
-    statusEl.textContent = ok
+    const message = ok
       ? "Enregistré et synchronisé sur GitHub."
       : "Enregistré sur cet appareil — échec de l'envoi vers GitHub (vérifie la synchronisation).";
+    zonesStatut.forEach(el => el.textContent = message);
     toast(ok ? "Paramètres enregistrés" : "Enregistré localement — échec GitHub");
-    btn.disabled = false;
+    boutons.forEach(b => b.disabled = false);
   });
-});
+}
+document.getElementById("btnEnregistrerParametres").addEventListener("click", function(){ enregistrerParametres(this); });
+document.getElementById("btnEnregistrerParametresHaut").addEventListener("click", function(){ enregistrerParametres(this); });
 
 
 /* ===================== VERSION / HISTORIQUE ===================== */

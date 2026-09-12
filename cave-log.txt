@@ -1,0 +1,33 @@
+=== 2026-09-12 ===
+[13:39:41] chargerBouteilles() — lu depuis localStorage : 53 vin(s), 90 bouteille(s) en cave (octets bruts : 87355).
+[13:39:41] Synchronisation automatique au lancement : tentative de récupération de cave.json depuis GitHub.
+[13:39:42] → Lecture réussie : 57 vin(s) sur GitHub (maj=2026-09-11T09:48:27.229Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904).
+[13:39:42] → GitHub pleinement joignable (cave.json et réglages) : synchronisation normale.
+[13:39:42] → syncDirty=false — remplacement automatique : local=53 vin(s)/90 bouteille(s) → distant=57 vin(s)/94 bouteille(s) (maj=2026-09-11T09:48:27.229Z).
+[13:39:42] → Données GitHub appliquées (57 vin(s)) et localStorage mis à jour : OK.
+[13:39:42] → Réglages distants appliqués (au moins un changement détecté).
+[13:39:47] ouvrirFiche(c7327fd8-68d5-455a-a580-d520e12504c7) appelé — nom="Alsace - vendange tardives - Gewurztraminer" · numero=83 · photo: en cache=oui pendante=non fichier=images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:39:56] Clic « Identifier avec gemini » — ficheEnCours=c7327fd8-68d5-455a-a580-d520e12504c7 · pendante:vide · miniature:630255o · fichier:images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:39:56] → Gemini : aucune clé API enregistrée sur cet appareil, arrêt.
+[13:41:40] ouvrirFiche(c7327fd8-68d5-455a-a580-d520e12504c7) appelé — nom="Alsace - vendange tardives - Gewurztraminer" · numero=83 · photo: en cache=oui pendante=non fichier=images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:41:44] Clic « Identifier avec gemini » — ficheEnCours=c7327fd8-68d5-455a-a580-d520e12504c7 · pendante:vide · miniature:630255o · fichier:images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:41:45] Gemini — image jointe : image/jpeg, ~462 Ko.
+[13:41:45] Gemini — appel du modèle gemini-2.5-flash · question 1114 caractère(s) · image oui.
+[13:41:51] Gemini — réponse en 6.0s : 304 caractère(s). Début : "nom : Alsace Vendanges Tardives Gewurztraminer / domaine : Ruhlmann / millesime : 2023 / région : Alsace / couleur : Liquoreux / é…"
+[13:41:51] Extraction (Gemini) — nom="Alsace Vendanges Tardives Gewurztraminer" · domaine="Ruhlmann" · millesime="2023" · region="Alsace" · couleur="Liquoreux" · etiquette=173c
+[13:42:12] Clic « Mettre à jour ce vin » — verifTexteModeMiseAJour=true · ficheEnCours=c7327fd8-68d5-455a-a580-d520e12504c7 · nom="Alsace Vendanges Tardives Gewurztraminer" · domaine="Ruhlmann" · millesime="2023" · region="Alsace" · couleur="Liquoreux" · etiquette=173c · pendante:vide · miniature:630255o · fichier:images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:42:12] → Branche MISE À JOUR (fiche déjà ouverte conservée).
+[13:42:12] → Après application — fNom="Alsace Vendanges Tardives Gewurztraminer" · fDomaine="Ruhlmann" · fRegion="Alsace" · couleur=liquoreux · pendante:vide · miniature:630255o · fichier:images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:43:18] enregistrerFiche() appelé — ficheEnCours=c7327fd8-68d5-455a-a580-d520e12504c7 · nom="Alsace Vendanges Tardives Gewurztraminer" · pendante:vide · miniature:630255o · fichier:images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg
+[13:43:18] → Vin existant mis à jour (id=c7327fd8-68d5-455a-a580-d520e12504c7) — miniature en cache mémoire=630255o · photoFichier=images/c7327fd8-68d5-455a-a580-d520e12504c7.jpg · photoPendingBase64=vide
+[13:43:37] lancerEnvoiVersGitHub() appelé — user="Hammerinhank" · repo="vins" · branche="main" · chemin="cave.json" · jeton présent=oui · bottles.length=57
+[13:43:38] → Lecture distante (avant envoi) : statut 200
+[13:43:38] → Contenu distant actuel : 57 vin(s), maj=2026-09-11T09:48:27.229Z, origine=f3f326f7-78e6-4c03-9716-c7ed48cce904 · sha=84af32a0e4c04d78dea46688de1331cc3112380e
+[13:43:38] → dernière maj connue=2026-09-11T09:48:27.229Z · maj distante=2026-09-11T09:48:27.229Z · estNonPriseEnCompte=false
+[13:43:38] → Vérification préalable OK, poursuite avec effectuerEnvoiVersGitHub().
+[13:43:38] effectuerEnvoiVersGitHub() appelé — sha=84af32a0e4c04d78dea46688de1331cc3112380e · bottles.length=57
+[13:43:38] → Photos en attente traitées : 0/0 envoyée(s), 0 échec(s)
+[13:43:39] → Préparation du contenu à envoyer : 57 vin(s), 94 bouteille(s), maj=2026-09-12T11:43:39.104Z, 106178 caractère(s)
+[13:43:40] → Réponse de l'envoi (PUT) : statut 200
+[13:43:40] → SUCCÈS (réponse HTTP) : 57 vin(s)/94 bouteille(s) envoyé(s) (app v1.16.1).
+[13:43:41] → VÉRIFICATION post-envoi : GitHub contient maintenant 57 vin(s)/94 bouteille(s) — attendu 57 vin(s)/94 bouteille(s).

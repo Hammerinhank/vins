@@ -597,7 +597,17 @@
     padding:6px 10px;border-radius:999px;font-size:12.5px;color:var(--text-muted);
   }
   .couleur-choice.active{border-color:var(--gold);color:var(--text);background:var(--bg-card);}
+  .input-cle-gemini{
+    flex:1 1 220px;min-width:0;
+    background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text);
+    padding:9px 10px;border-radius:8px;font-size:14px;
+    font-family:'IBM Plex Mono',monospace;
+  }
   .assistant-choices{display:flex;gap:8px;flex-wrap:wrap;}
+  /* Gemini répond directement dans l'app : tout ce qui relève du passage par le presse-papier
+     (copier la réponse de l'IA, la coller ici) n'a plus lieu d'être et disparaît. */
+  body.ia-gemini .presse-papier-seul{display:none !important;}
+  body:not(.ia-gemini) .gemini-seul{display:none !important;}
   .assistant-choice{
     border:1px solid var(--line);background:var(--bg-panel-2);
     padding:9px 16px;border-radius:999px;font-size:13px;color:var(--text-muted);
@@ -1117,7 +1127,7 @@
               </div>
               <div class="photo-actions-row">
                 <button class="btn btn-ghost btn-sm" id="btnIdentifierChatGPT" type="button" style="display:none;" data-tt-titre="Identifier avec l'assistant IA" data-tt-desc="Copie la photo dans le presse-papier et ouvre l'assistant IA choisi pour identifier le vin.">🤖 Identifier avec ChatGPT</button>
-                <button class="btn btn-ghost btn-sm" id="btnAppliquerReponseFiche" type="button" style="display:none;" data-tt-titre="Appliquer la réponse à ce vin" data-tt-desc="Lit la réponse copiée depuis l'assistant IA et l'applique aux champs de cette fiche, après vérification.">📥 Appliquer la réponse à ce vin</button>
+                <button class="btn btn-ghost btn-sm presse-papier-seul" id="btnAppliquerReponseFiche" type="button" style="display:none;" data-tt-titre="Appliquer la réponse à ce vin" data-tt-desc="Lit la réponse copiée depuis l'assistant IA et l'applique aux champs de cette fiche, après vérification.">📥 Appliquer la réponse à ce vin</button>
               </div>
             </div>
             <input type="file" id="photoInput" accept="image/*" style="display:none">
@@ -1364,7 +1374,8 @@
   </div>
 
   <div class="page-body" id="pageCorpsSaisie">
-    <p class="panel-note">Prends ou choisis la photo d'une étiquette, identifie le vin avec l'IA, colle sa réponse dans ChatGPT/Claude puis reviens ici pour créer la fiche à partir du texte copié.</p>
+    <p class="panel-note presse-papier-seul">Prends ou choisis la photo d'une étiquette, identifie le vin avec l'IA, colle sa réponse dans ChatGPT/Claude puis reviens ici pour créer la fiche à partir du texte copié.</p>
+    <p class="panel-note gemini-seul">Prends ou choisis la photo d'une étiquette, puis touche « Identifier avec Gemini » : la photo part avec la question, et la fenêtre de vérification s'ouvre dès la réponse reçue. Aucun copier-coller.</p>
     <div class="panel-row">
       <button class="btn" id="btnSaisiePhoto" type="button" data-tt-titre="Prendre / choisir une photo" data-tt-desc="Sélectionne la photo d'une étiquette à identifier.">📷 Prendre / choisir une photo</button>
     </div>
@@ -1373,10 +1384,10 @@
     <div class="panel-row">
       <button class="btn btn-ghost" id="btnSaisieIdentifier" type="button" disabled data-tt-titre="Identifier avec l'assistant IA" data-tt-desc="Copie la photo dans le presse-papier et ouvre l'assistant IA choisi.">🤖 Identifier avec ChatGPT</button>
     </div>
-    <div class="panel-row">
+    <div class="panel-row presse-papier-seul">
       <button class="btn btn-gold" id="btnSaisieCreerVin" type="button" data-tt-titre="Créer un nouveau vin" data-tt-desc="Utilise le texte actuellement dans le presse-papier (réponse copiée depuis l'assistant IA) pour créer une nouvelle fiche.">➕ Créer un nouveau vin à partir de la réponse copiée</button>
     </div>
-    <p class="panel-note">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
+    <p class="panel-note presse-papier-seul">Ce dernier bouton lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise, pour l'instant, comme commentaire de dégustation de la nouvelle fiche — à affiner ensemble plus tard.</p>
   </div>
 
   <div class="page-body" id="pageCorpsAvis" style="display:none;">
@@ -1400,10 +1411,11 @@
     <div class="panel-row">
       <button class="btn btn-gold" id="btnAvisEnvoyer" type="button" data-tt-titre="Demander un avis" data-tt-desc="Envoie ces informations à l'assistant IA choisi pour obtenir un avis, une note et un prix indicatif.">💬 Demander un avis à ChatGPT</button>
     </div>
-    <div class="panel-row">
+    <p class="panel-note gemini-seul">Avec Gemini, la réponse revient directement : le commentaire, la note et le prix détectés s'affichent dans la fenêtre de vérification, sans passer par le presse-papier.</p>
+    <div class="panel-row presse-papier-seul">
       <button class="btn" id="btnAvisAppliquer" type="button" data-tt-titre="Appliquer la réponse au vin" data-tt-desc="Lit la réponse copiée depuis l'assistant IA pour compléter le commentaire, la note et le prix du vin, après vérification.">📥 Appliquer la réponse au vin</button>
     </div>
-    <p class="panel-note">Lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise pour compléter la fiche du vin ci-dessus : commentaire intégral, note et prix unitaire si détectés — après vérification, il ne reste qu'à Enregistrer.</p>
+    <p class="panel-note presse-papier-seul">Lit le texte actuellement dans le presse-papier (la réponse copiée depuis ChatGPT/Claude) et l'utilise pour compléter la fiche du vin ci-dessus : commentaire intégral, note et prix unitaire si détectés — après vérification, il ne reste qu'à Enregistrer.</p>
   </div>
 
   <div class="page-body" id="pageCorpsListe" style="display:none;">
@@ -1456,7 +1468,23 @@
       <div class="assistant-choices" id="assistantChoices">
         <div class="assistant-choice" data-key="chatgpt" data-tt-titre="ChatGPT" data-tt-desc="Utilise ChatGPT comme assistant IA pour l'identification par photo et les avis.">ChatGPT</div>
         <div class="assistant-choice" data-key="claude" data-tt-titre="Claude" data-tt-desc="Utilise Claude comme assistant IA pour l'identification par photo et les avis.">Claude</div>
+        <div class="assistant-choice" data-key="gemini" data-tt-titre="Gemini" data-tt-desc="Interroge Gemini directement depuis l'app : la photo part avec la question et la réponse revient sans copier-coller.">Gemini</div>
       </div>
+      <p class="panel-note gemini-seul">Gemini est le seul des trois à recevoir la photo directement : plus de copie dans le presse-papier, plus d'onglet à ouvrir, plus de réponse à recoller. Les boutons devenus inutiles disparaissent d'eux-mêmes.</p>
+    </div>
+    <div class="field" id="blocGemini" style="display:none;">
+      <label>Clé API Gemini</label>
+      <div class="panel-row">
+        <input type="password" id="paramCleGemini" class="input-cle-gemini" placeholder="AIza…" autocomplete="off" autocapitalize="off" spellcheck="false" data-tt-titre="Clé API Gemini" data-tt-desc="Clé personnelle utilisée pour interroger Gemini. Conservée sur cet appareil uniquement, jamais envoyée sur GitHub.">
+        <button class="btn btn-sm btn-ghost" id="btnVoirCleGemini" type="button" data-tt-titre="Afficher la clé" data-tt-desc="Affiche ou masque la clé saisie.">👁</button>
+      </div>
+      <p class="panel-note">Cette clé reste dans le stockage local de cet appareil et n'est jamais écrite dans cave-reglages.json : elle serait sinon publiée dans le dépôt GitHub. Elle est donc à saisir une fois sur chaque appareil (iMac, iPhone). Clé à créer sur aistudio.google.com/apikey ; si tu la restreins par référent, autorise l'adresse de cette page.</p>
+      <label>Modèle</label>
+      <select id="paramModeleGemini" class="select-champ-import" data-tt-titre="Modèle Gemini" data-tt-desc="Modèle interrogé. Flash répond vite, Pro est plus fin mais plus lent.">
+        <option value="gemini-2.5-flash">gemini-2.5-flash (rapide)</option>
+        <option value="gemini-2.5-pro">gemini-2.5-pro (plus fin, plus lent)</option>
+        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+      </select>
     </div>
     <div class="field">
       <div class="field-label-row">
@@ -1583,8 +1611,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.15.14";
+const VERSION = "1.16.0";
 const HISTORY = [
+  { version:"1.16.0", date:"2026-09-12", notes:"Gemini rejoint ChatGPT et Claude comme assistant IA, avec une différence de fond : il reçoit la photo directement dans la requête et rend sa réponse à l'app. Tout le parcours par le presse-papier disparaît donc quand il est choisi — plus de photo à copier, plus d'onglet à ouvrir, plus de réponse à recoller : un seul appui sur « Identifier avec Gemini » et la fenêtre de vérification habituelle (Nom, Domaine, Millésime, Région, Couleur, Étiquette) s'ouvre dès la réponse reçue, à confirmer comme avant. Même chose pour « Demander un avis à Gemini », qui remplit directement commentaire, note et prix. Les trois boutons devenus inutiles (« Appliquer la réponse à ce vin », « Créer un nouveau vin à partir de la réponse copiée », « Appliquer la réponse au vin ») sont masqués tant que Gemini est sélectionné, et réapparaissent tels quels avec ChatGPT ou Claude, dont le fonctionnement est inchangé. Nouveaux réglages dans Paramètres, visibles seulement quand Gemini est choisi : la clé API — conservée dans le stockage local de cet appareil et jamais écrite dans cave-reglages.json, qui est publié sur GitHub, donc à saisir une fois par appareil — et le choix du modèle (flash rapide ou pro plus fin), celui-ci synchronisé comme les autres réglages. Chaque étape de l'échange est tracée dans l'onglet Log, comme pour les deux autres assistants." },
   { version:"1.15.14", date:"2026-09-02", notes:"Réorganisation de « Sauvegarde Google Drive » en trois blocs clairement séparés (titres numérotés) : 1) Identifiants (Client ID, dossier, Enregistrer) ; 2) Connexion au compte Google — avec un nouveau bouton dédié « 🔌 Se connecter » (jusqu'ici, connecter ne se faisait qu'implicitement via Sauvegarder/Vérifier/Restaurer), une explication du décalage d'onglet propre à iPhone directement à cet endroit, et le statut de connexion rendu plus visible : rouge (⭕) si non connecté, vert et gras (✅) si connecté ; 3) Sauvegarder / vérifier / restaurer, regroupés ensemble avec Sauvegarder mis en avant sur sa propre ligne."},
   { version:"1.15.13", date:"2026-09-02", notes:"« Vérifier une sauvegarde Google Drive » et « Restaurer depuis Google Drive » manquaient de toute explication au clic (contrairement à « Sauvegarder »), et la liste affichée ne disait pas à quoi servaient ses deux boutons par entrée. Corrigé : un message explicatif s'affiche désormais avant de lancer la recherche, et un rappel permanent (« Vérifier compare sans rien changer · Restaurer remplace la cave, après confirmation ») reste visible en haut de la liste elle-même, pour que ce soit clair même après avoir fermé le premier message."},
   { version:"1.15.12", date:"2026-09-02", notes:"Nouveau bouton « 📥 Restaurer depuis Google Drive », à côté de « Vérifier » — signalé après confusion réelle : « Importer un fichier JSON » ouvrait le sélecteur de fichiers d'Apple, sans lien direct avec Google Drive (il reste volontairement en secours pour restaurer un fichier de n'importe quelle provenance — ancien export local, AirDrop…). Le nouveau bouton liste les sauvegardes récentes directement depuis l'API Google Drive, comme « Vérifier », et chaque entrée propose désormais les deux actions côte à côte : Vérifier (non destructif) ou Restaurer (remplace la cave après confirmation, avec le même contrôle de validité — rejet clair si ce n'est pas un fichier de cave à vin — que partout ailleurs)."},
@@ -1909,7 +1938,12 @@ const QUESTION_CHATGPT_DEFAUT = `À partir de la photo de l'étiquette donnée e
 let questionChatGPT = QUESTION_CHATGPT_DEFAUT;   // paramètre modifiable (page Paramètres), persistant via cave-reglages.json
 const QUESTION_AVIS_DEFAUT = "Que penses-tu de ce vin ? Termine ta réponse par deux lignes séparées, au format exact : « Note : X/5 » (ta note sur 5) et « Prix : Y € » (un prix indicatif au détail).";
 let questionAvisChatGPT = QUESTION_AVIS_DEFAUT;   // deuxième question modifiable (page Paramètres), persistante via cave-reglages.json
-let assistantIA = "chatgpt";   // "chatgpt" ou "claude" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
+let assistantIA = "chatgpt";   // "chatgpt", "claude" ou "gemini" — assistant utilisé pour l'identification par photo, persistant via cave-reglages.json
+const MODELE_GEMINI_DEFAUT = "gemini-2.5-flash";
+const LS_CLE_GEMINI = "cave_cle_gemini_v1";   // la clé API ne quitte JAMAIS cet appareil : elle est volontairement
+                                              // absente de cave-reglages.json, qui est publié dans le dépôt GitHub.
+let cleGemini = "";
+let modeleGemini = MODELE_GEMINI_DEFAUT;   // modèle interrogé — non sensible, donc synchronisé comme les autres réglages
 let limitationConsultationActive = false;   // si vrai, l'URL sans ?edition passe en consultation seule ; persistant via cave-reglages.json
 let forcerModeEdition = true;   // si vrai, le mode édition reste actif quoi qu'il arrive (même si GitHub s'avère injoignable au lancement) — coché par défaut ; persistant via cave-reglages.json
 let emplacementGaucheListe = [];   // valeurs proposées pour la partie gauche du champ Emplacement, persistantes via cave-reglages.json
@@ -2737,7 +2771,7 @@ function chargerReglagesLocal(){
 }
 function sauvegarderReglagesLocal(){
   try{
-    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
+    localStorage.setItem(LS_REGLAGES, JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, modeleGemini, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly }));
     masquerBanniereStockagePlein();
     return true;
   }catch(e){
@@ -2754,7 +2788,7 @@ async function pousserReglagesVersGitHub(){
     const getRes = await githubAPI(base + "?ref=" + encodeURIComponent(cfg.branche||"main"), cfg);
     if(getRes.status === 200){ sha = (await getRes.json()).sha; }
     else if(getRes.status !== 404){ throw new Error("lecture"); }
-    const contenu = JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
+    const contenu = JSON.stringify({ avecPhoto, modeCompact, utiliserMiniatures, questionChatGPT, questionAvisChatGPT, assistantIA, modeleGemini, limitationConsultationActive, forcerModeEdition, emplacementGaucheListe, emplacementDroiteListe, regionsListe, groupBy, sortKey, filtreStatut, filtreCouleur, filtreMarque, filtreApogeeOnly, maj: new Date().toISOString() }, null, 2);
     const body = { message: "Préférences de la cave à vin", content: btoa(unescape(encodeURIComponent(contenu))), branch: cfg.branche||"main" };
     if(sha) body.sha = sha;
     const putRes = await githubAPI(base, cfg, { method:"PUT", body: JSON.stringify(body) });
@@ -3780,11 +3814,113 @@ function lancerIdentificationIA(promesseSource){
     toast("Échec de la copie dans le presse-papier — recopie la photo manuellement si besoin");
   }
 }
+/* ===================== GEMINI (réponse directe, sans presse-papier) =====================
+   Contrairement à ChatGPT et Claude, qui imposent d'ouvrir un onglet, d'y coller la photo puis de
+   rapporter la réponse par le presse-papier, l'API Gemini accepte l'image dans la requête elle-même
+   et rend son texte à l'app. Tout le parcours tient donc en un seul geste : la fenêtre de
+   vérification habituelle s'ouvre dès la réponse reçue, et rien n'est enregistré avant confirmation. */
+async function appelerGemini(question, dataUrlImage){
+  if(!cleGemini) throw new Error("Aucune clé API Gemini sur cet appareil — renseigne-la dans Paramètres.");
+  const parts = [];
+  if(question) parts.push({ text: question });
+  if(dataUrlImage){
+    const decoupe = /^data:([^;]+);base64,(.*)$/.exec(dataUrlImage);
+    if(!decoupe) throw new Error("Photo au format inattendu, impossible à joindre");
+    parts.push({ inline_data: { mime_type: decoupe[1], data: decoupe[2] } });
+    logAjouter(`Gemini — image jointe : ${decoupe[1]}, ~${Math.round(decoupe[2].length * 0.75 / 1024)} Ko.`);
+  }
+  const modele = modeleGemini || MODELE_GEMINI_DEFAUT;
+  logAjouter(`Gemini — appel du modèle ${modele} · question ${question ? question.length : 0} caractère(s) · image ${dataUrlImage ? "oui" : "non"}.`);
+  const depart = Date.now();
+  let reponse;
+  try{
+    reponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${encodeURIComponent(cleGemini)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts }] })
+    });
+  }catch(e){
+    throw new Error("Réseau indisponible : " + (e && e.message ? e.message : String(e)));
+  }
+  let donnees = null;
+  try{ donnees = await reponse.json(); }catch(e){ donnees = null; }
+  if(!reponse.ok){
+    const detail = donnees && donnees.error && donnees.error.message ? donnees.error.message : "HTTP " + reponse.status;
+    logAjouter("→ Gemini a refusé la requête : " + detail);
+    throw new Error(detail);
+  }
+  let texte = "";
+  try{
+    texte = (donnees.candidates[0].content.parts || []).map(p => p.text || "").join("").trim();
+  }catch(e){ texte = ""; }
+  logAjouter(`Gemini — réponse en ${((Date.now() - depart) / 1000).toFixed(1)}s : ${texte.length} caractère(s). Début : "${texte.slice(0, 120).replace(/\n/g, " / ")}${texte.length > 120 ? "…" : ""}"`);
+  if(!texte) throw new Error("Réponse vide — détail : " + JSON.stringify(donnees).slice(0, 300));
+  return texte;
+}
+
+/* Ouvre la fenêtre de vérification habituelle (la même que pour le parcours presse-papier) avec les
+   champs extraits d'une réponse Gemini. modeMiseAJour=true applique à la fiche ouverte, false crée un vin. */
+function ouvrirVerificationSections(sections, modeMiseAJour){
+  verifTexteModeMiseAJour = modeMiseAJour;
+  document.getElementById("verifTexteTitre").textContent = modeMiseAJour ? "Vérifier avant de mettre à jour ce vin" : "Vérifier avant de créer le vin";
+  document.getElementById("verifTexteNote").textContent = modeMiseAJour
+    ? "Voici ce que Gemini a répondu — corrige si besoin avant d'appliquer à la fiche de ce vin (rien n'est encore enregistré). Un champ resté vide ci-dessous ne modifiera pas la valeur déjà présente sur la fiche."
+    : "Voici ce que Gemini a répondu — corrige si besoin avant de créer la fiche.";
+  document.getElementById("btnConfirmerVerifTexte").textContent = modeMiseAJour ? "Mettre à jour ce vin" : "Créer le vin";
+  document.getElementById("verifTexteNom").value = sections.nom;
+  document.getElementById("verifTexteDomaine").value = sections.domaine;
+  document.getElementById("verifTexteMillesime").value = sections.millesime;
+  document.getElementById("verifTexteRegion").value = sections.region;
+  document.getElementById("verifTexteCouleur").value = sections.couleur;
+  document.getElementById("verifTexteEtiquette").value = sections.etiquette;
+  document.getElementById("overlayVerifTexte").classList.add("show");
+}
+
+async function identifierAvecGemini(promesseSource, modeMiseAJour, bouton){
+  if(!cleGemini){
+    logAjouter("→ Gemini : aucune clé API enregistrée sur cet appareil, arrêt.");
+    alerteHorodatee("Aucune clé API Gemini sur cet appareil.\n\nOuvre Paramètres, saisis-la, puis Enregistre. Elle reste sur cet appareil et n'est jamais envoyée sur GitHub — elle est donc à saisir une fois par appareil.");
+    return;
+  }
+  let source = "";
+  try{ source = await promesseSource; }catch(e){ source = ""; }
+  if(!source){
+    logAjouter("→ Gemini : aucune photo exploitable, arrêt.");
+    toast("Aucune photo disponible");
+    return;
+  }
+  const libelleInitial = bouton ? bouton.textContent : "";
+  if(bouton){ bouton.disabled = true; bouton.textContent = "⏳ Gemini regarde la photo…"; }
+  toast("Photo envoyée à Gemini…");
+  try{
+    const texte = await appelerGemini(questionChatGPT || QUESTION_CHATGPT_DEFAUT, source);
+    const sections = extraireSectionsReponseIA(texte);
+    logAjouter(`Extraction (Gemini) — nom="${sections.nom}" · domaine="${sections.domaine}" · millesime="${sections.millesime}" · region="${sections.region}" · couleur="${sections.couleur}" · etiquette=${sections.etiquette.length}c`);
+    if(!sections.nom && !sections.domaine && !sections.etiquette){
+      // Même prudence que pour le presse-papier : pas de fenêtre de vérification vide, qui une fois
+      // confirmée viderait les champs de la fiche.
+      logAjouter("→ Rien d'exploitable dans la réponse Gemini, la fenêtre de vérification n'est PAS ouverte.");
+      alerteHorodatee("Gemini a répondu, mais sans les rubriques attendues (Nom : / Domaine : / Étiquette :).\n\nDébut de sa réponse :\n" + texte.slice(0, 400));
+      return;
+    }
+    ouvrirVerificationSections(sections, modeMiseAJour);
+  }catch(e){
+    logAjouter("→ Échec Gemini : " + (e && e.message ? e.message : String(e)));
+    alerteHorodatee("Gemini n'a pas pu répondre.\n\n" + (e && e.message ? e.message : String(e)));
+  }finally{
+    if(bouton){ bouton.disabled = false; bouton.textContent = libelleInitial; }
+  }
+}
+
 document.getElementById("btnIdentifierChatGPT").addEventListener("click", function(){
   logAjouter(`Clic « Identifier avec ${assistantIA} » — ficheEnCours=${ficheEnCours} · ${etatPhotoPourLog()}`);
   if(!photoEnCoursPendante && !photoEnCoursMiniature && !photoEnCoursFichier){
     logAjouter("→ Aucune photo disponible, arrêt.");
     toast("Aucune photo à envoyer pour ce vin");
+    return;
+  }
+  if(assistantIA === "gemini"){
+    identifierAvecGemini(meilleureSourcePourChatGPT(), true, this);
     return;
   }
   lancerIdentificationIA(meilleureSourcePourChatGPT());
@@ -3838,6 +3974,13 @@ document.getElementById("saisiePhotoInput").addEventListener("change", function(
 });
 document.getElementById("btnSaisieIdentifier").addEventListener("click", function(){
   if(!saisiePhotoDataUrl){ toast("Prends d'abord une photo"); return; }
+  logAjouter(`Clic « Identifier avec ${assistantIA} » depuis la Saisie rapide — photo ${saisiePhotoDataUrl.length}o.`);
+  if(assistantIA === "gemini"){
+    // modeMiseAJour=false : la confirmation créera une nouvelle fiche, à laquelle la photo utilisée
+    // pour l'identification est attachée, exactement comme par le parcours presse-papier.
+    identifierAvecGemini(Promise.resolve(saisiePhotoDataUrl), false, this);
+    return;
+  }
   lancerIdentificationIA(Promise.resolve(saisiePhotoDataUrl));
 });
 
@@ -4592,8 +4735,11 @@ document.getElementById("btnGenererPdfRegions").addEventListener("click", functi
 });
 
 /* ===================== PAGE PARAMÈTRES ===================== */
+function nomAssistant(){
+  return assistantIA === "claude" ? "Claude" : assistantIA === "gemini" ? "Gemini" : "ChatGPT";
+}
 function majLibelleAssistant(){
-  const nom = assistantIA === "claude" ? "Claude" : "ChatGPT";
+  const nom = nomAssistant();
   const texte = "🤖 Identifier avec " + nom;
   const btn = document.getElementById("btnIdentifierChatGPT");
   if(btn) btn.textContent = texte;
@@ -4601,6 +4747,15 @@ function majLibelleAssistant(){
   if(btnSaisie) btnSaisie.textContent = texte;
   const btnAvis = document.getElementById("btnAvisEnvoyer");
   if(btnAvis) btnAvis.textContent = "💬 Demander un avis à " + nom;
+  // Avec Gemini, la réponse revient dans l'app : tous les éléments du parcours presse-papier
+  // disparaissent (classe posée sur <body>, pour ne pas entrer en conflit avec les autres
+  // règles d'affichage de ces boutons, qui dépendent par ailleurs de la présence d'une photo).
+  document.body.classList.toggle("ia-gemini", assistantIA === "gemini");
+  const desc = assistantIA === "gemini"
+    ? "Envoie la photo et la question à Gemini, qui répond directement dans l'app."
+    : "Copie la photo dans le presse-papier et ouvre l'assistant IA choisi pour identifier le vin.";
+  if(btn) btn.setAttribute("data-tt-desc", desc);
+  if(btnSaisie) btnSaisie.setAttribute("data-tt-desc", desc);
 }
 /* Recalcule MODE_EDITION à partir de l'URL et de la limitation, puis (dés)applique le verrouillage de la
    fiche et l'affichage des boutons/panneaux d'édition. Réversible : peut être rappelée à tout moment
@@ -4839,6 +4994,10 @@ function ouvrirApercuDefautQuestion(champId, texteDefaut){
   document.getElementById("defautQuestionTexte").value = texteDefaut;
   document.getElementById("overlayDefautQuestion").classList.add("show");
 }
+document.getElementById("btnVoirCleGemini").addEventListener("click", ()=>{
+  const champ = document.getElementById("paramCleGemini");
+  champ.type = champ.type === "password" ? "text" : "password";
+});
 document.getElementById("btnInitQuestionChatGPT").addEventListener("click", ()=>{
   ouvrirApercuDefautQuestion("paramQuestionChatGPT", QUESTION_CHATGPT_DEFAUT);
 });
@@ -4859,6 +5018,11 @@ function selectionnerAssistant(cle){
   document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
     el.classList.toggle("active", el.dataset.key === cle);
   });
+  // La clé et le modèle n'ont de sens que pour Gemini : le bloc suit la sélection en cours dans la
+  // page, avant même Enregistrer, pour pouvoir saisir la clé dans la foulée du choix.
+  const bloc = document.getElementById("blocGemini");
+  if(bloc) bloc.style.display = cle === "gemini" ? "" : "none";
+  document.body.classList.toggle("ia-gemini", cle === "gemini");
 }
 document.querySelectorAll("#assistantChoices .assistant-choice").forEach(el=>{
   el.addEventListener("click", ()=>selectionnerAssistant(el.dataset.key));
@@ -4911,11 +5075,47 @@ document.getElementById("btnAvisEnvoyer").addEventListener("click", ()=>{
   const base = questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
   const partieMillesime = millesime ? ` (millésime ${millesime})` : "";
   const question = base + ` Le vin dont il est question s'appelle « ${nom} »${partieMillesime} et le domaine est « ${domaine} » et sur l'étiquette on peut lire les informations suivantes « ${etiquette} ».`;
+  if(assistantIA === "gemini"){
+    demanderAvisAGemini(question, this);
+    return;
+  }
   const url = assistantIA === "claude"
     ? "https://claude.ai/new?q=" + encodeURIComponent(question)
     : "https://chatgpt.com/?q=" + encodeURIComponent(question);
   window.open(url, "_blank");
 });
+
+/* Avis par Gemini : la réponse revient directement et remplit la fenêtre de vérification habituelle
+   (commentaire intégral, note et prix extraits), sans passer par le presse-papier. */
+async function demanderAvisAGemini(question, bouton){
+  if(!cleGemini){
+    logAjouter("→ Avis Gemini : aucune clé API enregistrée sur cet appareil, arrêt.");
+    alerteHorodatee("Aucune clé API Gemini sur cet appareil.\n\nOuvre Paramètres, saisis-la, puis Enregistre.");
+    return;
+  }
+  if(!avisVinCourantId || !bottles.some(x=>x.id===avisVinCourantId)){
+    toast("Charge d'abord un vin (icône 📝 sur une carte)");
+    return;
+  }
+  const libelleInitial = bouton ? bouton.textContent : "";
+  if(bouton){ bouton.disabled = true; bouton.textContent = "⏳ Gemini rédige son avis…"; }
+  toast("Question envoyée à Gemini…");
+  try{
+    const texte = await appelerGemini(question, null);
+    const texteNettoye = texte.replace(/\*\*/g, "").replace(/__/g, "").trim();
+    const { note, prix } = extraireNoteEtPrix(texte);
+    logAjouter(`Avis Gemini — commentaire ${texteNettoye.length}c · note=${note !== null ? note : "non détectée"} · prix=${prix !== null ? prix : "non détecté"}`);
+    document.getElementById("verifAvisCommentaire").value = texteNettoye;
+    document.getElementById("verifAvisNote").value = note !== null ? note : "";
+    document.getElementById("verifAvisPrix").value = prix !== null ? prix : "";
+    document.getElementById("overlayVerifAvis").classList.add("show");
+  }catch(e){
+    logAjouter("→ Échec de l'avis Gemini : " + (e && e.message ? e.message : String(e)));
+    alerteHorodatee("Gemini n'a pas pu répondre.\n\n" + (e && e.message ? e.message : String(e)));
+  }finally{
+    if(bouton){ bouton.disabled = false; bouton.textContent = libelleInitial; }
+  }
+}
 
 /* Extrait les sections « Note : » et « Prix : » d'une réponse d'IA (même robustesse au gras Markdown
    que extraireSectionsReponseIA). Note ramenée à un entier 0-5, prix ramené à un nombre (virgule ou point). */
@@ -4987,6 +5187,9 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
   document.getElementById("paramQuestionChatGPT").value = questionChatGPT;
   document.getElementById("paramQuestionAvis").value = questionAvisChatGPT;
   selectionnerAssistant(assistantIA);
+  document.getElementById("paramCleGemini").value = cleGemini;
+  document.getElementById("paramCleGemini").type = "password";
+  document.getElementById("paramModeleGemini").value = modeleGemini;
   document.getElementById("paramLimitationConsultation").checked = limitationConsultationActive;
   document.getElementById("paramForcerModeEdition").checked = forcerModeEdition;
   document.getElementById("paramUtiliserMiniatures").checked = utiliserMiniatures;
@@ -4999,6 +5202,9 @@ document.getElementById("btnOuvrirParametres").addEventListener("click", ()=>{
 });
 document.getElementById("btnFermerParametres").addEventListener("click", ()=>{
   document.getElementById("pageParametres").style.display = "none";
+  // Un choix d'assistant touché puis abandonné sans Enregistrer ne doit pas laisser l'interface
+  // dans l'état de ce choix : on la réaligne sur l'assistant réellement en vigueur.
+  majLibelleAssistant();
 });
 document.getElementById("btnApercuConsultation").addEventListener("click", ()=>{
   window.open(location.origin + location.pathname + "?apercu", "_blank");
@@ -5012,6 +5218,16 @@ document.getElementById("btnEnregistrerParametres").addEventListener("click", fu
   document.getElementById("paramQuestionAvis").value = questionAvisChatGPT;
   const choixActif = document.querySelector("#assistantChoices .assistant-choice.active");
   assistantIA = choixActif ? choixActif.dataset.key : "chatgpt";
+  // La clé Gemini est enregistrée à part, en local uniquement : elle ne doit jamais se retrouver
+  // dans cave-reglages.json, qui part sur GitHub. Le modèle, lui, n'a rien de sensible.
+  cleGemini = document.getElementById("paramCleGemini").value.trim();
+  try{
+    if(cleGemini) localStorage.setItem(LS_CLE_GEMINI, cleGemini);
+    else localStorage.removeItem(LS_CLE_GEMINI);
+  }catch(e){
+    toast("Clé Gemini non conservée : stockage local indisponible");
+  }
+  modeleGemini = document.getElementById("paramModeleGemini").value || MODELE_GEMINI_DEFAUT;
   majLibelleAssistant();
   limitationConsultationActive = document.getElementById("paramLimitationConsultation").checked;
   forcerModeEdition = document.getElementById("paramForcerModeEdition").checked;
@@ -6228,9 +6444,13 @@ async function initialiserSynchronisationGitHub(){
       questionAvisChatGPT = distant.questionAvisChatGPT;
       changement = true;
     }
-    if((distant.assistantIA === "claude" || distant.assistantIA === "chatgpt") && distant.assistantIA !== assistantIA){
+    if(["claude", "chatgpt", "gemini"].includes(distant.assistantIA) && distant.assistantIA !== assistantIA){
       assistantIA = distant.assistantIA;
       majLibelleAssistant();
+      changement = true;
+    }
+    if(typeof distant.modeleGemini === "string" && distant.modeleGemini && distant.modeleGemini !== modeleGemini){
+      modeleGemini = distant.modeleGemini;
       changement = true;
     }
     if(typeof distant.limitationConsultationActive === "boolean" && distant.limitationConsultationActive !== limitationConsultationActive){
@@ -6762,7 +6982,9 @@ modeCompact = reglagesLocaux.modeCompact === true;
 utiliserMiniatures = reglagesLocaux.utiliserMiniatures === true;
 questionChatGPT = reglagesLocaux.questionChatGPT || QUESTION_CHATGPT_DEFAUT;
 questionAvisChatGPT = reglagesLocaux.questionAvisChatGPT || QUESTION_AVIS_DEFAUT;
-assistantIA = reglagesLocaux.assistantIA === "claude" ? "claude" : "chatgpt";
+assistantIA = ["claude", "gemini"].includes(reglagesLocaux.assistantIA) ? reglagesLocaux.assistantIA : "chatgpt";
+modeleGemini = typeof reglagesLocaux.modeleGemini === "string" && reglagesLocaux.modeleGemini ? reglagesLocaux.modeleGemini : MODELE_GEMINI_DEFAUT;
+try{ cleGemini = localStorage.getItem(LS_CLE_GEMINI) || ""; }catch(e){ cleGemini = ""; }
 limitationConsultationActive = reglagesLocaux.limitationConsultationActive === true;
 forcerModeEdition = reglagesLocaux.forcerModeEdition !== undefined ? reglagesLocaux.forcerModeEdition : true;
 emplacementGaucheListe = Array.isArray(reglagesLocaux.emplacementGaucheListe) ? reglagesLocaux.emplacementGaucheListe : [];

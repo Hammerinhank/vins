@@ -132,7 +132,10 @@
      produirait un empilement de cadres aussi confus que l'absence de cadre. */
   .zone{
     max-width:960px;margin:0 auto 14px auto;
-    border:1px solid var(--line);border-radius:var(--radius-lg);
+    /* Liseré doré franc et épais : les versions translucides précédentes restaient invisibles sur
+       le fond sombre, en particulier sur l'écran du téléphone. */
+    border:2px solid var(--gold);
+    border-radius:var(--radius-lg);
     background:var(--bg-panel);
     overflow:hidden;
   }
@@ -144,7 +147,7 @@
   .zone-liste .toolbar{padding-left:0;padding-right:0;max-width:none;}
   /* Dernière ligne du bloc : séparée par un filet interne plutôt que par un cadre de plus. */
   .zone-liste .barre-affichage{
-    border-top:1px solid var(--line-soft);border-bottom:none;
+    border-top:1px solid rgba(201,162,39,.65);border-bottom:none;
     margin-bottom:0;padding-top:10px;padding-bottom:0;
   }
 
@@ -168,8 +171,8 @@
     display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;
   }
   .stat-card{
-    background:var(--bg-panel);
-    border:1px solid var(--line-soft);
+    background:var(--bg-card);
+    border:1px solid rgba(201,162,39,.45);
     border-radius:var(--radius);
     padding:12px 14px;
   }
@@ -1734,8 +1737,10 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.18.0";
+const VERSION = "1.18.2";
 const HISTORY = [
+  { version:"1.18.2", date:"2026-09-12", notes:"Liserés encore renforcés : les zones sont cernées d'un trait doré plein de 2 px, au lieu du doré translucide de la version précédente qui restait trop discret sur le fond sombre. Le filet interne et le contour des cartes de chiffres sont remontés en proportion." },
+  { version:"1.18.1", date:"2026-09-12", notes:"Les liserés des deux zones étaient bien là, mais invisibles à l'écran : le brun sombre utilisé se confondait avec le fond. Ils passent en doré translucide, franchement perceptibles sans être criards, et le filet interne qui précède la ligne « Affichage » suit le même traitement. Les trois cartes de chiffres reçoivent aussi un contour léger et un fond légèrement distinct, pour ne plus flotter dans leur zone." },
   { version:"1.18.0", date:"2026-09-12", notes:"Trois corrections d'ergonomie sur la zone d'en-tête. Le bouton « + Ajouter un vin » quitte le voisinage immédiat du champ de recherche, où un appui par inadvertance était trop facile : il occupe maintenant l'espace resté libre en haut à droite, à côté des chiffres de la cave, sous forme d'un bouton presque carré au libellé sur deux lignes. Les cadres sont regroupés en deux zones cernées seulement — « la cave en un coup d'œil » (chiffres et bouton d'ajout) et « ce que j'affiche » (recherche, filtres, réglages d'affichage) — au lieu d'une bordure par ligne, qui aurait produit un empilement de cadres aussi confus que l'absence de cadre ; à l'intérieur de la seconde, les registres restent distingués par la forme des contrôles et par un filet interne avant la ligne d'affichage. Enfin, les textes en gris sont éclaircis (#A99C88 vers #CFC4B2, et le gris le plus discret de #7B7062 vers #A79B89) : l'ancien gris ressortait mal sur le fond sombre, en particulier au soleil ou sur l'écran du téléphone." },
   { version:"1.17.0", date:"2026-09-12", notes:"La zone au-dessus de la liste est réorganisée : elle empilait sans hiérarchie quatre choses de nature différente — la recherche, les filtres, les réglages d'affichage et le bouton d'ajout, noyé en bout de rangée alors que c'est l'action principale. Trois registres distincts désormais, chacun avec sa forme propre. Ligne 1 : la recherche et « + Ajouter un vin », seul bouton doré de la zone (pleine largeur sous la recherche sur iPhone). Ligne 2 : uniquement ce qui retire des vins de la liste — En cave / Historique / Toutes, À boire maintenant, couleur et marquage, ces deux dernières en pastilles arrondies qui se bordent d'or quand elles filtrent réellement. Ligne 3 : le regroupement, le tri, Avec photo et Vue compacte, repliés derrière un bouton « ⇅ Affichage » discret, avec leur état résumé à côté (« Par couleur · Ajout récent ») pour que rien ne soit perdu de vue ; le repli est conservé d'un lancement à l'autre sur l'appareil. Deux ajouts : un compteur « x vins · y bouteilles » du contenu réellement affiché, qui sépare naturellement les commandes de la liste, et un lien « Réinitialiser » qui n'apparaît que si un filtre est actif — les filtres étant persistés, on pouvait ouvrir l'app avec un filtre oublié et croire des vins disparus." },
   { version:"1.16.2", date:"2026-09-12", notes:"La clé API Gemini est désormais rangée dans le stockage local sous l'étiquette « gemini_api_key », déjà utilisée par mon app geminiPhoto, au lieu de « cave_cle_gemini_v1 » propre à cette app. Comme toutes mes apps sont servies depuis la même origine, elles partagent le même stockage local : la clé saisie dans l'une vaut maintenant pour toutes les autres, au lieu d'être à ressaisir dans chacune — et à ne corriger qu'à un seul endroit le jour où j'en change. La clé déjà enregistrée sous l'ancienne étiquette est reprise automatiquement au premier lancement, puis l'ancienne est effacée pour éviter deux exemplaires qui finiraient par diverger. Rien à ressaisir." },

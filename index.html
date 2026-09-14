@@ -177,6 +177,61 @@
   }
   .toolbar textarea{flex:1 1 160px;min-width:120px;}
   .toolbar select{flex:0 0 auto;}
+
+  /* --- Trois registres distincts au-dessus de la liste ---
+     La zone mélangeait recherche, filtres, réglages d'affichage et action principale, tous au même
+     poids visuel. Chaque registre a maintenant sa ligne et sa forme propre : champ et bouton plein
+     pour l'action, pastilles arrondies pour les filtres, texte discret pour l'affichage. */
+  .barre-recherche{padding-bottom:8px;}
+  .barre-recherche .btn-gold{flex:0 0 auto;}
+
+  .barre-filtres{padding-bottom:8px;row-gap:8px;}
+  .select-filtre{border-radius:999px !important;padding:8px 14px !important;}
+  /* Un filtre actif se voit : bordure dorée, texte accentué. Sans cela, un filtre laissé en place
+     d'une session à l'autre donne l'impression que des vins ont disparu. */
+  .select-filtre.actif{
+    border-color:var(--gold) !important;
+    color:var(--gold-soft);
+    font-weight:600;
+  }
+  .lien-reinit{
+    background:none;border:none;color:var(--text-muted);
+    font-size:12.5px;text-decoration:underline;text-underline-offset:3px;
+    padding:8px 4px;cursor:pointer;
+  }
+  .lien-reinit:hover{color:var(--gold-soft);}
+
+  .barre-affichage{
+    padding-bottom:10px;gap:10px;
+    border-bottom:1px solid var(--line-soft);
+    margin-bottom:14px;
+  }
+  .btn-affichage{
+    background:none;border:none;color:var(--text-muted);
+    font-size:12.5px;font-weight:600;letter-spacing:.03em;
+    padding:4px 0;cursor:pointer;white-space:nowrap;
+  }
+  .btn-affichage:hover, .btn-affichage[aria-expanded="true"]{color:var(--gold-soft);}
+  .resume-affichage{
+    font-size:12.5px;color:var(--text-muted);
+    flex:1 1 auto;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .compteur-liste{
+    font-size:12.5px;color:var(--text-muted);
+    flex:0 0 auto;white-space:nowrap;
+  }
+  .compteur-liste b{color:var(--text);font-weight:600;}
+  .panneau-affichage{
+    padding-top:0;padding-bottom:12px;margin-top:-8px;
+    row-gap:8px;
+  }
+  @media (max-width:520px){
+    /* Sur iPhone, l'action principale prend toute la largeur sous la recherche plutôt que de la
+       comprimer à quelques caractères. */
+    .barre-recherche{flex-wrap:wrap;}
+    .barre-recherche .btn-gold{flex:1 1 100%;justify-content:center;}
+  }
   .recherche-wrap{position:relative;flex:1 1 160px;min-width:120px;display:flex;}
   .recherche-wrap textarea{border-color:#F5D90A;padding-right:40px;}
   .btn-effacer-recherche{
@@ -901,12 +956,25 @@
 
 <div class="stats-bar" id="statsBar"></div>
 
-<div class="toolbar">
+<!-- Registre 1 : recherche et action principale. Seul bouton doré de la zone, détaché des filtres
+     pour redevenir immédiatement repérable. -->
+<div class="toolbar barre-recherche">
   <div class="recherche-wrap">
     <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)" data-tt-titre="Recherche" data-tt-desc="Filtre la liste par nom, domaine ou numéro de vin, insensible aux accents."></textarea>
     <button type="button" class="btn-effacer-recherche" id="btnEffacerRecherche" data-tt-titre="Effacer la recherche" data-tt-desc="Vide le champ de recherche.">✕</button>
   </div>
-  <select id="filtreCouleurSel" data-tt-titre="Filtrer par couleur" data-tt-desc="N'affiche que les vins de la couleur choisie.">
+  <button class="btn btn-gold action-edition" id="btnAjouter" type="button" data-tt-titre="Ajouter un vin" data-tt-desc="Ouvre une fiche vierge pour enregistrer un nouveau vin dans la cave.">+ Ajouter un vin</button>
+</div>
+
+<!-- Registre 2 : les filtres, c'est-à-dire tout ce qui RETIRE des vins de la liste. Le lien de
+     réinitialisation n'apparaît que si au moins un filtre est actif — utile depuis que les filtres
+     sont persistés d'une session à l'autre et qu'on peut en oublier un. -->
+<div class="toolbar barre-filtres" id="chipsToolbar">
+  <button class="chip-toggle active" data-statut="cave" type="button" data-tt-titre="En cave" data-tt-desc="N'affiche que les vins encore présents en cave (quantité restante &gt; 0).">En cave</button>
+  <button class="chip-toggle" data-statut="bue" type="button" data-tt-titre="Historique (bues)" data-tt-desc="N'affiche que les vins dont au moins une bouteille a été marquée comme bue.">Historique</button>
+  <button class="chip-toggle" data-statut="toutes" type="button" data-tt-titre="Toutes" data-tt-desc="Affiche tous les vins de la cave, en cave ou bus.">Toutes</button>
+  <button class="chip-toggle" id="chipApogee" type="button" data-tt-titre="À boire maintenant" data-tt-desc="N'affiche que les vins actuellement dans leur fenêtre d'apogée (prêts à boire).">🍷 À boire maintenant</button>
+  <select id="filtreCouleurSel" class="select-filtre" data-tt-titre="Filtrer par couleur" data-tt-desc="N'affiche que les vins de la couleur choisie.">
     <option value="toutes">Toutes couleurs</option>
     <option value="rouge">Rouge</option>
     <option value="blanc">Blanc</option>
@@ -917,11 +985,24 @@
     <option value="liquoreux">Liquoreux</option>
     <option value="autre">Autre</option>
   </select>
-  <select id="filtreMarqueSel" data-tt-titre="Filtrer par marquage" data-tt-desc="N'affiche que les vins marqués, non marqués, ou tous.">
+  <select id="filtreMarqueSel" class="select-filtre" data-tt-titre="Filtrer par marquage" data-tt-desc="N'affiche que les vins marqués, non marqués, ou tous.">
     <option value="tous" selected>Tous les vins</option>
     <option value="marques">Vins marqués seulement</option>
     <option value="non_marques">Vins non marqués seulement</option>
   </select>
+  <button class="lien-reinit" id="btnReinitFiltres" type="button" style="display:none;" data-tt-titre="Réinitialiser les filtres" data-tt-desc="Revient à l'affichage par défaut : tous les vins en cave, toutes couleurs, sans filtre de marquage ni d'apogée.">Réinitialiser</button>
+</div>
+
+<!-- Registre 3 : les réglages d'affichage, qu'on ne touche que rarement. Repliés derrière un seul
+     bouton, avec leur état résumé à côté pour que rien ne soit perdu de vue, et le compteur de la
+     liste qui sert de séparation naturelle avec le contenu. -->
+<div class="toolbar barre-affichage">
+  <button class="btn-affichage" id="btnBasculerAffichage" type="button" aria-expanded="false" data-tt-titre="Réglages d'affichage" data-tt-desc="Ouvre ou referme le regroupement, le tri et les options d'affichage de la liste.">⇅ Affichage</button>
+  <span class="resume-affichage" id="resumeAffichage"></span>
+  <span class="compteur-liste" id="compteurListe"></span>
+</div>
+
+<div class="toolbar panneau-affichage" id="panneauAffichage" style="display:none;">
   <select id="groupBySel" data-tt-titre="Regroupement" data-tt-desc="Choisit comment regrouper visuellement les vins de la liste. Ce choix est enregistré et synchronisé sur GitHub.">
     <option value="aucun">Ne pas regrouper</option>
     <option value="couleur" selected>Regrouper par couleur</option>
@@ -940,14 +1021,6 @@
     <option value="prix_asc">Prix croissant</option>
     <option value="apogee_asc">Apogée : à boire en premier</option>
   </select>
-  <button class="btn btn-gold action-edition" id="btnAjouter" type="button" data-tt-titre="Ajouter un vin" data-tt-desc="Ouvre une fiche vierge pour enregistrer un nouveau vin dans la cave.">+ Ajouter un vin</button>
-</div>
-
-<div class="toolbar" id="chipsToolbar">
-  <button class="chip-toggle active" data-statut="cave" type="button" data-tt-titre="En cave" data-tt-desc="N'affiche que les vins encore présents en cave (quantité restante &gt; 0).">En cave</button>
-  <button class="chip-toggle" data-statut="bue" type="button" data-tt-titre="Historique (bues)" data-tt-desc="N'affiche que les vins dont au moins une bouteille a été marquée comme bue.">Historique (bues)</button>
-  <button class="chip-toggle" data-statut="toutes" type="button" data-tt-titre="Toutes" data-tt-desc="Affiche tous les vins de la cave, en cave ou bus.">Toutes</button>
-  <button class="chip-toggle" id="chipApogee" type="button" data-tt-titre="À boire maintenant" data-tt-desc="N'affiche que les vins actuellement dans leur fenêtre d'apogée (prêts à boire).">🍷 À boire maintenant</button>
   <label class="checkbox-chip" for="avecPhotoCheckbox" data-tt-titre="Avec photo" data-tt-desc="Affiche automatiquement la miniature de chaque vin ayant une photo. Décochée, la photo n'apparaît qu'à la demande.">
     <input type="checkbox" id="avecPhotoCheckbox" checked>
     Avec photo
@@ -1615,8 +1688,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.16.2";
+const VERSION = "1.17.0";
 const HISTORY = [
+  { version:"1.17.0", date:"2026-09-12", notes:"La zone au-dessus de la liste est réorganisée : elle empilait sans hiérarchie quatre choses de nature différente — la recherche, les filtres, les réglages d'affichage et le bouton d'ajout, noyé en bout de rangée alors que c'est l'action principale. Trois registres distincts désormais, chacun avec sa forme propre. Ligne 1 : la recherche et « + Ajouter un vin », seul bouton doré de la zone (pleine largeur sous la recherche sur iPhone). Ligne 2 : uniquement ce qui retire des vins de la liste — En cave / Historique / Toutes, À boire maintenant, couleur et marquage, ces deux dernières en pastilles arrondies qui se bordent d'or quand elles filtrent réellement. Ligne 3 : le regroupement, le tri, Avec photo et Vue compacte, repliés derrière un bouton « ⇅ Affichage » discret, avec leur état résumé à côté (« Par couleur · Ajout récent ») pour que rien ne soit perdu de vue ; le repli est conservé d'un lancement à l'autre sur l'appareil. Deux ajouts : un compteur « x vins · y bouteilles » du contenu réellement affiché, qui sépare naturellement les commandes de la liste, et un lien « Réinitialiser » qui n'apparaît que si un filtre est actif — les filtres étant persistés, on pouvait ouvrir l'app avec un filtre oublié et croire des vins disparus." },
   { version:"1.16.2", date:"2026-09-12", notes:"La clé API Gemini est désormais rangée dans le stockage local sous l'étiquette « gemini_api_key », déjà utilisée par mon app geminiPhoto, au lieu de « cave_cle_gemini_v1 » propre à cette app. Comme toutes mes apps sont servies depuis la même origine, elles partagent le même stockage local : la clé saisie dans l'une vaut maintenant pour toutes les autres, au lieu d'être à ressaisir dans chacune — et à ne corriger qu'à un seul endroit le jour où j'en change. La clé déjà enregistrée sous l'ancienne étiquette est reprise automatiquement au premier lancement, puis l'ancienne est effacée pour éviter deux exemplaires qui finiraient par diverger. Rien à ressaisir." },
   { version:"1.16.1", date:"2026-09-12", notes:"Corrigé, signalé dès le premier essai réel : « Identifier avec Gemini » échouait sur une fiche existante avec « Unsupported MIME type: application/vnd.github.raw+json ». La photo récupérée depuis GitHub héritait du type MIME de la réponse d'API au lieu de celui de l'image — sans conséquence jusqu'ici, un <img> reconnaissant le JPEG à ses octets, mais rejeté net par l'API Gemini. Le type réel est désormais rétabli à la récupération (déduit de l'extension du fichier), avec en plus un garde-fou juste avant l'envoi qui corrige tout type non reconnu comme image. Sans effet sur la Saisie rapide, dont la photo venait directement de l'appareil et fonctionnait déjà. Par ailleurs : le bouton « Enregistrer » de la page Paramètres est dupliqué en haut de page, la page étant devenue longue — les deux boutons font exactement la même chose, affichent le même message d'état aux deux endroits et se désactivent ensemble pendant l'envoi." },
   { version:"1.16.0", date:"2026-09-12", notes:"Gemini rejoint ChatGPT et Claude comme assistant IA, avec une différence de fond : il reçoit la photo directement dans la requête et rend sa réponse à l'app. Tout le parcours par le presse-papier disparaît donc quand il est choisi — plus de photo à copier, plus d'onglet à ouvrir, plus de réponse à recoller : un seul appui sur « Identifier avec Gemini » et la fenêtre de vérification habituelle (Nom, Domaine, Millésime, Région, Couleur, Étiquette) s'ouvre dès la réponse reçue, à confirmer comme avant. Même chose pour « Demander un avis à Gemini », qui remplit directement commentaire, note et prix. Les trois boutons devenus inutiles (« Appliquer la réponse à ce vin », « Créer un nouveau vin à partir de la réponse copiée », « Appliquer la réponse au vin ») sont masqués tant que Gemini est sélectionné, et réapparaissent tels quels avec ChatGPT ou Claude, dont le fonctionnement est inchangé. Nouveaux réglages dans Paramètres, visibles seulement quand Gemini est choisi : la clé API — conservée dans le stockage local de cet appareil et jamais écrite dans cave-reglages.json, qui est publié sur GitHub, donc à saisir une fois par appareil — et le choix du modèle (flash rapide ou pro plus fin), celui-ci synchronisé comme les autres réglages. Chaque étape de l'échange est tracée dans l'onglet Log, comme pour les deux autres assistants." },
@@ -3048,9 +3122,52 @@ function carteBouteille(b){
   </div>`;
 }
 
+/* Libellé court d'une liste déroulante : « Ajout récent d'abord » devient « Ajout récent » une fois
+   replié, pour que le résumé tienne sur une ligne même sur iPhone. */
+function libelleCourt(select){
+  const opt = select.options[select.selectedIndex];
+  if(!opt) return "";
+  return opt.textContent.replace(/^Regrouper par /, "Par ").replace(/ d'abord$/, "").trim();
+}
+
+const LS_AFFICHAGE_OUVERT = "cave_affichage_ouvert_v1";   // simple confort d'interface, propre à l'appareil
+
+function basculerPanneauAffichage(ouvrir){
+  const panneau = document.getElementById("panneauAffichage");
+  const bouton = document.getElementById("btnBasculerAffichage");
+  panneau.style.display = ouvrir ? "" : "none";
+  bouton.setAttribute("aria-expanded", ouvrir ? "true" : "false");
+  try{ localStorage.setItem(LS_AFFICHAGE_OUVERT, ouvrir ? "1" : "0"); }catch(e){}
+}
+
+/* Met à jour tout ce qui reflète l'état de la zone : résumé des réglages repliés, compteur de la
+   liste affichée, mise en évidence des filtres actifs et présence du lien de réinitialisation.
+   Appelée depuis renderGrille, elle suit donc automatiquement chaque changement, y compris ceux
+   venus d'une synchronisation GitHub. */
+function majEtatBarres(liste){
+  const selCouleur = document.getElementById("filtreCouleurSel");
+  const selMarque = document.getElementById("filtreMarqueSel");
+  const couleurActive = selCouleur.value !== "toutes";
+  const marqueActive = selMarque.value !== "tous";
+  selCouleur.classList.toggle("actif", couleurActive);
+  selMarque.classList.toggle("actif", marqueActive);
+
+  const filtreEnCours = couleurActive || marqueActive || filtreApogeeOnly || filtreStatut !== "cave" || !!(recherche || "").trim();
+  document.getElementById("btnReinitFiltres").style.display = filtreEnCours ? "" : "none";
+
+  document.getElementById("resumeAffichage").textContent =
+    libelleCourt(document.getElementById("groupBySel")) + " · " + libelleCourt(document.getElementById("sortSel"));
+
+  const nbVins = liste.length;
+  const bouteilles = liste.reduce((somme, b)=> somme + (Number(b.quantite) || 0), 0);
+  document.getElementById("compteurListe").innerHTML =
+    `<b>${nbVins}</b> vin${nbVins > 1 ? "s" : ""} · <b>${bouteilles}</b> bouteille${bouteilles > 1 ? "s" : ""}`;
+}
+
 function renderGrille(){
   const list = bouteillesFiltrees();
   const wrap = document.getElementById("gridWrap");
+  majEtatBarres(list);
   if(!list.length){
     wrap.innerHTML = `<div class="empty-state"><h3>Aucun vin ici</h3><p>Ajuste les filtres, ou ajoute un vin à ta cave.</p></div>`;
     return;
@@ -4241,6 +4358,25 @@ document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(chi
     renderGrille();
     sauvegarderEtPousserReglages();
   });
+});
+document.getElementById("btnBasculerAffichage").addEventListener("click", function(){
+  basculerPanneauAffichage(this.getAttribute("aria-expanded") !== "true");
+});
+document.getElementById("btnReinitFiltres").addEventListener("click", ()=>{
+  filtreCouleur = "toutes";
+  filtreMarque = "tous";
+  filtreApogeeOnly = false;
+  filtreStatut = "cave";
+  recherche = "";
+  document.getElementById("filtreCouleurSel").value = "toutes";
+  document.getElementById("filtreMarqueSel").value = "tous";
+  document.getElementById("rechercheInput").value = "";
+  document.getElementById("btnEffacerRecherche").classList.remove("visible");
+  document.getElementById("chipApogee").classList.remove("active");
+  document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(c=>c.classList.toggle("active", c.dataset.statut === "cave"));
+  renderGrille();
+  sauvegarderEtPousserReglages();
+  toast("Filtres réinitialisés");
 });
 document.getElementById("chipApogee").addEventListener("click", function(){
   filtreApogeeOnly = !filtreApogeeOnly;
@@ -7050,6 +7186,7 @@ document.getElementById("sortSel").value = sortKey;
 document.getElementById("filtreCouleurSel").value = filtreCouleur;
 document.getElementById("filtreMarqueSel").value = filtreMarque;
 document.querySelectorAll("#chipsToolbar .chip-toggle[data-statut]").forEach(c=>c.classList.toggle("active", c.dataset.statut === filtreStatut));
+try{ basculerPanneauAffichage(localStorage.getItem(LS_AFFICHAGE_OUVERT) === "1"); }catch(e){ basculerPanneauAffichage(false); }
 document.getElementById("chipApogee").classList.toggle("active", filtreApogeeOnly);
 majLibelleAssistant();
 appliquerModeEdition();

@@ -166,10 +166,21 @@
   .btn-ajouter-carre:active{filter:brightness(.94);}
 
   /* ---------- Stats bar ---------- */
+  /* Deux colonnes fixes : à gauche les bouteilles en cave, carte la plus haute à cause de la
+     répartition par couleur ; à droite « Valeur estimée » et « À boire maintenant » superposées,
+     qui se partagent exactement la même hauteur. Plus de carte isolée renvoyée à la ligne. */
   .stats-bar{
     flex:1 1 auto;min-width:0;
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;
+    display:grid;
+    grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);
+    grid-auto-rows:1fr;
+    gap:10px;
   }
+  .stats-bar > .stat-card:first-child{grid-row:1 / span 2;}
+  /* La colonne de droite loge deux cartes dans la hauteur d'une seule : chiffres légèrement
+     réduits pour que « 1 034,00 € » tienne sur une ligne. */
+  .stats-bar > .stat-card:not(:first-child) .val{font-size:19px;}
+  .stats-bar > .stat-card:not(:first-child){padding:10px 12px;}
   .stat-card{
     background:var(--bg-card);
     border:1px solid rgba(201,162,39,.45);
@@ -265,9 +276,11 @@
     row-gap:8px;
   }
   @media (max-width:520px){
-    /* Écran étroit : les trois cartes de chiffres passent sur deux colonnes, le bouton d'ajout
-       garde sa place à droite. */
-    .stats-bar{grid-template-columns:repeat(2,1fr);}
+    /* Écran étroit : mêmes deux colonnes, caractères resserrés pour que la colonne de droite
+       reste lisible malgré la place prise par le bouton d'ajout. */
+    .stats-bar{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:8px;}
+    .stats-bar > .stat-card:not(:first-child) .val{font-size:16px;}
+    .stats-bar > .stat-card:not(:first-child) .lbl{font-size:10px;}
     .btn-ajouter-carre{flex-basis:92px;min-height:88px;font-size:13px;}
   }
   .recherche-wrap{position:relative;flex:1 1 160px;min-width:120px;display:flex;}
@@ -1737,8 +1750,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.18.2";
+const VERSION = "1.18.3";
 const HISTORY = [
+  { version:"1.18.3", date:"2026-09-12", notes:"Les trois cartes de chiffres se répartissaient au fil de la place disponible, « À boire maintenant » se retrouvant seule sur une deuxième ligne et laissant un grand vide. Disposition fixe désormais : à gauche « Bouteilles en cave », la plus haute puisqu'elle porte la répartition par couleur ; à droite « Valeur estimée » et « À boire maintenant » superposées, qui se partagent exactement sa hauteur, avec des chiffres légèrement réduits pour tenir sans déborder ; et le bouton d'ajout inchangé en troisième colonne." },
   { version:"1.18.2", date:"2026-09-12", notes:"Liserés encore renforcés : les zones sont cernées d'un trait doré plein de 2 px, au lieu du doré translucide de la version précédente qui restait trop discret sur le fond sombre. Le filet interne et le contour des cartes de chiffres sont remontés en proportion." },
   { version:"1.18.1", date:"2026-09-12", notes:"Les liserés des deux zones étaient bien là, mais invisibles à l'écran : le brun sombre utilisé se confondait avec le fond. Ils passent en doré translucide, franchement perceptibles sans être criards, et le filet interne qui précède la ligne « Affichage » suit le même traitement. Les trois cartes de chiffres reçoivent aussi un contour léger et un fond légèrement distinct, pour ne plus flotter dans leur zone." },
   { version:"1.18.0", date:"2026-09-12", notes:"Trois corrections d'ergonomie sur la zone d'en-tête. Le bouton « + Ajouter un vin » quitte le voisinage immédiat du champ de recherche, où un appui par inadvertance était trop facile : il occupe maintenant l'espace resté libre en haut à droite, à côté des chiffres de la cave, sous forme d'un bouton presque carré au libellé sur deux lignes. Les cadres sont regroupés en deux zones cernées seulement — « la cave en un coup d'œil » (chiffres et bouton d'ajout) et « ce que j'affiche » (recherche, filtres, réglages d'affichage) — au lieu d'une bordure par ligne, qui aurait produit un empilement de cadres aussi confus que l'absence de cadre ; à l'intérieur de la seconde, les registres restent distingués par la forme des contrôles et par un filet interne avant la ligne d'affichage. Enfin, les textes en gris sont éclaircis (#A99C88 vers #CFC4B2, et le gris le plus discret de #7B7062 vers #A79B89) : l'ancien gris ressortait mal sur le fond sombre, en particulier au soleil ou sur l'écran du téléphone." },

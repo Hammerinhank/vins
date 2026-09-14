@@ -19,8 +19,8 @@
     --gold:#C9A227;
     --gold-soft:#E8CE7A;
     --text:#EDE3D2;
-    --text-muted:#A99C88;
-    --text-faint:#7B7062;
+    --text-muted:#CFC4B2;   /* éclairci : l'ancien #A99C88 se lisait mal sur le fond sombre */
+    --text-faint:#A79B89;   /* éclairci : ancien #7B7062 */
     --rouge:#7A2331;
     --blanc:#DFCB86;
     --rose:#D98CA0;
@@ -126,10 +126,46 @@
     border-radius:var(--radius);
   }
 
+  /* ---------- Zones cernées ----------
+     Deux blocs seulement, chacun cerné d'un liseré : « la cave en un coup d'œil » (chiffres et
+     bouton d'ajout) et « ce que j'affiche » (recherche, filtres, réglages). Une bordure par ligne
+     produirait un empilement de cadres aussi confus que l'absence de cadre. */
+  .zone{
+    max-width:960px;margin:0 auto 14px auto;
+    border:1px solid var(--line);border-radius:var(--radius-lg);
+    background:var(--bg-panel);
+    overflow:hidden;
+  }
+  .zone-entete{
+    display:flex;gap:10px;align-items:center;
+    padding:12px;
+  }
+  .zone-liste{padding:12px 12px 10px 12px;}
+  .zone-liste .toolbar{padding-left:0;padding-right:0;max-width:none;}
+  /* Dernière ligne du bloc : séparée par un filet interne plutôt que par un cadre de plus. */
+  .zone-liste .barre-affichage{
+    border-top:1px solid var(--line-soft);border-bottom:none;
+    margin-bottom:0;padding-top:10px;padding-bottom:0;
+  }
+
+  /* Bouton d'ajout : déplacé dans l'espace libre en haut à droite, loin du champ de recherche où
+     un appui malencontreux était trop facile. Libellé sur deux lignes pour une forme carrée. */
+  .btn-ajouter-carre{
+    flex:0 0 104px;align-self:center;
+    min-height:96px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    background:linear-gradient(160deg,var(--gold-soft),var(--gold));
+    color:#1c1710;border:none;border-radius:var(--radius);
+    font-size:14px;font-weight:700;line-height:1.25;text-align:center;
+    padding:10px 8px;cursor:pointer;
+  }
+  .btn-ajouter-carre .plus{font-size:22px;line-height:1;font-weight:600;}
+  .btn-ajouter-carre:active{filter:brightness(.94);}
+
   /* ---------- Stats bar ---------- */
   .stats-bar{
-    max-width:960px;margin:0 auto;padding:0 16px 14px 16px;
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;
+    flex:1 1 auto;min-width:0;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;
   }
   .stat-card{
     background:var(--bg-panel);
@@ -182,8 +218,7 @@
      La zone mélangeait recherche, filtres, réglages d'affichage et action principale, tous au même
      poids visuel. Chaque registre a maintenant sa ligne et sa forme propre : champ et bouton plein
      pour l'action, pastilles arrondies pour les filtres, texte discret pour l'affichage. */
-  .barre-recherche{padding-bottom:8px;}
-  .barre-recherche .btn-gold{flex:0 0 auto;}
+  .barre-recherche{padding-bottom:10px;}
 
   .barre-filtres{padding-bottom:8px;row-gap:8px;}
   .select-filtre{border-radius:999px !important;padding:8px 14px !important;}
@@ -223,14 +258,14 @@
   }
   .compteur-liste b{color:var(--text);font-weight:600;}
   .panneau-affichage{
-    padding-top:0;padding-bottom:12px;margin-top:-8px;
+    padding-top:10px;padding-bottom:0;
     row-gap:8px;
   }
   @media (max-width:520px){
-    /* Sur iPhone, l'action principale prend toute la largeur sous la recherche plutôt que de la
-       comprimer à quelques caractères. */
-    .barre-recherche{flex-wrap:wrap;}
-    .barre-recherche .btn-gold{flex:1 1 100%;justify-content:center;}
+    /* Écran étroit : les trois cartes de chiffres passent sur deux colonnes, le bouton d'ajout
+       garde sa place à droite. */
+    .stats-bar{grid-template-columns:repeat(2,1fr);}
+    .btn-ajouter-carre{flex-basis:92px;min-height:88px;font-size:13px;}
   }
   .recherche-wrap{position:relative;flex:1 1 160px;min-width:120px;display:flex;}
   .recherche-wrap textarea{border-color:#F5D90A;padding-right:40px;}
@@ -954,16 +989,25 @@
 
 <div class="consultation-banner" id="stockagePleinBanner"></div>
 
-<div class="stats-bar" id="statsBar"></div>
+<div class="zone">
+  <div class="zone-entete">
+    <div class="stats-bar" id="statsBar"></div>
+    <button class="btn-ajouter-carre action-edition" id="btnAjouter" type="button" data-tt-titre="Ajouter un vin" data-tt-desc="Ouvre une fiche vierge pour enregistrer un nouveau vin dans la cave.">
+      <span class="plus">+</span>
+      <span>Ajouter<br>un vin</span>
+    </button>
+  </div>
+</div>
 
-<!-- Registre 1 : recherche et action principale. Seul bouton doré de la zone, détaché des filtres
-     pour redevenir immédiatement repérable. -->
+<!-- Zone 2 : tout ce qui détermine le contenu de la liste — recherche, filtres, réglages
+     d'affichage. Un seul liseré autour de l'ensemble, les registres restant distingués par la
+     forme des contrôles et un filet interne avant la dernière ligne. -->
+<div class="zone zone-liste">
 <div class="toolbar barre-recherche">
   <div class="recherche-wrap">
     <textarea id="rechercheInput" class="champ-ligne-unique" rows="1" placeholder="Rechercher (nom, domaine, N°…)" data-tt-titre="Recherche" data-tt-desc="Filtre la liste par nom, domaine ou numéro de vin, insensible aux accents."></textarea>
     <button type="button" class="btn-effacer-recherche" id="btnEffacerRecherche" data-tt-titre="Effacer la recherche" data-tt-desc="Vide le champ de recherche.">✕</button>
   </div>
-  <button class="btn btn-gold action-edition" id="btnAjouter" type="button" data-tt-titre="Ajouter un vin" data-tt-desc="Ouvre une fiche vierge pour enregistrer un nouveau vin dans la cave.">+ Ajouter un vin</button>
 </div>
 
 <!-- Registre 2 : les filtres, c'est-à-dire tout ce qui RETIRE des vins de la liste. Le lien de
@@ -996,7 +1040,7 @@
 <!-- Registre 3 : les réglages d'affichage, qu'on ne touche que rarement. Repliés derrière un seul
      bouton, avec leur état résumé à côté pour que rien ne soit perdu de vue, et le compteur de la
      liste qui sert de séparation naturelle avec le contenu. -->
-<div class="toolbar barre-affichage">
+<div class="toolbar barre-affichage" id="barreAffichage">
   <button class="btn-affichage" id="btnBasculerAffichage" type="button" aria-expanded="false" data-tt-titre="Réglages d'affichage" data-tt-desc="Ouvre ou referme le regroupement, le tri et les options d'affichage de la liste.">⇅ Affichage</button>
   <span class="resume-affichage" id="resumeAffichage"></span>
   <span class="compteur-liste" id="compteurListe"></span>
@@ -1029,6 +1073,8 @@
     <input type="checkbox" id="modeCompactCheckbox">
     ☰ Vue compacte
   </label>
+</div>
+
 </div>
 
 <div class="grid-wrap" id="gridWrap"></div>
@@ -1688,8 +1734,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.17.0";
+const VERSION = "1.18.0";
 const HISTORY = [
+  { version:"1.18.0", date:"2026-09-12", notes:"Trois corrections d'ergonomie sur la zone d'en-tête. Le bouton « + Ajouter un vin » quitte le voisinage immédiat du champ de recherche, où un appui par inadvertance était trop facile : il occupe maintenant l'espace resté libre en haut à droite, à côté des chiffres de la cave, sous forme d'un bouton presque carré au libellé sur deux lignes. Les cadres sont regroupés en deux zones cernées seulement — « la cave en un coup d'œil » (chiffres et bouton d'ajout) et « ce que j'affiche » (recherche, filtres, réglages d'affichage) — au lieu d'une bordure par ligne, qui aurait produit un empilement de cadres aussi confus que l'absence de cadre ; à l'intérieur de la seconde, les registres restent distingués par la forme des contrôles et par un filet interne avant la ligne d'affichage. Enfin, les textes en gris sont éclaircis (#A99C88 vers #CFC4B2, et le gris le plus discret de #7B7062 vers #A79B89) : l'ancien gris ressortait mal sur le fond sombre, en particulier au soleil ou sur l'écran du téléphone." },
   { version:"1.17.0", date:"2026-09-12", notes:"La zone au-dessus de la liste est réorganisée : elle empilait sans hiérarchie quatre choses de nature différente — la recherche, les filtres, les réglages d'affichage et le bouton d'ajout, noyé en bout de rangée alors que c'est l'action principale. Trois registres distincts désormais, chacun avec sa forme propre. Ligne 1 : la recherche et « + Ajouter un vin », seul bouton doré de la zone (pleine largeur sous la recherche sur iPhone). Ligne 2 : uniquement ce qui retire des vins de la liste — En cave / Historique / Toutes, À boire maintenant, couleur et marquage, ces deux dernières en pastilles arrondies qui se bordent d'or quand elles filtrent réellement. Ligne 3 : le regroupement, le tri, Avec photo et Vue compacte, repliés derrière un bouton « ⇅ Affichage » discret, avec leur état résumé à côté (« Par couleur · Ajout récent ») pour que rien ne soit perdu de vue ; le repli est conservé d'un lancement à l'autre sur l'appareil. Deux ajouts : un compteur « x vins · y bouteilles » du contenu réellement affiché, qui sépare naturellement les commandes de la liste, et un lien « Réinitialiser » qui n'apparaît que si un filtre est actif — les filtres étant persistés, on pouvait ouvrir l'app avec un filtre oublié et croire des vins disparus." },
   { version:"1.16.2", date:"2026-09-12", notes:"La clé API Gemini est désormais rangée dans le stockage local sous l'étiquette « gemini_api_key », déjà utilisée par mon app geminiPhoto, au lieu de « cave_cle_gemini_v1 » propre à cette app. Comme toutes mes apps sont servies depuis la même origine, elles partagent le même stockage local : la clé saisie dans l'une vaut maintenant pour toutes les autres, au lieu d'être à ressaisir dans chacune — et à ne corriger qu'à un seul endroit le jour où j'en change. La clé déjà enregistrée sous l'ancienne étiquette est reprise automatiquement au premier lancement, puis l'ancienne est effacée pour éviter deux exemplaires qui finiraient par diverger. Rien à ressaisir." },
   { version:"1.16.1", date:"2026-09-12", notes:"Corrigé, signalé dès le premier essai réel : « Identifier avec Gemini » échouait sur une fiche existante avec « Unsupported MIME type: application/vnd.github.raw+json ». La photo récupérée depuis GitHub héritait du type MIME de la réponse d'API au lieu de celui de l'image — sans conséquence jusqu'ici, un <img> reconnaissant le JPEG à ses octets, mais rejeté net par l'API Gemini. Le type réel est désormais rétabli à la récupération (déduit de l'extension du fichier), avec en plus un garde-fou juste avant l'envoi qui corrige tout type non reconnu comme image. Sans effet sur la Saisie rapide, dont la photo venait directement de l'appareil et fonctionnait déjà. Par ailleurs : le bouton « Enregistrer » de la page Paramètres est dupliqué en haut de page, la page étant devenue longue — les deux boutons font exactement la même chose, affichent le même message d'état aux deux endroits et se désactivent ensemble pendant l'envoi." },

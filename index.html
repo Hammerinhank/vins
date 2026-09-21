@@ -1750,8 +1750,9 @@
 "use strict";
 
 /* ===================== VERSION & HISTORIQUE ===================== */
-const VERSION = "1.18.3";
+const VERSION = "1.19.0";
 const HISTORY = [
+  { version:"1.19.0", date:"2026-09-21", notes:"Dépôt pré-rempli : utilisateur Hammerinhank, dépôt vins, branche main — toujours modifiables dans Paramètres. La cave, les réglages, les photos, la liste des versions et la vérification de mise à jour se lisent sur GitHub sans jeton ; le jeton ne sert plus qu'à enregistrer. Sans jeton, l'app ne se croit plus « hors ligne » : elle charge la cave et l'état de synchronisation indique « Lecture seule » ; les modifications restent sur l'appareil jusqu'à l'ajout d'un jeton." },
   { version:"1.18.3", date:"2026-09-12", notes:"Les trois cartes de chiffres se répartissaient au fil de la place disponible, « À boire maintenant » se retrouvant seule sur une deuxième ligne et laissant un grand vide. Disposition fixe désormais : à gauche « Bouteilles en cave », la plus haute puisqu'elle porte la répartition par couleur ; à droite « Valeur estimée » et « À boire maintenant » superposées, qui se partagent exactement sa hauteur, avec des chiffres légèrement réduits pour tenir sans déborder ; et le bouton d'ajout inchangé en troisième colonne." },
   { version:"1.18.2", date:"2026-09-12", notes:"Liserés encore renforcés : les zones sont cernées d'un trait doré plein de 2 px, au lieu du doré translucide de la version précédente qui restait trop discret sur le fond sombre. Le filet interne et le contour des cartes de chiffres sont remontés en proportion." },
   { version:"1.18.1", date:"2026-09-12", notes:"Les liserés des deux zones étaient bien là, mais invisibles à l'écran : le brun sombre utilisé se confondait avec le fond. Ils passent en doré translucide, franchement perceptibles sans être criards, et le filet interne qui précède la ligne « Affichage » suit le même traitement. Les trois cartes de chiffres reçoivent aussi un contour léger et un fond légèrement distinct, pour ne plus flotter dans leur zone." },
@@ -2832,7 +2833,7 @@ function meilleureMiniature(b){
 }
 async function obtenirPhotoDepuisGitHub(cheminFichier){
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token || !cheminFichier) return null;
+  if(!cfg.user || !cfg.repo || !cheminFichier) return null;
   try{
     // Média « raw » : contourne la limite de 1 Mo de l'API JSON standard (au-delà, celle-ci renvoie un
     // contenu vide malgré un statut 200) et évite le passage par base64 côté JSON.
@@ -2900,11 +2901,18 @@ async function supprimerPhotoDistante(chemin){
     return delRes.ok;
   }catch(e){ return false; }
 }
+/* Dépôt par défaut : lisible par tous sans jeton, le jeton ne servant qu'à écrire. */
+const GH_DEFAUT = { user:"Hammerinhank", repo:"vins", branche:"main" };
 function chargerConfig(){
+  let c = {};
   try{
     const raw = localStorage.getItem(LS_CONFIG);
-    return raw ? JSON.parse(raw) : {};
-  }catch(e){ return {}; }
+    c = raw ? (JSON.parse(raw) || {}) : {};
+  }catch(e){ c = {}; }
+  if(!c.user) c.user = GH_DEFAUT.user;
+  if(!c.repo) c.repo = GH_DEFAUT.repo;
+  if(!c.branche) c.branche = GH_DEFAUT.branche;
+  return c;
 }
 function sauvegarderConfig(cfg){
   // IMPORTANT : sans ce try/catch, un stockage saturé provoquait une exception non interceptée qui
@@ -2964,7 +2972,7 @@ async function pousserReglagesVersGitHub(){
    de fichier. */
 async function recupererReglagesDepuisGitHub(){
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token) return { ok:false, data:null, motif:"GitHub non configuré" };
+  if(!cfg.user || !cfg.repo) return { ok:false, data:null, motif:"GitHub non configuré" };
   try{
     const base = `https://api.github.com/repos/${cfg.user}/${cfg.repo}/contents/${encodeURIComponent(CHEMIN_REGLAGES)}?ref=${encodeURIComponent(cfg.branche||"main")}`;
     const res = await githubAPI(base, cfg, { headers: { "Accept": "application/vnd.github.raw+json" } });
@@ -5585,7 +5593,7 @@ async function verifierNouvelleVersionDisponible(){
   }
   const badge = document.getElementById("versionBadge");
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token){
+  if(!cfg.user || !cfg.repo){
     badge.classList.remove("appui-long-ok");
     majBadgeVersion();
     toast("Configure d'abord la synchronisation GitHub (Paramètres) pour utiliser cette vérification");
@@ -6162,8 +6170,8 @@ function remplirChampsConfig(){
 }
 function lireChampsConfig(){
   return {
-    user: document.getElementById("cfgUser").value.trim(),
-    repo: document.getElementById("cfgRepo").value.trim(),
+    user: document.getElementById("cfgUser").value.trim() || GH_DEFAUT.user,
+    repo: document.getElementById("cfgRepo").value.trim() || GH_DEFAUT.repo,
     branche: document.getElementById("cfgBranche").value.trim() || "main",
     chemin: document.getElementById("cfgChemin").value.trim() || "cave.json",
     token: document.getElementById("cfgToken").value.trim()
@@ -6225,9 +6233,10 @@ document.getElementById("btnSaveGdriveCfg").addEventListener("click", function()
 async function githubAPI(url, cfg, options){
   options = options || {};
   options.headers = Object.assign({
-    "Authorization": "Bearer " + cfg.token,
     "Accept": "application/vnd.github+json"
   }, options.headers||{});
+  // Sans jeton, GitHub accepte les lectures d'un dépôt public : l'en-tête n'est ajouté qu'avec un jeton.
+  if(cfg.token) options.headers["Authorization"] = "Bearer " + cfg.token;
   if(!options.cache) options.cache = "no-store"; // évite qu'une lecture juste après une écriture renvoie une réponse mise en cache par le navigateur (fausse impression d'échec)
   const res = await fetch(url, options);
   return res;
@@ -6255,8 +6264,8 @@ async function lancerEnvoiVersGitHub(){
   const statusEl = document.getElementById("syncStatus");
   logAjouter(`lancerEnvoiVersGitHub() appelé — user="${cfg.user}" · repo="${cfg.repo}" · branche="${cfg.branche}" · chemin="${cfg.chemin}" · jeton présent=${cfg.token ? "oui" : "non"} · bottles.length=${bottles.length}`);
   if(!cfg.user || !cfg.repo || !cfg.token){
-    logAjouter("→ ARRÊT : configuration GitHub incomplète.");
-    toast("Renseigne utilisateur, dépôt et jeton");
+    logAjouter("→ ARRÊT : configuration GitHub incomplète (" + (!cfg.token ? "aucun jeton" : "utilisateur ou dépôt manquant") + ").");
+    toast(!cfg.token ? "Un jeton GitHub est nécessaire pour enregistrer (la lecture fonctionne sans)" : "Renseigne utilisateur et dépôt");
     marquerErreurSynchro();
     return;
   }
@@ -6326,8 +6335,8 @@ async function envoyerDirectementVersGitHub(){
   const statusEl = document.getElementById("syncStatus");
   logAjouter(`envoyerDirectementVersGitHub() appelé — bottles.length=${bottles.length}, ${totalBouteillesReel(bottles)} bouteille(s).`);
   if(!cfg.user || !cfg.repo || !cfg.token){
-    logAjouter("→ ARRÊT : configuration GitHub incomplète.");
-    toast("Renseigne utilisateur, dépôt et jeton");
+    logAjouter("→ ARRÊT : configuration GitHub incomplète (" + (!cfg.token ? "aucun jeton" : "utilisateur ou dépôt manquant") + ").");
+    toast(!cfg.token ? "Un jeton GitHub est nécessaire pour enregistrer (la lecture fonctionne sans)" : "Renseigne utilisateur et dépôt");
     alerteHorodatee("⚠️ Envoi impossible\n\nLa configuration GitHub (utilisateur, dépôt ou jeton) est incomplète. Rien n'a été envoyé.");
     marquerErreurSynchro();
     return;
@@ -6514,9 +6523,9 @@ document.getElementById("closeConflitSync").addEventListener("click", ()=>docume
 async function chargerCaveDepuisGitHub(){
   const cfg = chargerConfig();
 
-  if(!cfg.user || !cfg.repo || !cfg.token){
+  if(!cfg.user || !cfg.repo){
     logAjouter("Chargement au lancement impossible : configuration GitHub incomplète.");
-    return { ok:false, motif:"GitHub non configuré (utilisateur/dépôt/jeton manquant)" };
+    return { ok:false, motif:"GitHub non configuré (utilisateur/dépôt manquant)" };
   }
 
   try{
@@ -6567,6 +6576,16 @@ async function chargerCaveDepuisGitHub(){
      choisir explicitement. Si la version GitHub n'a pas changé depuis la dernière synchro connue, ce
      n'est pas un vrai conflit : les modifications locales sont simplement conservées telles quelles. */
 async function initialiserSynchronisationGitHub(){
+  await initialiserSynchronisationGitHubComplete();
+  // Données lues sans jeton : on le signale, sans prétendre que GitHub est injoignable.
+  // (Le mode d'édition reste régi par le réglage « Forcer le mode édition ».)
+  if(!chargerConfig().token && !verrouConsultationForcee){
+    logAjouter("→ Aucun jeton GitHub sur cet appareil : cave lue sur GitHub, enregistrement impossible sans jeton.");
+    const statusEl = document.getElementById("syncStatus");
+    if(statusEl) statusEl.textContent = "Lecture seule : cave lue sur GitHub. Sans jeton, tes modifications restent sur cet appareil — ajoute un jeton dans Paramètres pour les enregistrer.";
+  }
+}
+async function initialiserSynchronisationGitHubComplete(){
   const [resCave, resReglages] = await Promise.all([
     chargerCaveDepuisGitHub(),
     recupererReglagesDepuisGitHub()
@@ -6757,7 +6776,7 @@ async function initialiserSynchronisationGitHub(){
 
 document.getElementById("btnPull").addEventListener("click", async function(){
   const cfg = lireChampsConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token){ toast("Renseigne utilisateur, dépôt et jeton"); return; }
+  if(!cfg.user || !cfg.repo){ toast("Renseigne utilisateur et dépôt"); return; }
   const btn = this;
   btn.disabled = true;
   const statusEl = document.getElementById("syncStatus");
@@ -6941,9 +6960,9 @@ function attacherBoutonsRestaurerVersions(conteneur){
 async function listerVersionsSauvegardees(perPage, page, btn, accumuler, supportePagination){
   const conteneur = document.getElementById("versionsListe");
   const cfg = chargerConfig();
-  if(!cfg.user || !cfg.repo || !cfg.token){
+  if(!cfg.user || !cfg.repo){
     toast("Configuration GitHub incomplète");
-    journalAjouter("ARRÊT (liste des versions) : configuration GitHub incomplète (utilisateur, dépôt ou jeton manquant).");
+    journalAjouter("ARRÊT (liste des versions) : configuration GitHub incomplète (utilisateur ou dépôt manquant).");
     return;
   }
   btn.disabled = true;
